@@ -1,0 +1,110 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useData } from '../context/DataContext'
+import { parseKey, todayKey } from '../lib/date'
+import { volumeOf } from '../lib/date'
+import { fmtNumber } from '../lib/helpers'
+import type { Session } from '../types'
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+]
+
+function monthGrid(year: number, month: number): (string | null)[] {
+  const first = new Date(Date.UTC(year, month, 1))
+  const startDow = first.getUTCDay()
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  const cells: (string | null)[] = []
+  for (let i = 0; i < startDow; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'))
+  }
+  return cells
+}
+
+export default function History() {
+  const { sessions } = useData()
+  const navigate = useNavigate()
+
+  const t = parseKey(todayKey())
+  const [viewYear, setViewYear] = useState(t.getUTCFullYear())
+  const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
+
+  const cells = monthGrid(viewYear, viewMonth)
+
+  function shift(delta: number) {
+    let m = viewMonth + delta
+    let y = viewYear
+    if (m < 0) { m = 11; y-- }
+    if (m > 11) { m = 0; y++ }
+    setViewMonth(m)
+    setViewYear(y)
+  }
+
+  const list = sessions.slice().sort((a, b) => (b.date < a.date ? -1 : 1))
+
+  return (
+    <div className="page">
+      <div className="page-title">Riwayat</div>
+      <div className="subtitle">Kalender latihan</div>
+
+      <div className="card">
+        <div className="cal-head">
+          <button onClick={() => shift(-1)}>‹</button>
+          <b>{MONTHS[viewMonth]} {viewYear}</b>
+          <button onClick={() => shift(1)}>›</button>
+        </div>
+        <div className="cal-grid">
+          {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((d, i) => (
+            <div className="cal-dow" key={i}>{d}</div>
+          ))}
+          {cells.map((key, i) => {
+            if (!key) return <div className="cal-cell empty" key={i} />
+            const has = sessions.some((s) => s.date === key)
+            const isToday = key === todayKey()
+            return (
+              <div
+                key={i}
+                className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '')}
+              >
+                {Number(key.slice(8, 10))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="row spread">
+        <div className="card-title">Sesi latihan</div>
+        <span className="small muted">{list.filter((s) => s.date === todayKey()).length} hari ini</span>
+      </div>
+
+      {list.length === 0 ? (
+        <div className="card empty">Belum ada sesi. Mulai dari tab Hari ini.</div>
+      ) : (
+        list.slice(0, 20).map((s) => <SessionRow key={s.id} s={s} onOpen={() => navigate(`/session/${s.id}`)} />)
+      )}
+    </div>
+  )
+}
+
+function SessionRow({ s, onOpen }: { s: Session; onOpen: () => void }) {
+  const vol = volumeOf(s.sets)
+  const topKg = s.sets.reduce((m, x) => Math.max(m, x.weightKg), 0)
+  const name = s.planName || 'Sesi bebas'
+  return (
+    <div className="card" onClick={onOpen} style={{ cursor: 'pointer' }}>
+      <div className="row spread">
+        <b>{name}</b>
+        <span className="small muted">{s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
+      </div>
+      <div className="row" style={{ marginTop: 8, gap: 6 }}>
+        <span className="badge">{s.sets.length} set</span>
+        <span className="badge">{fmtNumber(vol)} kg volume</span>
+        {topKg > 0 && <span className="badge accent">Top {fmtNumber(topKg)} kg</span>}
+        {s.note && <span className="small muted">“{s.note.length > 40 ? s.note.slice(0, 40) + '…' : s.note}”</span>}
+      </div>
+    </div>
+  )
+}

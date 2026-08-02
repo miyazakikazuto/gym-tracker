@@ -1,0 +1,163 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth, useUid } from '../context/AuthContext'
+import { useData } from '../context/DataContext'
+import { getAuthInstance } from '../lib/firebase'
+import { DAY_NAMES, type WorkoutPlan } from '../types'
+import { todayKey, addDays, dayOfWeek } from '../lib/date'
+import { createSession } from '../lib/gymstore'
+import type { Session } from '../types'
+import PlanEditor from '../components/PlanEditor'
+
+function DayStrip({
+  days,
+  base,
+  sessions,
+}: {
+  days: string[]
+  base: string
+  sessions: Session[]
+}) {
+  return (
+    <div className="day-strip">
+      {days.map((key) => {
+        const dow = dayOfWeek(key)
+        const dd = key.slice(8, 10)
+        const hasSession = sessions.some((s) => s.date === key && s.endedAt)
+        const isToday = key === base
+        const short = dow === 1 ? 'Sen' : DAY_NAMES[dow].slice(0, 3)
+        return (
+          <div className={'day-chip' + (isToday ? ' today' : '') + (hasSession ? ' done' : '')} key={key}>
+            <div className="dow">{short}</div>
+            <div className="dnum">{dd}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function Today() {
+  const { user } = useAuth()
+  const uid = useUid()
+  const navigate = useNavigate()
+  const { plans, exercises, sessions, ready } = useData()
+  const [showPlan, setShowPlan] = useState(false)
+
+  const base = todayKey()
+  const weekStart = addDays(base, -dayOfWeek(base))
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const nowDow = dayOfWeek(base)
+
+  const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
+  const todaySessions = sessions.filter((s) => s.date === base)
+  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
+
+  async function createAndOpen(plan: WorkoutPlan | undefined | null) {
+    const data: Omit<Session, 'id'> = {
+      date: base,
+      planId: plan?.id ?? null,
+      planName: plan?.name ?? 'Sesi bebas',
+      note: '',
+      startedAt: Date.now(),
+      endedAt: null,
+      sets: (plan?.items ?? []).map((it, i) => ({
+        id: Math.random().toString(36).slice(2, 9),
+        exerciseId: it.exerciseId,
+        setNumber: i + 1,
+        weightKg: 0,
+        reps: it.reps,
+      })),
+    }
+    const ref = await createSession(uid, data)
+    navigate(`/session/${ref.id}`)
+  }
+
+  function handleStart() {
+    if (activeSession) {
+      navigate(`/session/${activeSession.id}`)
+      return
+    }
+    if (todayPlan) {
+      void createAndOpen(todayPlan)
+    } else {
+      setShowPlan(true)
+    }
+  }
+
+  return (
+    <div className="page">
+      <div className="row spread">
+        <div>
+          <div className="page-title">Gym Tracker</div>
+          <div className="subtitle">Hari ini · {user?.email?.split('@')[0]}</div>
+        </div>
+        <button className="icon-btn" title="Logout" onClick={() => getAuthInstance().signOut()}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      <DayStrip days={days} base={base} sessions={sessions} />
+
+      <div className="row spread">
+        <div className="card-title" style={{ marginTop: 6 }}>Sesi</div>
+        <button className="btn sm ghost" onClick={() => setShowPlan(true)}>Kelola jadwal</button>
+      </div>
+
+      {!ready ? (
+        <div className="empty">Memuat…</div>
+      ) : (
+        <>
+          {todayPlan && (
+            <div className="card">
+              <div className="card-title">
+                <span>Jadwal: {todayPlan.name}</span>
+                <span className="badge accent">{DAY_NAMES[nowDow]}</span>
+              </div>
+              {todayPlan.items.map((it, i) => {
+                const ex = exercises.find((e) => e.id === it.exerciseId)
+                return (
+                  <div className="row" key={i} style={{ padding: '6px 0' }}>
+                    <span className="num">{i + 1}.</span>
+                    <span className="grow">{ex?.name ?? 'Gerakan'}</span>
+                    <span className="badge">{it.targetSets} × {it.reps}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {todaySessions.length > 0 && (
+            <div className="card">
+              <div className="card-title">Sesi hari ini</div>
+              {todaySessions.map((s) => (
+                <div className="list-item" key={s.id}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{s.planName}</div>
+                    <div className="small muted">
+                      {s.sets.length} set · {s.endedAt ? 'Selesai' : 'Berjalan'}
+                    </div>
+                  </div>
+                  <button className="btn sm accent" onClick={() => navigate(`/session/${s.id}`)}>
+                    {s.endedAt ? 'Lihat' : 'Lanjut'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button className="btn primary wide" onClick={handleStart}>
+            {activeSession ? 'Lanjutkan sesi hari ini' : todayPlan ? 'Mulai sesi hari ini' : 'Atur jadwal & mulai'}
+          </button>
+          <button className="btn ghost wide" onClick={() => void createAndOpen(null)} style={{ marginTop: 8 }}>
+            Mulai sesi bebas
+          </button>
+        </>
+      )}
+
+      {showPlan && <PlanEditor onClose={() => setShowPlan(false)} />}
+    </div>
+  )
+}
