@@ -16,7 +16,7 @@ import type {
 } from '../types'
 
 export function userGymRef(uid: string, sub: string) {
-  return collection(getDb(), 'users', uid, 'gym', sub)
+  return collection(getDb(), 'users', uid, sub)
 }
 
 // ===== EXERCISES =====
@@ -36,11 +36,11 @@ export async function createExercise(uid: string, data: Omit<Exercise, 'id'>) {
 }
 
 export async function updateExercise(uid: string, id: string, data: Omit<Exercise, 'id'>) {
-  return updateDoc(doc(getDb(), 'users', uid, 'gym', 'exercises', id), data as object)
+  return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), data as object)
 }
 
 export async function deleteExercise(uid: string, id: string) {
-  return deleteDoc(doc(getDb(), 'users', uid, 'gym', 'exercises', id))
+  return deleteDoc(doc(getDb(), 'users', uid, 'exercises', id))
 }
 
 // ===== PLANS =====
@@ -60,11 +60,11 @@ export async function createPlan(uid: string, data: Omit<WorkoutPlan, 'id'>) {
 }
 
 export async function updatePlan(uid: string, id: string, data: Omit<WorkoutPlan, 'id'>) {
-  return updateDoc(doc(getDb(), 'users', uid, 'gym', 'plans', id), data as object)
+  return updateDoc(doc(getDb(), 'users', uid, 'plans', id), data as object)
 }
 
 export async function deletePlan(uid: string, id: string) {
-  return deleteDoc(doc(getDb(), 'users', uid, 'gym', 'plans', id))
+  return deleteDoc(doc(getDb(), 'users', uid, 'plans', id))
 }
 
 // ===== SESSIONS =====
@@ -87,11 +87,11 @@ export async function createSession(uid: string, data: Omit<Session, 'id'>) {
 }
 
 export async function updateSession(uid: string, id: string, fields: Partial<Session>) {
-  return updateDoc(doc(getDb(), 'users', uid, 'gym', 'sessions', id), fields as object)
+  return updateDoc(doc(getDb(), 'users', uid, 'sessions', id), fields as object)
 }
 
 export async function deleteSession(uid: string, id: string) {
-  return deleteDoc(doc(getDb(), 'users', uid, 'gym', 'sessions', id))
+  return deleteDoc(doc(getDb(), 'users', uid, 'sessions', id))
 }
 
 // sets are stored inline inside session.sets
