@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName } from '../lib/helpers'
+import { getExerciseName, lastSetResult } from '../lib/helpers'
 import type { SessionSet } from '../types'
 
 export default function Session() {
@@ -134,31 +134,34 @@ export default function Session() {
             <span style={{ width: 60, textAlign: 'center' }}>Rep</span>
             <span style={{ width: 32 }} />
           </div>
-          {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => (
-            <div className="set-row" key={s.id}>
-              <span className="num">{s.setNumber}</span>
-              <input
-                className="wt"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step={0.5}
-                value={s.weightKg || ''}
-                placeholder="0"
-                onChange={(e) => patchSet(s.id, { weightKg: Number(e.target.value) })}
-              />
-              <input
-                className="wt"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={s.reps || ''}
-                placeholder="0"
-                onChange={(e) => patchSet(s.id, { reps: Number(e.target.value) })}
-              />
-              <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
-            </div>
-          ))}
+          {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
+            const prev = lastSetResult(sessions, sid, exId, s.setNumber)
+            return (
+              <div className="set-row" key={s.id}>
+                <span className="num">{s.setNumber}</span>
+                <input
+                  className="wt"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.5}
+                  value={s.weightKg || ''}
+                  placeholder={prev ? String(prev.weightKg) : '0'}
+                  onChange={(e) => patchSet(s.id, { weightKg: Number(e.target.value) })}
+                />
+                <input
+                  className="wt"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={s.reps || ''}
+                  placeholder={prev ? String(prev.reps) : '0'}
+                  onChange={(e) => patchSet(s.id, { reps: Number(e.target.value) })}
+                />
+                <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
+              </div>
+            )
+          })}
         </div>
       ))}
 

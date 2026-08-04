@@ -1,7 +1,23 @@
-import type { Exercise } from '../types'
+import type { Exercise, Session } from '../types'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
   return exercises.find((e) => e.id === id)?.name ?? 'Gerakan'
+}
+
+export function lastSetResult(
+  sessions: Session[],
+  excludeId: string,
+  exerciseId: string,
+  setNumber: number,
+): { weightKg: number; reps: number } | null {
+  const finished = sessions
+    .filter((s) => s.id !== excludeId && s.endedAt !== null)
+    .sort((a, b) => (b.date < a.date ? -1 : 1) || b.startedAt - a.startedAt)
+  for (const s of finished) {
+    const set = s.sets.find((x) => x.exerciseId === exerciseId && x.setNumber === setNumber)
+    if (set && set.weightKg > 0) return { weightKg: set.weightKg, reps: set.reps }
+  }
+  return null
 }
 
 export function groupSetsByExercise(
