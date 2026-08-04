@@ -85,14 +85,21 @@ export default function History() {
             const has = sessions.some((s) => s.date === key)
             const isToday = key === todayKey()
             return (
-              <button
+              <div
                 key={i}
+                role="button"
+                tabIndex={0}
                 className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '')}
-                style={{ border: 'none', cursor: 'pointer', width: '100%', background: 'transparent' }}
                 onClick={() => setSelKey(key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelKey(key)
+                  }
+                }}
               >
                 {Number(key.slice(8, 10))}
-              </button>
+              </div>
             )
           })}
         </div>

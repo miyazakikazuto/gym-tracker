@@ -228,6 +228,7 @@ body {
   aspect-ratio: 1;
   border-radius: 10px;
   background: var(--bg2);
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
