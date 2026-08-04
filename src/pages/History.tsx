@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
-import { parseKey, todayKey } from '../lib/date'
+import { useUid } from '../context/AuthContext'
+import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
+import { buildSession, createSession } from '../lib/gymstore'
 import { fmtNumber } from '../lib/helpers'
-import type { Session } from '../types'
+import type { Session, WorkoutPlan } from '../types'
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
@@ -24,12 +26,16 @@ function monthGrid(year: number, month: number): (string | null)[] {
 }
 
 export default function History() {
-  const { sessions } = useData()
+  const { sessions, plans } = useData()
+  const uid = useUid()
   const navigate = useNavigate()
 
   const t = parseKey(todayKey())
   const [viewYear, setViewYear] = useState(t.getUTCFullYear())
   const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
+  const [selKey, setSelKey] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
 
   const cells = monthGrid(viewYear, viewMonth)
 
@@ -43,11 +49,26 @@ export default function History() {
   }
 
   const list = sessions.slice().sort((a, b) => (b.date < a.date ? -1 : 1))
+  const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
+
+  async function handleCreate(plan: WorkoutPlan | null) {
+    if (!selKey) return
+    setCreating(true)
+    setError('')
+    try {
+      const ref = await createSession(uid, buildSession(plan, selKey))
+      setSelKey(null)
+      navigate(`/session/${ref.id}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="page">
       <div className="page-title">Riwayat</div>
-      <div className="subtitle">Kalender latihan</div>
+      <div className="subtitle">Kalender latihan — ketuk tanggal untuk buka sesi / tambah data lama</div>
 
       <div className="card">
         <div className="cal-head">
@@ -64,12 +85,14 @@ export default function History() {
             const has = sessions.some((s) => s.date === key)
             const isToday = key === todayKey()
             return (
-              <div
+              <button
                 key={i}
                 className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '')}
+                style={{ border: 'none', cursor: 'pointer', width: '100%', background: 'transparent' }}
+                onClick={() => setSelKey(key)}
               >
                 {Number(key.slice(8, 10))}
-              </div>
+              </button>
             )
           })}
         </div>
@@ -81,9 +104,69 @@ export default function History() {
       </div>
 
       {list.length === 0 ? (
-        <div className="card empty">Belum ada sesi. Mulai dari tab Hari ini.</div>
+        <div className="card empty">Belum ada sesi. Mulai dari tab Hari ini, atau ketuk tanggal di kalender.</div>
       ) : (
         list.slice(0, 20).map((s) => <SessionRow key={s.id} s={s} onOpen={() => navigate(`/session/${s.id}`)} />)
+      )}
+
+      {selKey && (
+        <div className="modal-overlay" onClick={() => { if (!creating) setSelKey(null) }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Sesi · {formatDMYWIB(selKey)}</h3>
+
+            {daySessions.length > 0 && (
+              <>
+                <div className="small muted" style={{ marginBottom: 8 }}>
+                  {daySessions.length} sesi di tanggal ini:
+                </div>
+                {daySessions.map((s) => (
+                  <div className="list-item" key={s.id}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{s.planName}</div>
+                      <div className="small muted">{s.sets.length} set · {s.endedAt ? 'Selesai' : 'Berjalan'}</div>
+                    </div>
+                    <button
+                      className="btn sm accent"
+                      onClick={() => { const id = s.id; setSelKey(null); navigate(`/session/${id}`) }}
+                    >
+                      Buka
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+
+            <div className="small muted" style={{ margin: daySessions.length ? '12px 0 8px' : '0 0 8px' }}>
+              Tambah sesi untuk tanggal ini:
+            </div>
+
+            <button
+              className="btn ghost wide"
+              style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+              disabled={creating}
+              onClick={() => void handleCreate(null)}
+            >
+              + Sesi bebas
+            </button>
+            {plans.map((p) => (
+              <button
+                key={p.id}
+                className="btn ghost wide"
+                style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+                disabled={creating}
+                onClick={() => void handleCreate(p)}
+              >
+                + {p.name}
+              </button>
+            ))}
+
+            {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
+
+            <div className="form-actions">
+              <button className="btn ghost" disabled={creating} onClick={() => setSelKey(null)}>Tutup</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

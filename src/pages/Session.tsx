@@ -48,7 +48,6 @@ export default function Session() {
   }
 
   function addSet(exerciseId: string) {
-    if (!isActive) return
     const maxNo = localSets
       .filter((s) => s.exerciseId === exerciseId)
       .reduce((m, s) => Math.max(m, s.setNumber), 0)
@@ -57,18 +56,32 @@ export default function Session() {
   }
 
   function removeSet(setId: string) {
-    if (!isActive) return
     mutateSets(localSets.filter((s) => s.id !== setId))
   }
 
   function patchSet(setId: string, patch: Partial<SessionSet>) {
-    if (!isActive) return
     mutateSets(localSets.map((s) => (s.id === setId ? { ...s, ...patch } : s)))
+  }
+
+  function patchNote(next: string) {
+    setNote(next)
+    setSyncPending(true)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(async () => {
+      await updateSession(uid, sid, { note: next.trim() })
+      setSyncPending(false)
+    }, 600)
   }
 
   async function finish() {
     await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets })
     navigate('/history')
+  }
+
+  async function saveDone() {
+    await updateSession(uid, sid, { note: note.trim(), sets: localSets })
+    setSyncPending(false)
+    navigate(-1)
   }
 
   async function del() {
@@ -111,10 +124,10 @@ export default function Session() {
 
       {Array.from(grouped.entries()).map(([exId, sets]) => (
         <div className="card" key={exId}>
-          <div className="card-title">
-            <span>{getExerciseName(exercises, exId)}</span>
-            <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
-          </div>
+            <div className="card-title">
+              <span>{getExerciseName(exercises, exId)}</span>
+              <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
+            </div>
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>
             <span className="grow">Beban (kg)</span>
@@ -132,7 +145,6 @@ export default function Session() {
                 step={0.5}
                 value={s.weightKg || ''}
                 placeholder="0"
-                disabled={!isActive}
                 onChange={(e) => patchSet(s.id, { weightKg: Number(e.target.value) })}
               />
               <input
@@ -142,10 +154,9 @@ export default function Session() {
                 min={0}
                 value={s.reps || ''}
                 placeholder="0"
-                disabled={!isActive}
                 onChange={(e) => patchSet(s.id, { reps: Number(e.target.value) })}
               />
-              <button className="icon-btn danger" disabled={!isActive} onClick={() => removeSet(s.id)}>✕</button>
+              <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
             </div>
           ))}
         </div>
@@ -158,7 +169,7 @@ export default function Session() {
         ) : (
           <div className="row wrap">
             {exercises.map((ex) => (
-              <button key={ex.id} className="btn sm ghost" disabled={!isActive} onClick={() => addSet(ex.id)}>
+              <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
                 + {ex.name}
               </button>
             ))}
@@ -171,15 +182,17 @@ export default function Session() {
         <textarea
           className="input"
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={(e) => patchNote(e.target.value)}
           rows={2}
           placeholder="Cara badan hari ini, PR, dll…"
         />
       </div>
 
       <div className="form-actions">
-        {isActive && (
+        {isActive ? (
           <button className="btn ok" onClick={() => finish()}>✓ Selesai latihan</button>
+        ) : (
+          <button className="btn ok" onClick={() => saveDone()}>✓ Simpan perubahan</button>
         )}
         <button className="btn ghost" onClick={() => navigate(-1)}>Kembali</button>
       </div>

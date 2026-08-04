@@ -8,6 +8,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
+import { parseKey } from './date'
 import type {
   Exercise,
   WorkoutPlan,
@@ -92,6 +93,29 @@ export async function updateSession(uid: string, id: string, fields: Partial<Ses
 
 export async function deleteSession(uid: string, id: string) {
   return deleteDoc(doc(getDb(), 'users', uid, 'sessions', id))
+}
+
+// Build a new session payload for a given date (default start 12:00 WIB)
+export function buildSession(plan: WorkoutPlan | null | undefined, dateKey: string): Omit<Session, 'id'> {
+  const start = parseKey(dateKey).getTime() + 12 * 60 * 60 * 1000
+  return {
+    date: dateKey,
+    planId: plan?.id ?? null,
+    planName: plan?.name ?? 'Sesi bebas',
+    note: '',
+    startedAt: start,
+    endedAt: null,
+    sets: (plan?.items ?? [])
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((it, i) => ({
+        id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        exerciseId: it.exerciseId,
+        setNumber: i + 1,
+        weightKg: 0,
+        reps: it.reps,
+      })),
+  }
 }
 
 // sets are stored inline inside session.sets

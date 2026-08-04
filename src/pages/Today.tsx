@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { getAuthInstance } from '../lib/firebase'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
-import { createSession } from '../lib/gymstore'
+import { buildSession, createSession } from '../lib/gymstore'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 
@@ -54,22 +54,7 @@ export default function Today() {
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
 
   async function createAndOpen(plan: WorkoutPlan | undefined | null) {
-    const data: Omit<Session, 'id'> = {
-      date: base,
-      planId: plan?.id ?? null,
-      planName: plan?.name ?? 'Sesi bebas',
-      note: '',
-      startedAt: Date.now(),
-      endedAt: null,
-      sets: (plan?.items ?? []).map((it, i) => ({
-        id: Math.random().toString(36).slice(2, 9),
-        exerciseId: it.exerciseId,
-        setNumber: i + 1,
-        weightKg: 0,
-        reps: it.reps,
-      })),
-    }
-    const ref = await createSession(uid, data)
+    const ref = await createSession(uid, buildSession(plan, base))
     navigate(`/session/${ref.id}`)
   }
 
