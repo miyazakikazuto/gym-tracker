@@ -232,6 +232,7 @@ body {
 .cal-dow { text-align:center; font-size:11px; color:var(--muted); font-weight:700; padding:4px 0; }
 .cal-cell {
   aspect-ratio: 1;
+  max-height: 44px;
   border-radius: 10px;
   background: var(--bg2);
   color: var(--text);
