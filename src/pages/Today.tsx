@@ -6,6 +6,7 @@ import { getAuthInstance } from '../lib/firebase'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
+import { shortLabelFor } from '../lib/templates'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 
@@ -13,10 +14,12 @@ function DayStrip({
   days,
   base,
   sessions,
+  plans,
 }: {
   days: string[]
   base: string
   sessions: Session[]
+  plans: WorkoutPlan[]
 }) {
   return (
     <div className="day-strip">
@@ -26,10 +29,12 @@ function DayStrip({
         const hasSession = sessions.some((s) => s.date === key && s.endedAt)
         const isToday = key === base
         const short = dow === 1 ? 'Sen' : DAY_NAMES[dow].slice(0, 3)
+        const label = shortLabelFor(plans.find((p) => p.dayOfWeek === dow)?.name ?? '')
         return (
           <div className={'day-chip' + (isToday ? ' today' : '') + (hasSession ? ' done' : '')} key={key}>
             <div className="dow">{short}</div>
             <div className="dnum">{dd}</div>
+            {label && <div className="plan-label">{label}</div>}
           </div>
         )
       })}
@@ -84,7 +89,7 @@ export default function Today() {
         </button>
       </div>
 
-      <DayStrip days={days} base={base} sessions={sessions} />
+      <DayStrip days={days} base={base} sessions={sessions} plans={plans} />
 
       <div className="row spread">
         <div className="card-title" style={{ marginTop: 6 }}>Sesi</div>

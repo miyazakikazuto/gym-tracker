@@ -207,6 +207,7 @@ body {
 .day-chip.active .small { color: rgba(27,18,48,0.7); }
 .day-chip .dow { font-size: 11px; font-weight: 700; }
 .day-chip .dnum { font-size: 18px; font-weight: 800; }
+.day-chip .plan-label { font-size: 8px; font-weight: 800; letter-spacing: 0.3px; color: var(--accent); line-height: 1; }
 .day-chip.today { outline: 2px solid rgba(52, 211, 153, 0.5); outline-offset: 1px; }
 .day-chip.done { opacity: 0.85; }
 .day-chip.done .dnum::after { content: ' ✓'; color: var(--ok); font-size: 12px; }

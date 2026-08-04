@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { DAY_NAMES } from '../types'
-import { createPlan, updatePlan, deletePlan } from '../lib/gymstore'
+import { createPlan, updatePlan, deletePlan, createExercise } from '../lib/gymstore'
+import { PLAN_PRESETS, presetByName, presetByKey, type PlanPreset } from '../lib/templates'
 
 interface Item {
   exerciseId: string
@@ -17,17 +18,18 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
   const [selDay, setSelDay] = useState<number>(new Date().getDay())
   const plan = plans.find((p) => p.dayOfWeek === selDay)
 
-  const [name, setName] = useState('')
+  const [presetKey, setPresetKey] = useState<string>('')
   const [items, setItems] = useState<Item[]>([])
   const [saving, setSaving] = useState(false)
+  const [filling, setFilling] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (plan) {
-      setName(plan.name)
+      setPresetKey(presetByName(plan.name)?.key ?? '')
       setItems(plan.items.slice().sort((a, b) => a.order - b.order))
     } else {
-      setName('')
+      setPresetKey('')
       setItems([])
     }
   }, [plan])
@@ -44,16 +46,45 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
     setItems((cur) => cur.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
   }
 
+  async function fillPreset(preset: PlanPreset) {
+    setError('')
+    setFilling(true)
+    try {
+      const ids: string[] = []
+      for (const pe of preset.exercises) {
+        const existing = exercises.find((e) => e.name.toLowerCase() === pe.name.toLowerCase())
+        if (existing) {
+          ids.push(existing.id)
+        } else {
+          const ref = await createExercise(uid, { name: pe.name, muscleGroup: pe.muscleGroup, equipment: pe.equipment })
+          ids.push(ref.id)
+        }
+      }
+      setItems(ids.map((id) => ({ exerciseId: id, targetSets: 3, reps: 10 })))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setFilling(false)
+    }
+  }
+
+  function selectPreset(key: string) {
+    setPresetKey(key)
+    const preset = presetByKey(key)
+    if (preset) void fillPreset(preset)
+  }
+
   async function save() {
     setError('')
-    if (!name.trim()) {
-      setError('Nama jadwal wajib diisi.')
+    const preset = presetByKey(presetKey)
+    if (!preset) {
+      setError('Pilih jenis jadwal dulu.')
       return
     }
     setSaving(true)
     try {
       const payload = {
-        name: name.trim(),
+        name: preset.name,
         dayOfWeek: selDay,
         items: items.map((it, i) => ({
           exerciseId: it.exerciseId,
@@ -99,15 +130,29 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="small muted" style={{ marginBottom: 12 }}>
-          {plan ? `${DAY_NAMES[selDay]} — jadwal: ${plan.name}` : `${DAY_NAMES[selDay]} — belum ada jadwal`}
+          {plan ? `${DAY_NAMES[selDay]} — jadwal: ${plan.name}` : `${DAY_NAMES[selDay]} — belum ada jadwal (hari istirahat)`}
         </div>
 
         <div className="field">
-          <label>Nama jadwal (mis. Push Day)</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Push Day" />
+          <label>Jenis jadwal</label>
+          <div className="row wrap" style={{ gap: 8 }}>
+            {PLAN_PRESETS.map((p) => (
+              <button
+                key={p.key}
+                className={'btn sm' + (presetKey === p.key ? ' primary' : ' ghost')}
+                disabled={filling}
+                onClick={() => selectPreset(p.key)}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+          {filling && <div className="small muted" style={{ marginTop: 6 }}>Menyiapkan gerakan…</div>}
         </div>
 
-        {items.length === 0 && <div className="empty small">Belum ada gerakan. Tambahkan di bawah.</div>}
+        {items.length === 0 && !filling && (
+          <div className="empty small">Pilih jenis jadwal untuk mengisi gerakan otomatis, atau tambah manual di bawah.</div>
+        )}
 
         {items.map((it, i) => {
           return (
@@ -156,7 +201,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
 
         <div className="form-actions">
-          <button className="btn" disabled={saving} onClick={() => void save()}>
+          <button className="btn" disabled={saving || filling} onClick={() => void save()}>
             {saving ? 'Menyimpan…' : 'Simpan'}
           </button>
           {plan && <button className="btn danger" onClick={() => void remove()}>Hapus</button>}
