@@ -25,6 +25,8 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+html { touch-action: manipulation; }
+
 body {
   min-height: 100vh;
   overscroll-behavior: none;
@@ -98,6 +100,7 @@ body {
   color: var(--text);
   background: var(--card2);
   transition: transform 0.06s, filter 0.15s;
+  touch-action: manipulation;
 }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -157,6 +160,9 @@ body {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .nav-item.active { color: var(--accent); }
 .nav-item svg { width: 22px; height: 22px; }
@@ -237,6 +243,7 @@ body {
   position: relative;
   cursor: pointer;
   border: 1px solid transparent;
+  touch-action: manipulation;
 }
 .cal-cell.empty { background: transparent; cursor: default; }
 .cal-cell.today { border-color: var(--accent); }
