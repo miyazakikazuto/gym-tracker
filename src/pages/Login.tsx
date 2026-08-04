@@ -68,7 +68,7 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <div className="auth-logo">
-        <img src="gym-tracker/dumbell.svg" alt="" onError={(el) => ((el.currentTarget as HTMLImageElement).style.display = 'none')} />
+        <img src="/gym-tracker/dumbell.svg" alt="" onError={(el) => ((el.currentTarget as HTMLImageElement).style.display = 'none')} />
       </div>
       <div className="auth-brand">Gym Tracker</div>
       <div className="auth-tag">Jadwal & log latihan kamu</div>

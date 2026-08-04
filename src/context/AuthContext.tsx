@@ -25,7 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u)
       setLoading(false)
     })
-    return unsub
+    // Fallback: kalau auth tidak pernah memanggil balik (mis. jaringan diblokir),
+    // tampilkan halaman login setelah 5 detik — jangan diam di layar loading.
+    const timeout = setTimeout(() => setLoading(false), 5000)
+    return () => {
+      unsub()
+      clearTimeout(timeout)
+    }
   }, [])
 
   return (

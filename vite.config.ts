@@ -5,4 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/gym-tracker/',
+  build: {
+    // Kompatibilitas lebih luas: browser/webview HP lama (Android 7+, iOS 13+)
+    target: ['es2019', 'safari13', 'chrome73', 'firefox66'],
+  },
 })

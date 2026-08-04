@@ -10,5 +10,28 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Boot watchdog: kalau app belum jalan setelah 10 detik (bundle gagal load/exec),
+      // tampilkan pesan alih-alih layar hitam.
+      window.__GT_BOOTED = false
+      setTimeout(function () {
+        if (window.__GT_BOOTED) return
+        var root = document.getElementById('root')
+        if (root && root.children.length > 0) return
+        var el = document.createElement('div')
+        el.id = 'gt-error-fallback'
+        el.style.cssText =
+          'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+          'background:#0f0f14;color:#f2f2f7;font-family:sans-serif;padding:24px;text-align:center;z-index:9999'
+        el.innerHTML =
+          '<div style="font-size:40px;margin-bottom:8px">😵</div>' +
+          '<div style="font-size:20px;font-weight:800;margin-bottom:8px">Terjadi kesalahan saat memuat aplikasi</div>' +
+          '<div style="font-size:14px;color:#9a9ab0;margin-bottom:16px">Coba muat ulang, atau bersihkan cache situs.</div>' +
+          '<button style="background:linear-gradient(135deg,#6366f1,#a78bfa);border:none;color:#fff;' +
+          'padding:12px 24px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer" ' +
+          'onclick="window.location.reload()">Muat ulang</button>'
+        document.body.appendChild(el)
+      }, 10000)
+    </script>
   </body>
 </html>
