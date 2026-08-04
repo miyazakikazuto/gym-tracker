@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 function navIcons(name: string) {
@@ -52,30 +52,12 @@ const TABS = [
 export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const appRef = useRef<HTMLElement>(null)
 
   // Reset scroll saat pindah tab
   useEffect(() => {
-    window.scrollTo(0, 0)
+    appRef.current?.scrollTo(0, 0)
   }, [location.pathname])
-
-  // Pin bottom-nav ke dasar area yang terlihat (visual viewport),
-  // agar tidak tersembunyi di balik URL bar Android Chrome
-  useEffect(() => {
-    const nav = document.querySelector('.bottom-nav') as HTMLElement | null
-    if (!nav || typeof window.visualViewport === 'undefined') return
-    const vv = window.visualViewport
-    if (!vv) return
-    const pin = () => {
-      nav.style.bottom = `${Math.max(0, window.innerHeight - (vv.offsetTop + vv.height))}px`
-    }
-    vv.addEventListener('resize', pin)
-    vv.addEventListener('scroll', pin)
-    pin()
-    return () => {
-      vv.removeEventListener('resize', pin)
-      vv.removeEventListener('scroll', pin)
-    }
-  }, [])
 
   const isActive = (t: (typeof TABS)[number]) =>
     location.pathname === t.path ||
@@ -84,7 +66,7 @@ export default function Layout() {
 
   return (
     <>
-      <main className="app">
+      <main className="app" ref={appRef}>
         <Outlet />
       </main>
       <nav className="bottom-nav">
