@@ -32,9 +32,9 @@ export default function Library() {
               key={c.key}
               className={'day-chip' + (tab === c.key ? ' active' : '')}
               onClick={() => setTab(c.key)}
-              style={{ border: 'none', color: tab === c.key ? '#1a1230' : 'inherit', width: '100%' }}
+              style={{ border: 'none', flex: '1 1 0', minWidth: 0, color: tab === c.key ? '#1a1230' : 'inherit' }}
             >
-              <div className="dow">{c.name}</div>
+              <div className="dow">{c.shortLabel}</div>
               <div className="dnum" style={{ fontSize: 13 }}>{count}</div>
             </button>
           )

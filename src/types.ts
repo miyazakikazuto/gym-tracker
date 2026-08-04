@@ -7,11 +7,11 @@ export interface Exercise {
 }
 
 export const EXERCISE_CATEGORIES = [
-  { key: 'push', name: 'Push' },
-  { key: 'pull', name: 'Pull' },
-  { key: 'leg', name: 'Leg' },
-  { key: 'cardio', name: 'Cardio' },
-  { key: 'home', name: 'Home Gym' },
+  { key: 'push', name: 'Push', shortLabel: 'PUSH' },
+  { key: 'pull', name: 'Pull', shortLabel: 'PULL' },
+  { key: 'leg', name: 'Leg', shortLabel: 'LEG' },
+  { key: 'cardio', name: 'Cardio', shortLabel: 'CARDIO' },
+  { key: 'home', name: 'Home Gym', shortLabel: 'HOME' },
 ] as const
 
 export interface PlanItem {
