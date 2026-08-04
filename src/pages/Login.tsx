@@ -1,67 +1,53 @@
-import { useState, type FormEvent } from 'react'
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-} from 'firebase/auth'
+import { useEffect, useState } from 'react'
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth'
 import { getAuthInstance } from '../lib/firebase'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
-  const [pass, setPass] = useState('')
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [info, setInfo] = useState('')
+  const [usingRedirect, setUsingRedirect] = useState(false)
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  // Jika sebelumnya redirect sign-in dilakukan, proses hasilnya saat halaman dimuat ulang
+  useEffect(() => {
+    getRedirectResult(getAuthInstance())
+      .catch(() => { /* hasil redirect gagal / dibatalkan */ })
+  }, [])
+
+  async function signInGoogle() {
     setError('')
-    setInfo('')
-    if (!email.includes('@')) {
-      setError('Email tidak valid.')
-      return
-    }
-    if (pass.length < 6) {
-      setError('Password minimal 6 karakter.')
-      return
-    }
     setBusy(true)
+    const auth = getAuthInstance()
+    const provider = new GoogleAuthProvider()
     try {
-      const auth = getAuthInstance()
-      if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, pass)
-      } else {
-        await createUserWithEmailAndPassword(auth, email, pass)
-      }
+      await signInWithPopup(auth, provider)
+      // sukses → onAuthStateChanged akan memuat app
     } catch (err) {
       const code = (err as { code?: string }).code
-      if (code === 'auth/email-already-in-use') {
-        setError('Email sudah terdaftar. Coba login.')
-        setMode('login')
-      } else if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-        setError('Email atau password salah.')
-      } else if (code === 'auth/user-not-found') {
-        setError('Email belum terdaftar. Pilih "Daftar akun baru".')
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        setUsingRedirect(true)
+        setError('')
+        try {
+          await signInWithRedirect(auth, provider)
+        } catch (e2) {
+          setError(msgOf(e2))
+        }
+      } else if (code === 'auth/popup-closed-by-user') {
+        // user batal — diam saja
+      } else if (code === 'auth/unauthorized-domain') {
+        setError(
+          'Domain situs ini belum diizinkan di Firebase. ' +
+          'Buka Firebase Console → project xauusd-jurnal → Authentication → Settings → ' +
+          'Authorized domains → tambahkan: miyazakikazuto.github.io',
+        )
+      } else if (code === 'auth/account-exists-with-different-credential') {
+        setError('Akun email ini sudah terdaftar dengan cara login lain. Hubungi admin untuk digabungkan.')
+      } else if (code === 'auth/invalid-api-key' || code === 'auth/api-key-not-valid') {
+        setError('Konfigurasi Firebase tidak valid (API key). Periksa src/lib/firebase.ts.')
       } else {
-        setError((err as { message: string }).message)
+        setError(msgOf(err))
       }
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function resetPass() {
-    if (!email.includes('@')) {
-      setError('Masukkan email dulu untuk reset password.')
-      return
-    }
-    try {
-      await sendPasswordResetEmail(getAuthInstance(), email)
-      setInfo('Link reset password terkirim ke email Anda.')
-      setError('')
-    } catch (e) {
-      setError((e as { message: string }).message)
     }
   }
 
@@ -74,46 +60,44 @@ export default function Login() {
       <div className="auth-tag">Jadwal & log latihan kamu</div>
 
       {error && <div className="auth-error">{error}</div>}
-      {info && <div className="card" style={{ background: 'rgba(52,211,153,0.1)' }}>{info}</div>}
-
-      <form onSubmit={submit}>
-        <div className="field">
-          <label>Email</label>
-          <input
-            className="input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="kamu@email.com"
-            autoComplete="email"
-          />
+      {usingRedirect && !error && (
+        <div className="card" style={{ background: 'rgba(251,191,36,0.1)', borderColor: 'rgba(251,191,36,0.3)' }}>
+          <div className="small">Mengalihkan ke halaman Google… Setelah memilih akun kamu akan kembali otomatis.</div>
         </div>
-        <div className="field">
-          <label>Password</label>
-          <input
-            className="input"
-            type="password"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            placeholder="••••••••"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          />
-        </div>
-        <button className="btn primary wide" disabled={busy} type="submit">
-          {busy ? 'Tunggu…' : mode === 'login' ? 'Masuk' : 'Daftar & Masuk'}
-        </button>
-      </form>
+      )}
 
-      <div className="form-actions" style={{ marginTop: 14 }}>
-        {mode === 'login' ? (
-          <>
-            <button className="btn ghost" onClick={() => setMode('signup')}>Daftar akun baru</button>
-            <button className="btn ghost" onClick={resetPass}>Lupa password?</button>
-          </>
-        ) : (
-          <button className="btn ghost wide" onClick={() => setMode('login')}>Sudah punya akun — login</button>
-        )}
+      <button className="btn wide" onClick={() => void signInGoogle()} disabled={busy}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          padding: '13px 16px',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.4 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.4 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+          <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+        </svg>
+        <span>{busy ? 'Menghubungkan…' : 'Masuk dengan Google'}</span>
+      </button>
+
+      <div className="small muted center" style={{ marginTop: 16 }}>
+        Data kamu tersimpan di cloud — bisa diakses dari HP & PC.
       </div>
     </div>
   )
+}
+
+function msgOf(err: unknown): string {
+  const m = (err as { message?: string }).message
+  if (!m) return 'Terjadi kesalahan. Coba lagi.'
+  const cleaned = m
+    .replace(/^Firebase: /, '')
+    .replace(/ \(.*\)\.$/, '')
+  return cleaned
 }
