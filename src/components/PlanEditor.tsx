@@ -56,7 +56,12 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         if (existing) {
           ids.push(existing.id)
         } else {
-          const ref = await createExercise(uid, { name: pe.name, muscleGroup: pe.muscleGroup, equipment: pe.equipment })
+          const ref = await createExercise(uid, {
+            name: pe.name,
+            muscleGroup: pe.muscleGroup,
+            equipment: pe.equipment,
+            category: preset.key,
+          })
           ids.push(ref.id)
         }
       }

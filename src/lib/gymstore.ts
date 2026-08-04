@@ -44,6 +44,10 @@ export async function deleteExercise(uid: string, id: string) {
   return deleteDoc(doc(getDb(), 'users', uid, 'exercises', id))
 }
 
+export function patchExerciseCategory(uid: string, id: string, category: string) {
+  return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), { category })
+}
+
 // ===== PLANS =====
 export async function fetchPlans(uid: string): Promise<WorkoutPlan[]> {
   const snap = await getDocs(userGymRef(uid, 'plans'))

@@ -4,6 +4,22 @@ export function getExerciseName(exercises: Exercise[], id: string): string {
   return exercises.find((e) => e.id === id)?.name ?? 'Gerakan'
 }
 
+const MUSCLE_TO_CATEGORY: Record<string, string> = {
+  Dada: 'push',
+  Trisep: 'push',
+  Bahu: 'push',
+  Punggung: 'pull',
+  Bisep: 'pull',
+  Kaki: 'leg',
+  Cardio: 'cardio',
+  Core: 'home',
+  Lainnya: 'home',
+}
+
+export function categoryOfExercise(ex: { category?: string; muscleGroup: string }): string {
+  return ex.category || MUSCLE_TO_CATEGORY[ex.muscleGroup] || 'push'
+}
+
 export function lastSetResult(
   sessions: Session[],
   excludeId: string,

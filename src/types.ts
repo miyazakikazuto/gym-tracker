@@ -3,7 +3,16 @@ export interface Exercise {
   name: string
   muscleGroup: string
   equipment: string
+  category?: string // push | pull | leg | cardio | home
 }
+
+export const EXERCISE_CATEGORIES = [
+  { key: 'push', name: 'Push' },
+  { key: 'pull', name: 'Pull' },
+  { key: 'leg', name: 'Leg' },
+  { key: 'cardio', name: 'Cardio' },
+  { key: 'home', name: 'Home Gym' },
+] as const
 
 export interface PlanItem {
   exerciseId: string

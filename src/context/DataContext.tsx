@@ -11,7 +11,9 @@ import {
   subscribeExercises,
   subscribePlans,
   subscribeSessions,
+  patchExerciseCategory,
 } from '../lib/gymstore'
+import { categoryOfExercise } from '../lib/helpers'
 import type { Exercise, WorkoutPlan, Session } from '../types'
 
 interface DataState {
@@ -49,6 +51,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       clearTimeout(t)
     }
   }, [uid])
+
+  // Migrasi sekali jalan: gerakan lama tanpa kategori diberi kategori dari grup otot
+  useEffect(() => {
+    if (!uid || exercises.length === 0) return
+    const missing = exercises.filter((e) => !e.category)
+    if (missing.length === 0) return
+    for (const e of missing) {
+      const cat = categoryOfExercise(e)
+      if (cat !== e.category) {
+        patchExerciseCategory(uid, e.id, cat).catch(() => undefined)
+      }
+    }
+  }, [uid, exercises])
 
   const refresh = useCallback(async () => {
     setReady(false)

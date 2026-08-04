@@ -2,13 +2,17 @@ import { useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { createExercise, updateExercise, deleteExercise } from '../lib/gymstore'
-import { MUSCLE_GROUPS, EQUIPMENTS, type Exercise } from '../types'
+import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, type Exercise } from '../types'
+import { categoryOfExercise } from '../lib/helpers'
 
 export default function Library() {
   const uid = useUid()
   const { exercises } = useData()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Exercise | null>(null)
+  const [tab, setTab] = useState<string>('push')
+
+  const list = exercises.filter((e) => categoryOfExercise(e) === tab)
 
   return (
     <div className="page">
@@ -20,11 +24,28 @@ export default function Library() {
         <button className="btn sm primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Baru</button>
       </div>
 
-      {exercises.length === 0 && (
-        <div className="card empty">Belum ada gerakan. Tambahkan yang pertama.</div>
+      <div className="day-strip" style={{ paddingBottom: 10 }}>
+        {EXERCISE_CATEGORIES.map((c) => {
+          const count = exercises.filter((e) => categoryOfExercise(e) === c.key).length
+          return (
+            <button
+              key={c.key}
+              className={'day-chip' + (tab === c.key ? ' active' : '')}
+              onClick={() => setTab(c.key)}
+              style={{ border: 'none', color: tab === c.key ? '#1a1230' : 'inherit', width: '100%' }}
+            >
+              <div className="dow">{c.name}</div>
+              <div className="dnum" style={{ fontSize: 13 }}>{count}</div>
+            </button>
+          )
+        })}
+      </div>
+
+      {list.length === 0 && (
+        <div className="card empty">Belum ada gerakan di kategori ini. Ketuk + Baru.</div>
       )}
 
-      {exercises.map((ex) => (
+      {list.map((ex) => (
         <div className="ex-item" key={ex.id}>
           <div>
             <div style={{ fontWeight: 700 }}>{ex.name}</div>
@@ -41,6 +62,7 @@ export default function Library() {
       {showForm && (
         <ExerciseForm
           initial={editing}
+          defaultCategory={tab}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); setEditing(null) }}
         />
@@ -51,10 +73,12 @@ export default function Library() {
 
 function ExerciseForm({
   initial,
+  defaultCategory,
   onClose,
   onSaved,
 }: {
   initial: Exercise | null
+  defaultCategory: string
   onClose: () => void
   onSaved: () => void
 }) {
@@ -62,6 +86,9 @@ function ExerciseForm({
   const [name, setName] = useState(initial?.name ?? '')
   const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? MUSCLE_GROUPS[0])
   const [equipment, setEquipment] = useState<string>(initial?.equipment ?? EQUIPMENTS[0])
+  const [category, setCategory] = useState<string>(
+    initial?.category ?? categoryOfExercise({ muscleGroup: initial?.muscleGroup ?? MUSCLE_GROUPS[0] }) ?? defaultCategory,
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -73,7 +100,7 @@ function ExerciseForm({
     }
     setBusy(true)
     try {
-      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment }
+      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment, category }
       if (initial) await updateExercise(uid, initial.id, data)
       else await createExercise(uid, data)
       onSaved()
@@ -92,6 +119,13 @@ function ExerciseForm({
         <div className="field">
           <label>Nama gerakan</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="mis. Barbell Bench Press" autoFocus />
+        </div>
+
+        <div className="field">
+          <label>Kategori</label>
+          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+            {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+          </select>
         </div>
 
         <div className="field">
