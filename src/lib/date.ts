@@ -16,7 +16,8 @@ export function parseKey(key: string): Date {
 }
 
 export function dayOfWeek(key: string): number {
-  return parseKey(key).getUTCDay()
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
 }
 
 export function formatDMY(key: string): string {
