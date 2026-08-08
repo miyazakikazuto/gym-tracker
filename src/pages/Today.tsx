@@ -103,7 +103,7 @@ export default function Today() {
         <div className="empty">Memuat…</div>
       ) : (
         <>
-          {todayPlan && !todayIsRest && (
+          {todayPlan && !todayIsRest && todaySessions.length === 0 && (
             <div className="card">
               <div className="card-title">
                 <span>Jadwal: {todayPlan.name}</span>
