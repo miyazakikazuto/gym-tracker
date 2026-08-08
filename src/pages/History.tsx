@@ -84,12 +84,13 @@ export default function History() {
             if (!key) return <div className="cal-cell empty" key={i} />
             const has = sessions.some((s) => s.date === key)
             const isToday = key === todayKey()
+            const isSelected = key === selKey
             return (
               <div
                 key={i}
                 role="button"
                 tabIndex={0}
-                className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '')}
+                className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '') + (isSelected ? ' selected' : '')}
                 onClick={() => setSelKey(key)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -99,6 +100,7 @@ export default function History() {
                 }}
               >
                 {Number(key.slice(8, 10))}
+                {has && <span className="dot" />}
               </div>
             )
           })}

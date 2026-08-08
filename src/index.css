@@ -278,8 +278,8 @@ body {
   touch-action: manipulation;
 }
 .cal-cell.empty { background: transparent; cursor: default; }
-.cal-cell.today { border-color: var(--accent); }
-.cal-cell.has-session { background: var(--accent); color: #1b1230; }
+.cal-cell.today { border: 2px solid var(--accent); color: var(--accent); font-weight: 800; }
+.cal-cell.selected { background: var(--accent); border: 2px solid var(--accent); color: #1b1230; font-weight: 800; }
 .cal-cell .dot { position:absolute; bottom:3px; width:4px; height:4px; border-radius:50%; background: var(--ok); }
 
 /* misc */
