@@ -5,6 +5,7 @@ import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
+import { isRest, dotColorFor } from '../lib/templates'
 import { fmtNumber } from '../lib/helpers'
 import type { Session, WorkoutPlan } from '../types'
 
@@ -82,15 +83,18 @@ export default function History() {
           ))}
           {cells.map((key, i) => {
             if (!key) return <div className="cal-cell empty" key={i} />
-            const has = sessions.some((s) => s.date === key)
+            const daySessions = sessions.filter((s) => s.date === key)
+            const has = daySessions.length > 0
             const isToday = key === todayKey()
             const isSelected = key === selKey
+            const isRestDay = daySessions.some((s) => isRest(s.planName))
+            const dotColors = Array.from(new Set(daySessions.map((s) => dotColorFor(s.planName)).filter((c): c is string => !!c)))
             return (
               <div
                 key={i}
                 role="button"
                 tabIndex={0}
-                className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '') + (isSelected ? ' selected' : '')}
+                className={'cal-cell' + (has ? ' has-session' : '') + (isToday ? ' today' : '') + (isSelected ? ' selected' : '') + (isRestDay ? ' rest-day' : '')}
                 onClick={() => setSelKey(key)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -100,7 +104,13 @@ export default function History() {
                 }}
               >
                 {Number(key.slice(8, 10))}
-                {has && !isToday && <span className="dot" />}
+                {has && !isToday && dotColors.length > 0 && (
+                  <span className="dot">
+                    {dotColors.slice(0, 3).map((c, j) => (
+                      <span key={j} style={{ background: c }} />
+                    ))}
+                  </span>
+                )}
               </div>
             )
           })}

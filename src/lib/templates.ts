@@ -8,6 +8,7 @@ export interface PlanPreset {
   key: string
   name: string
   shortLabel: string
+  dotColor?: string
   exercises: PresetExercise[]
 }
 
@@ -16,6 +17,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
     key: 'push',
     name: 'Push Day',
     shortLabel: 'PUSH',
+    dotColor: '#6699ff',
     exercises: [
       { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
       { name: 'Incline Dumbbell Press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
@@ -29,6 +31,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
     key: 'pull',
     name: 'Pull Day',
     shortLabel: 'PULL',
+    dotColor: '#aa77ff',
     exercises: [
       { name: 'Lat Pulldown', muscleGroup: 'Punggung', equipment: 'Kabel' },
       { name: 'Barbell Row', muscleGroup: 'Punggung', equipment: 'Barbell' },
@@ -42,6 +45,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
     key: 'leg',
     name: 'Leg Day',
     shortLabel: 'LEG',
+    dotColor: '#44cc88',
     exercises: [
       { name: 'Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Leg Press', muscleGroup: 'Kaki', equipment: 'Machine' },
@@ -55,6 +59,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
     key: 'cardio',
     name: 'Cardio Day',
     shortLabel: 'CARDIO',
+    dotColor: '#ff6699',
     exercises: [
       { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Machine' },
       { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Machine' },
@@ -66,6 +71,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
     key: 'home',
     name: 'Home Gym',
     shortLabel: 'HOME',
+    dotColor: '#ffcc44',
     exercises: [
       { name: 'Pull-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
       { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
@@ -101,4 +107,8 @@ export function isRest(name: string): boolean {
 
 export function shortLabelFor(name: string): string {
   return presetByName(name)?.shortLabel ?? ''
+}
+
+export function dotColorFor(name: string): string | undefined {
+  return presetByName(name)?.dotColor
 }
