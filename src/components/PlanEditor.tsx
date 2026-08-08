@@ -47,6 +47,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
 
   function selectPreset(key: string) {
     setPresetKey(key)
+    if (key === 'rest') setItems([])
   }
 
   async function save() {
@@ -169,7 +170,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
           )
         })}
 
-        {exercises.length > 0 && (
+        {exercises.length > 0 && presetKey !== 'rest' && (
           <button className="btn sm ghost wide" onClick={() => addItem(exercises[0].id)}>
             + Tambah gerakan
           </button>
