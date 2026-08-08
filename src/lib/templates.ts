@@ -79,6 +79,12 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Dumbbell Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Dumbbell' },
     ],
   },
+  {
+    key: 'rest',
+    name: 'Rest Day',
+    shortLabel: 'REST',
+    exercises: [],
+  },
 ]
 
 export function presetByKey(key: string): PlanPreset | undefined {
@@ -87,6 +93,10 @@ export function presetByKey(key: string): PlanPreset | undefined {
 
 export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
+}
+
+export function isRest(name: string): boolean {
+  return presetByName(name)?.key === 'rest'
 }
 
 export function shortLabelFor(name: string): string {

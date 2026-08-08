@@ -6,7 +6,7 @@ import { getAuthInstance } from '../lib/firebase'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { shortLabelFor } from '../lib/templates'
+import { shortLabelFor, isRest } from '../lib/templates'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 
@@ -29,12 +29,14 @@ function DayStrip({
         const hasSession = sessions.some((s) => s.date === key && s.endedAt)
         const isToday = key === base
         const short = dow === 1 ? 'Sen' : DAY_NAMES[dow].slice(0, 3)
-        const label = shortLabelFor(plans.find((p) => p.dayOfWeek === dow)?.name ?? '')
+        const planForDow = plans.find((p) => p.dayOfWeek === dow)
+        const label = planForDow ? shortLabelFor(planForDow.name) : ''
+        const rest = planForDow ? isRest(planForDow.name) : false
         return (
           <div className={'day-chip' + (isToday ? ' today' : '') + (hasSession ? ' done' : '')} key={key}>
             <div className="dow">{short}</div>
             <div className="dnum">{dd}</div>
-            {label && <div className="plan-label">{label}</div>}
+            {rest ? <div className="plan-label rest">REST</div> : label && <div className="plan-label">{label}</div>}
           </div>
         )
       })}
@@ -55,6 +57,7 @@ export default function Today() {
   const nowDow = dayOfWeek(base)
 
   const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
+  const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
   const todaySessions = sessions.filter((s) => s.date === base)
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
 
@@ -68,8 +71,10 @@ export default function Today() {
       navigate(`/session/${activeSession.id}`)
       return
     }
-    if (todayPlan) {
+    if (todayPlan && !todayIsRest) {
       void createAndOpen(todayPlan)
+    } else if (todayIsRest) {
+      void createAndOpen(null)
     } else {
       setShowPlan(true)
     }
@@ -100,7 +105,7 @@ export default function Today() {
         <div className="empty">Memuat…</div>
       ) : (
         <>
-          {todayPlan && (
+          {todayPlan && !todayIsRest && (
             <div className="card">
               <div className="card-title">
                 <span>Jadwal: {todayPlan.name}</span>
@@ -116,6 +121,18 @@ export default function Today() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {todayIsRest && (
+            <div className="card">
+              <div className="card-title">
+                <span>Hari ini istirahat</span>
+                <span className="badge" style={{ background: 'rgba(248,113,113,0.15)', color: 'var(--danger)' }}>REST</span>
+              </div>
+              <div className="small muted">
+                Pulihkan otot, tidur cukup, dan minum air putih. Tidak ada jadwal latihan hari ini.
+              </div>
             </div>
           )}
 
@@ -139,11 +156,19 @@ export default function Today() {
           )}
 
           <button className="btn primary wide" onClick={handleStart}>
-            {activeSession ? 'Lanjutkan sesi hari ini' : todayPlan ? 'Mulai sesi hari ini' : 'Atur jadwal & mulai'}
+            {activeSession
+              ? 'Lanjutkan sesi hari ini'
+              : todayPlan && !todayIsRest
+                ? 'Mulai sesi hari ini'
+                : todayIsRest
+                  ? 'Mulai sesi bebas'
+                  : 'Atur jadwal & mulai'}
           </button>
-          <button className="btn ghost wide" onClick={() => void createAndOpen(null)} style={{ marginTop: 8 }}>
-            Mulai sesi bebas
-          </button>
+          {!todayIsRest && (
+            <button className="btn ghost wide" onClick={() => void createAndOpen(null)} style={{ marginTop: 8 }}>
+              Mulai sesi bebas
+            </button>
+          )}
         </>
       )}
 

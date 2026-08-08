@@ -156,7 +156,11 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         </div>
 
         {items.length === 0 && !filling && (
-          <div className="empty small">Pilih jenis jadwal untuk mengisi gerakan otomatis, atau tambah manual di bawah.</div>
+          <div className="empty small">
+            {presetKey === 'rest'
+              ? 'Hari istirahat — tanpa gerakan. Simpan untuk menandai hari ini.'
+              : 'Pilih jenis jadwal untuk mengisi gerakan otomatis, atau tambah manual di bawah.'}
+          </div>
         )}
 
         {items.map((it, i) => {
