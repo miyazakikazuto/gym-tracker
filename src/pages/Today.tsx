@@ -73,8 +73,6 @@ export default function Today() {
     }
     if (todayPlan && !todayIsRest) {
       void createAndOpen(todayPlan)
-    } else if (todayIsRest) {
-      void createAndOpen(null)
     } else {
       setShowPlan(true)
     }
@@ -155,18 +153,13 @@ export default function Today() {
             </div>
           )}
 
-          <button className="btn primary wide" onClick={handleStart}>
-            {activeSession
-              ? 'Lanjutkan sesi hari ini'
-              : todayPlan && !todayIsRest
-                ? 'Mulai sesi hari ini'
-                : todayIsRest
-                  ? 'Mulai sesi bebas'
-                  : 'Atur jadwal & mulai'}
-          </button>
           {!todayIsRest && (
-            <button className="btn ghost wide" onClick={() => void createAndOpen(null)} style={{ marginTop: 8 }}>
-              Mulai sesi bebas
+            <button className="btn primary wide" onClick={handleStart}>
+              {activeSession
+                ? 'Lanjutkan sesi hari ini'
+                : todayPlan
+                  ? 'Mulai sesi hari ini'
+                  : 'Atur jadwal & mulai'}
             </button>
           )}
         </>

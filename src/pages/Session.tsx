@@ -4,7 +4,8 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult } from '../lib/helpers'
+import { getExerciseName, lastSetResult, categoryOfExercise } from '../lib/helpers'
+import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
 
 export default function Session() {
@@ -112,6 +113,11 @@ export default function Session() {
     grouped.set(s.exerciseId, arr)
   }
 
+  const addPool = (() => {
+    const cat = presetByName(session.planName)?.key
+    return cat ? exercises.filter((e) => categoryOfExercise(e) === cat) : exercises
+  })()
+
   return (
     <div className="page">
       <div className="row spread">
@@ -201,9 +207,13 @@ export default function Session() {
         <div className="card-title">Tambahkan gerakan</div>
         {exercises.length === 0 ? (
           <div className="small muted">Belum ada gerakan di database. Tambahkan di tab Gerakan.</div>
+        ) : addPool.length === 0 ? (
+          <div className="small muted">
+            Belum ada gerakan kategori {presetByName(session.planName)?.name}. Tambahkan di tab Gerakan.
+          </div>
         ) : (
           <div className="row wrap">
-            {exercises.map((ex) => (
+            {addPool.map((ex) => (
               <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
                 + {ex.name}
               </button>

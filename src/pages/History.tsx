@@ -147,25 +147,21 @@ export default function History() {
               Tambah sesi untuk tanggal ini:
             </div>
 
-            <button
-              className="btn ghost wide"
-              style={{ justifyContent: 'flex-start', marginBottom: 8 }}
-              disabled={creating}
-              onClick={() => void handleCreate(null)}
-            >
-              + Sesi bebas
-            </button>
-            {plans.map((p) => (
-              <button
-                key={p.id}
-                className="btn ghost wide"
-                style={{ justifyContent: 'flex-start', marginBottom: 8 }}
-                disabled={creating}
-                onClick={() => void handleCreate(p)}
-              >
-                + {p.name}
-              </button>
-            ))}
+            {plans.length === 0 ? (
+              <div className="small muted">Belum ada jadwal. Atur jadwal lewat tab Hari Ini.</div>
+            ) : (
+              plans.map((p) => (
+                <button
+                  key={p.id}
+                  className="btn ghost wide"
+                  style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+                  disabled={creating}
+                  onClick={() => void handleCreate(p)}
+                >
+                  + {p.name}
+                </button>
+              ))
+            )}
 
             {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
 
