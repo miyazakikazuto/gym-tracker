@@ -100,7 +100,7 @@ export default function History() {
                 }}
               >
                 {Number(key.slice(8, 10))}
-                {has && <span className="dot" />}
+                {has && !isToday && <span className="dot" />}
               </div>
             )
           })}
