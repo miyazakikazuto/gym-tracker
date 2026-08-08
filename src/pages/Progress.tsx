@@ -37,6 +37,20 @@ export default function Progress() {
     .sort((a, b) => b[1].weight - a[1].weight)
     .slice(0, 8)
 
+  // Avg RPE per exercise (from sessions with rpes)
+  const rpeMap = new Map<string, { sum: number; count: number }>()
+  for (const s of sessions) {
+    for (const [exId, rpe] of Object.entries(s.rpes ?? {})) {
+      const cur = rpeMap.get(exId) ?? { sum: 0, count: 0 }
+      cur.sum += rpe
+      cur.count += 1
+      rpeMap.set(exId, cur)
+    }
+  }
+  const rpes = Array.from(rpeMap.entries())
+    .map(([exId, v]) => ({ exId, avg: v.sum / v.count, count: v.count }))
+    .sort((a, b) => b.avg - a.avg)
+
   return (
     <div className="page">
       <div className="page-title">Progress</div>
@@ -59,6 +73,25 @@ export default function Progress() {
             <span className="small" style={{ width: 52, textAlign: 'right' }}>{fmtNumber(w.vol)}</span>
           </div>
         ))}
+      </div>
+
+      <div className="card">
+        <div className="card-title">RPE rata-rata per gerakan</div>
+        {rpes.length === 0 ? (
+          <div className="small muted">Belum ada data RPE. Atur RPE (6–10) di akhir tiap gerakan saat sesi.</div>
+        ) : (
+          <div className="pr-list">
+            {rpes.map(({ exId, avg, count }) => (
+              <div className="pr" key={exId}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
+                  <div className="small muted">{count} sesi</div>
+                </div>
+                <div className="val">{avg.toFixed(1)}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card">

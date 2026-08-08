@@ -16,6 +16,7 @@ export default function Session() {
   const session = sessions.find((s) => s.id === id)
   const [note, setNote] = useState(session?.note ?? '')
   const [localSets, setLocalSets] = useState<SessionSet[]>(session?.sets ?? [])
+  const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
   const [syncPending, setSyncPending] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -23,6 +24,7 @@ export default function Session() {
     if (session) {
       setNote(session.note ?? '')
       setLocalSets(session.sets)
+      setLocalRpes(session.rpes ?? {})
     }
   }, [id, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -73,13 +75,26 @@ export default function Session() {
     }, 600)
   }
 
+  function patchRpe(exerciseId: string, value: number | null) {
+    const next = { ...localRpes }
+    if (value === null) delete next[exerciseId]
+    else next[exerciseId] = value
+    setLocalRpes(next)
+    setSyncPending(true)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(async () => {
+      await updateSession(uid, sid, { rpes: next })
+      setSyncPending(false)
+    }, 400)
+  }
+
   async function finish() {
-    await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets })
+    await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
     navigate('/history')
   }
 
   async function saveDone() {
-    await updateSession(uid, sid, { note: note.trim(), sets: localSets })
+    await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
     setSyncPending(false)
     navigate(-1)
   }
@@ -162,6 +177,23 @@ export default function Session() {
               </div>
             )
           })}
+          <div className="row" style={{ marginTop: 8 }}>
+            <span className="small muted">RPE</span>
+            {[6, 7, 8, 9, 10].map((r) => (
+              <button
+                key={r}
+                className={'rpe-chip' + (localRpes[exId] === r ? ' active' : '')}
+                onClick={() => patchRpe(exId, localRpes[exId] === r ? null : r)}
+              >
+                {r}
+              </button>
+            ))}
+            {localRpes[exId] !== undefined && (
+              <span className="small muted" style={{ marginLeft: 'auto' }}>
+                {localRpes[exId] === 10 ? 'maksimal' : localRpes[exId] === 9 ? '1 sisa' : localRpes[exId] === 8 ? '2 sisa' : localRpes[exId] === 7 ? '3 sisa' : 'ringan'}
+              </span>
+            )}
+          </div>
         </div>
       ))}
 

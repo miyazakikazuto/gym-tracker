@@ -46,6 +46,7 @@ export interface Session {
   startedAt: number // epoch ms
   endedAt: number | null
   sets: SessionSet[]
+  rpes?: Record<string, number> // exerciseId → RPE 6..10
 }
 
 export const MUSCLE_GROUPS = [
