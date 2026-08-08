@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { DAY_NAMES } from '../types'
-import { createPlan, updatePlan, deletePlan, createExercise } from '../lib/gymstore'
-import { PLAN_PRESETS, presetByName, presetByKey, type PlanPreset } from '../lib/templates'
+import { createPlan, updatePlan, deletePlan } from '../lib/gymstore'
+import { PLAN_PRESETS, presetByName, presetByKey } from '../lib/templates'
 
 interface Item {
   exerciseId: string
@@ -21,7 +21,6 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
   const [presetKey, setPresetKey] = useState<string>('')
   const [items, setItems] = useState<Item[]>([])
   const [saving, setSaving] = useState(false)
-  const [filling, setFilling] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -46,37 +45,8 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
     setItems((cur) => cur.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
   }
 
-  async function fillPreset(preset: PlanPreset) {
-    setError('')
-    setFilling(true)
-    try {
-      const ids: string[] = []
-      for (const pe of preset.exercises) {
-        const existing = exercises.find((e) => e.name.toLowerCase() === pe.name.toLowerCase())
-        if (existing) {
-          ids.push(existing.id)
-        } else {
-          const ref = await createExercise(uid, {
-            name: pe.name,
-            muscleGroup: pe.muscleGroup,
-            equipment: pe.equipment,
-            category: preset.key,
-          })
-          ids.push(ref.id)
-        }
-      }
-      setItems(ids.map((id) => ({ exerciseId: id, targetSets: 3, reps: 10 })))
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setFilling(false)
-    }
-  }
-
   function selectPreset(key: string) {
     setPresetKey(key)
-    const preset = presetByKey(key)
-    if (preset) void fillPreset(preset)
   }
 
   async function save() {
@@ -145,21 +115,19 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
               <button
                 key={p.key}
                 className={'btn sm' + (presetKey === p.key ? ' primary' : ' ghost')}
-                disabled={filling}
                 onClick={() => selectPreset(p.key)}
               >
                 {p.name}
               </button>
             ))}
           </div>
-          {filling && <div className="small muted" style={{ marginTop: 6 }}>Menyiapkan gerakan…</div>}
         </div>
 
-        {items.length === 0 && !filling && (
+        {items.length === 0 && (
           <div className="empty small">
             {presetKey === 'rest'
               ? 'Hari istirahat — tanpa gerakan. Simpan untuk menandai hari ini.'
-              : 'Pilih jenis jadwal untuk mengisi gerakan otomatis, atau tambah manual di bawah.'}
+              : 'Pilih jenis jadwal, lalu tambah gerakan manual di bawah.'}
           </div>
         )}
 
@@ -210,7 +178,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
 
         <div className="form-actions">
-          <button className="btn" disabled={saving || filling} onClick={() => void save()}>
+          <button className="btn" disabled={saving} onClick={() => void save()}>
             {saving ? 'Menyimpan…' : 'Simpan'}
           </button>
           {plan && <button className="btn danger" onClick={() => void remove()}>Hapus</button>}
