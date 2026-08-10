@@ -105,6 +105,7 @@ export default function Progress() {
                 <div>
                   <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
                   <div className="small muted">{pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} · {pr.reps} rep</div>
+                  <div className="small muted">~{e1RmKg(pr.weight, pr.reps)} kg e1RM</div>
                 </div>
                 <div className="val">{fmtNumber(pr.weight)} kg</div>
               </div>
@@ -123,4 +124,10 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <div className="small muted">{label}</div>
     </div>
   )
+}
+
+function e1RmKg(weight: number, reps: number): string {
+  const raw = weight * (1 + reps / 30)
+  const r = Math.round(raw * 2) / 2
+  return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1)
 }
