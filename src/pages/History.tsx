@@ -51,6 +51,8 @@ export default function History() {
 
   const list = sessions.slice().sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
+  const usedPlanNames = daySessions.map((s) => s.planName)
+  const availablePlans = plans.filter((p) => !usedPlanNames.includes(p.name))
 
   async function handleCreate(plan: WorkoutPlan | null) {
     if (!selKey) return
@@ -162,7 +164,7 @@ export default function History() {
             {plans.length === 0 ? (
               <div className="small muted">Belum ada jadwal. Atur jadwal lewat tab Hari Ini.</div>
             ) : (
-              plans.map((p) => (
+              availablePlans.map((p) => (
                 <button
                   key={p.id}
                   className="btn ghost wide"
