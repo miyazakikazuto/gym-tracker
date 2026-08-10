@@ -50,7 +50,10 @@ export default function History() {
     setViewYear(y)
   }
 
-  const list = sessions.slice().sort((a, b) => (b.date < a.date ? -1 : 1))
+    const monthPrefix = viewYear + '-' + String(viewMonth + 1).padStart(2, '0')
+  const list = sessions
+    .filter((s) => s.date.startsWith(monthPrefix) && !isRest(s.planName))
+    .sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
   const usedPlanNames = daySessions.map((s) => s.planName)
   const addOptions = PLAN_PRESETS
@@ -145,13 +148,13 @@ export default function History() {
 
       <div className="row spread">
         <div className="card-title">Sesi latihan</div>
-        <span className="small muted">{list.filter((s) => s.date === todayKey()).length} hari ini</span>
+        <span className="small muted">{list.length} sesi bulan ini</span>
       </div>
 
       {list.length === 0 ? (
-        <div className="card empty">Belum ada sesi. Mulai dari tab Hari ini, atau ketuk tanggal di kalender.</div>
+        <div className="card empty">Tidak ada sesi di bulan ini. Geser ‹ ›, atau ketuk tanggal di kalender.</div>
       ) : (
-        list.slice(0, 20).map((s) => <SessionRow key={s.id} s={s} onOpen={() => navigate(`/session/${s.id}`)} />)
+        list.slice(0, 30).map((s) => <SessionRow key={s.id} s={s} onOpen={() => navigate(`/session/${s.id}`)} />)
       )}
 
       {selKey && (
