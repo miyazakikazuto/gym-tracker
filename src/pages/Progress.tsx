@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays } from '../lib/date'
 import { fmtNumber, getExerciseName } from '../lib/helpers'
@@ -22,20 +23,35 @@ export default function Progress() {
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
 
-  // PR per exercise
-  const prMap = new Map<string, { weight: number; reps: number; date: string }>()
+  // PR per exercise (3 dimensi: beban, reps, e1RM)
+  const [prMode, setPrMode] = useState<'weight' | 'reps' | 'e1rm'>('weight')
+  interface PrBest { weight: number; reps: number; e1rm: number; date: string }
+  const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; e1rm?: PrBest }>()
   for (const s of sessions) {
     for (const set of s.sets) {
-      const cur = prMap.get(set.exerciseId)
-      if (!cur || set.weightKg > cur.weight || (set.weightKg === cur.weight && set.reps > cur.reps)) {
-        prMap.set(set.exerciseId, { weight: set.weightKg, reps: set.reps, date: s.date })
+      const cur = prMap.get(set.exerciseId) ?? {}
+      const e1rm = set.weightKg * (1 + set.reps / 30)
+      if (set.weightKg > 0 && (!cur.weight || set.weightKg > cur.weight.weight || (set.weightKg === cur.weight.weight && set.reps > cur.weight.reps))) {
+        cur.weight = { weight: set.weightKg, reps: set.reps, e1rm, date: s.date }
       }
+      if (set.reps > 0 && (!cur.reps || set.reps > cur.reps.reps || (set.reps === cur.reps.reps && set.weightKg > cur.reps.weight))) {
+        cur.reps = { weight: set.weightKg, reps: set.reps, e1rm, date: s.date }
+      }
+      if (set.weightKg > 0 && (!cur.e1rm || e1rm > cur.e1rm.e1rm)) {
+        cur.e1rm = { weight: set.weightKg, reps: set.reps, e1rm, date: s.date }
+      }
+      prMap.set(set.exerciseId, cur)
     }
   }
-  const prs = Array.from(prMap.entries())
-    .filter(([, v]) => v.weight > 0)
-    .sort((a, b) => b[1].weight - a[1].weight)
-    .slice(0, 8)
+  const prs: [string, PrBest][] = Array.from(prMap.entries())
+    .map(([exId, v]) => [exId, v[prMode]] as [string, PrBest | undefined])
+    .filter(([, v]) => !!v && v.weight > 0) as [string, PrBest][]
+  prs.sort((a, b) => {
+    const pa = prMode === 'weight' ? a[1].weight : prMode === 'reps' ? a[1].reps : a[1].e1rm
+    const pb = prMode === 'weight' ? b[1].weight : prMode === 'reps' ? b[1].reps : b[1].e1rm
+    return pb - pa
+  })
+  prs.length = Math.min(prs.length, 8)
 
   // Avg RPE per exercise (from sessions with rpes)
   const rpeMap = new Map<string, { sum: number; count: number }>()
@@ -95,7 +111,12 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title">PR terbaik (beban tertinggi)</div>
+        <div className="card-title">PR terbaik</div>
+        <div className="cal-toggle">
+          <button className={prMode === 'weight' ? 'active' : ''} onClick={() => setPrMode('weight')}>Beban</button>
+          <button className={prMode === 'reps' ? 'active' : ''} onClick={() => setPrMode('reps')}>Reps</button>
+          <button className={prMode === 'e1rm' ? 'active' : ''} onClick={() => setPrMode('e1rm')}>e1RM</button>
+        </div>
         {prs.length === 0 ? (
           <div className="small muted">Belum ada data set dengan beban. Isi beban di sesi latihan.</div>
         ) : (
@@ -104,10 +125,14 @@ export default function Progress() {
               <div className="pr" key={exId}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
-                  <div className="small muted">{pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} · {pr.reps} rep</div>
-                  <div className="small muted">~{e1RmKg(pr.weight, pr.reps)} kg e1RM</div>
+                  <div className="small muted">
+                    {pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} ·{' '}
+                    {prMode === 'weight' ? pr.reps + ' rep' : prMode === 'reps' ? fmtNumber(pr.weight) + ' kg' : fmtNumber(pr.weight) + ' kg × ' + pr.reps + ' rep'}
+                  </div>
                 </div>
-                <div className="val">{fmtNumber(pr.weight)} kg</div>
+                <div className="val">
+                  {prMode === 'weight' ? fmtNumber(pr.weight) + ' kg' : prMode === 'reps' ? pr.reps + ' rep' : '~' + e1RmKg(pr.weight, pr.reps) + ' kg e1RM'}
+                </div>
               </div>
             ))}
           </div>
