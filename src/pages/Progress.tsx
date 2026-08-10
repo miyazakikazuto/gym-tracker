@@ -23,6 +23,42 @@ export default function Progress() {
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
 
+  // Weekly best e1RM per exercise (8 minggu terakhir)
+  const trendWins = [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
+    const start = addDays(today, -(w * 7 + 6))
+    const end = addDays(today, -w * 7)
+    return { start, end }
+  })
+  const trendMap = new Map<string, number[]>()
+  for (const s of sessions) {
+    const winIdx = trendWins.findIndex((win) => s.date >= win.start && s.date <= win.end)
+    if (winIdx < 0) continue
+    for (const set of s.sets) {
+      if (set.weightKg > 0) {
+        const e = e1rmNum(set.weightKg, set.reps)
+        const arr = trendMap.get(set.exerciseId) ?? new Array(8).fill(0)
+        if (e > arr[winIdx]) arr[winIdx] = e
+        trendMap.set(set.exerciseId, arr)
+      }
+    }
+  }
+  const trends = Array.from(trendMap.entries())
+    .filter(([, vals]) => vals.some((v) => v > 0))
+    .map(([exId, vals]) => {
+      let lastIdx = -1
+      for (let i = 7; i >= 0; i--) {
+        if (vals[i] > 0) { lastIdx = i; break }
+      }
+      let prev = 0
+      for (let i = lastIdx - 1; i >= 0; i--) {
+        if (vals[i] > 0) { prev = vals[i]; break }
+      }
+      const lastVal = lastIdx >= 0 ? vals[lastIdx] : 0
+      return { exId, vals, lastVal, delta: lastVal > 0 && prev > 0 ? lastVal - prev : null }
+    })
+    .sort((a, b) => b.lastVal - a.lastVal)
+    .slice(0, 8)
+
   // PR per exercise (3 dimensi: beban, reps, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'e1rm'>('weight')
   interface PrBest { weight: number; reps: number; e1rm: number; date: string }
@@ -92,6 +128,41 @@ export default function Progress() {
       </div>
 
       <div className="card">
+        <div className="card-title">Tren e1RM per gerakan (mingguan)</div>
+        {trends.length === 0 ? (
+          <div className="small muted">Belum ada data. Isi beban & reps di sesi latihan untuk melihat tren.</div>
+        ) : (
+          <div className="pr-list">
+            {trends.map((t) => {
+              const max = Math.max(...t.vals, 1)
+              return (
+                <div className="pr trend" key={t.exId}>
+                  <div style={{ flex: 1 }}>
+                    <div className="trend-val">
+                      <span style={{ fontWeight: 700 }}>{getExerciseName(exercises, t.exId)}</span>
+                      <span>
+                        <span className="val" style={{ fontSize: 14 }}>{t.lastVal > 0 ? '~' + e1RmStr(t.lastVal) + ' kg' : '—'}</span>
+                        {t.delta !== null && (
+                          <span className={'delta ' + (t.delta > 0 ? 'up' : t.delta < 0 ? 'down' : 'flat')}>
+                            {' '}{t.delta > 0 ? '▲ +' + e1RmStr(t.delta) : t.delta < 0 ? '▼ −' + e1RmStr(-t.delta) : '• 0'}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="trend-bars">
+                      {t.vals.map((v, i) => (
+                        <div key={i} className={'trend-bar' + (i === 7 ? ' now' : '')} style={{ height: Math.max(3, (v / max) * 100) + '%' }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="card">
         <div className="card-title">RPE rata-rata per gerakan</div>
         {rpes.length === 0 ? (
           <div className="small muted">Belum ada data RPE. Atur RPE (6–10) di akhir tiap gerakan saat sesi.</div>
@@ -151,8 +222,15 @@ function StatCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-function e1RmKg(weight: number, reps: number): string {
-  const raw = weight * (1 + reps / 30)
-  const r = Math.round(raw * 2) / 2
+function e1rmNum(weight: number, reps: number): number {
+  return weight * (1 + reps / 30)
+}
+
+function e1RmStr(val: number): string {
+  const r = Math.round(val * 2) / 2
   return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1)
+}
+
+function e1RmKg(weight: number, reps: number): string {
+  return e1RmStr(e1rmNum(weight, reps))
 }
