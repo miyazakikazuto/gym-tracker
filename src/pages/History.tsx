@@ -5,7 +5,7 @@ import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { isRest, dotColorFor, PLAN_PRESETS } from '../lib/templates'
+import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { fmtNumber } from '../lib/helpers'
 import type { Session, WorkoutPlan } from '../types'
 
@@ -34,6 +34,7 @@ export default function History() {
   const t = parseKey(todayKey())
   const [viewYear, setViewYear] = useState(t.getUTCFullYear())
   const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
+  const [expanded, setExpanded] = useState(false)
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
@@ -86,7 +87,11 @@ export default function History() {
           <b>{MONTHS[viewMonth]} {viewYear}</b>
           <button onClick={() => shift(1)}>›</button>
         </div>
-        <div className="cal-grid">
+        <div className="cal-toggle">
+          <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Ringkas</button>
+          <button className={expanded ? 'active' : ''} onClick={() => setExpanded(true)}>Detail</button>
+        </div>
+        <div className={'cal-grid' + (expanded ? ' detail' : '')}>
           {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((d, i) => (
             <div className="cal-dow" key={i}>{d}</div>
           ))}
@@ -98,6 +103,10 @@ export default function History() {
             const isSelected = key === selKey
             const isRestDay = daySessions.some((s) => isRest(s.planName))
             const dotColors = Array.from(new Set(daySessions.map((s) => dotColorFor(s.planName)).filter((c): c is string => !!c)))
+            const labels = Array.from(new Set(daySessions.map((s) => s.planName))).map((name) => ({
+              text: shortLabelFor(name) || name.toUpperCase().slice(0, 4),
+              color: dotColorFor(name) ?? (isRest(name) ? '#ff5c5c' : 'var(--muted)'),
+            }))
             return (
               <div
                 key={i}
@@ -112,8 +121,16 @@ export default function History() {
                   }
                 }}
               >
-                {Number(key.slice(8, 10))}
-                {has && !isToday && dotColors.length > 0 && (
+                <span className="cal-day">{Number(key.slice(8, 10))}</span>
+                {expanded && has && (
+                  <>
+                    {labels.slice(0, 3).map((l, j) => (
+                      <span key={j} className="cal-tag" style={{ color: l.color }}>{l.text}</span>
+                    ))}
+                    {labels.length > 3 && <span className="cal-tag extra">+{labels.length - 3}</span>}
+                  </>
+                )}
+                {!expanded && has && !isToday && dotColors.length > 0 && (
                   <span className="dot">
                     {dotColors.slice(0, 3).map((c, j) => (
                       <span key={j} style={{ background: c }} />
