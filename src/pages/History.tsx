@@ -5,7 +5,7 @@ import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { isRest, dotColorFor } from '../lib/templates'
+import { isRest, dotColorFor, PLAN_PRESETS } from '../lib/templates'
 import { fmtNumber } from '../lib/helpers'
 import type { Session, WorkoutPlan } from '../types'
 
@@ -52,14 +52,21 @@ export default function History() {
   const list = sessions.slice().sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
   const usedPlanNames = daySessions.map((s) => s.planName)
-  const availablePlans = plans.filter((p) => !usedPlanNames.includes(p.name))
+  const addOptions = PLAN_PRESETS
+    .map((preset) => ({
+      preset,
+      plan: plans.find((p) => p.name === preset.name),
+    }))
+    .filter(({ preset }) => !usedPlanNames.includes(preset.name))
 
-  async function handleCreate(plan: WorkoutPlan | null) {
+  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
     if (!selKey) return
     setCreating(true)
     setError('')
     try {
-      const ref = await createSession(uid, buildSession(plan, selKey))
+      const payload = buildSession(plan, selKey)
+      payload.planName = name
+      const ref = await createSession(uid, payload)
       setSelKey(null)
       navigate(`/session/${ref.id}`)
     } catch (e) {
@@ -161,18 +168,18 @@ export default function History() {
               Tambah sesi untuk tanggal ini:
             </div>
 
-            {plans.length === 0 ? (
-              <div className="small muted">Belum ada jadwal. Atur jadwal lewat tab Hari Ini.</div>
+            {addOptions.length === 0 ? (
+              <div className="small muted">Semua jenis jadwal sudah punya sesi di tanggal ini.</div>
             ) : (
-              availablePlans.map((p) => (
+              addOptions.map(({ preset, plan }) => (
                 <button
-                  key={p.id}
+                  key={preset.name}
                   className="btn ghost wide"
                   style={{ justifyContent: 'flex-start', marginBottom: 8 }}
                   disabled={creating}
-                  onClick={() => void handleCreate(p)}
+                  onClick={() => void handleCreate(plan, preset.name)}
                 >
-                  + {p.name}
+                  + {preset.name}
                 </button>
               ))
             )}
