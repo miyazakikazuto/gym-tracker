@@ -10,7 +10,6 @@ export default function Progress() {
 
   const totalSessions = sessions.filter((s) => s.endedAt).length
   const totalSets = sessions.reduce((acc, s) => acc + s.sets.length, 0)
-  const totalVolume = sessions.reduce((acc, s) => acc + volumeOf(s.sets), 0)
 
   // Last 4 weeks volume (minggu kalender, mulai Minggu); geser 4 minggu/halaman
   const today = todayKey()
@@ -26,6 +25,7 @@ export default function Progress() {
     return { start, end, vol }
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
+  const pageVolume = weeks.reduce((acc, w) => acc + w.vol, 0)
   const pageLabel = (() => {
     const [y1, m1] = weeks[0].start.split('-')
     const [y2, m2] = weeks[3].end.split('-')
@@ -130,7 +130,7 @@ export default function Progress() {
       <div className="row wrap">
         <StatCard label="Sesi selesai" value={String(totalSessions)} />
         <StatCard label="Total set" value={String(totalSets)} />
-        <StatCard label="Volume total" value={fmtNumber(totalVolume) + ' kg'} />
+        <StatCard label="Volume total" value={fmtNumber(pageVolume) + ' kg'} />
       </div>
 
       <div className="card">
