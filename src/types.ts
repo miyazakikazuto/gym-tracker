@@ -63,9 +63,9 @@ export const MUSCLE_GROUPS = [
   'Bahu',
   'Bisep',
   'Trisep',
+  'Forearm',
   'Core',
   'Cardio',
-  'Lainnya',
 ] as const
 
 export const EQUIPMENTS = [

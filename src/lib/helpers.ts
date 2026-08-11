@@ -10,6 +10,7 @@ const MUSCLE_TO_CATEGORY: Record<string, string> = {
   Bahu: 'push',
   Punggung: 'pull',
   Bisep: 'pull',
+  Forearm: 'pull',
   Kaki: 'leg',
   Cardio: 'cardio',
   Core: 'home',
