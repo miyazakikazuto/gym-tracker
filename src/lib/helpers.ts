@@ -41,6 +41,25 @@ export function lastSetResult(
   return null
 }
 
+export function bestSetResult(
+  sessions: Session[],
+  excludeId: string,
+  exerciseId: string,
+): { weightKg: number; reps: number; durationSec?: number } | null {
+  let best: { weightKg: number; reps: number; durationSec?: number; date: string } | null = null
+  for (const s of sessions) {
+    if (s.id === excludeId || s.endedAt === null) continue
+    for (const set of s.sets) {
+      if (set.exerciseId !== exerciseId || set.weightKg <= 0) continue
+      if (!best || set.weightKg > best.weightKg || (set.weightKg === best.weightKg && s.date > best.date)) {
+        best = { weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec, date: s.date }
+      }
+    }
+  }
+  if (!best) return null
+  return { weightKg: best.weightKg, reps: best.reps, durationSec: best.durationSec }
+}
+
 export function groupSetsByExercise(
   sets: { exerciseId: string; setNumber: number; weightKg: number; reps: number }[],
 ) {

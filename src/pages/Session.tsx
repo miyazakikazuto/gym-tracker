@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult, categoryOfExercise, exerciseIsDuration } from '../lib/helpers'
+import { getExerciseName, lastSetResult, categoryOfExercise, exerciseIsDuration, bestSetResult } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
 
@@ -51,13 +51,33 @@ export default function Session() {
   }
 
   function addSet(exerciseId: string) {
+    const dur = exerciseIsDuration(exercises, exerciseId)
+    const prev = localSets
+      .filter((s) => s.exerciseId === exerciseId)
+      .slice()
+      .sort((a, b) => b.setNumber - a.setNumber)[0]
     const maxNo = localSets
       .filter((s) => s.exerciseId === exerciseId)
       .reduce((m, s) => Math.max(m, s.setNumber), 0)
     const setNo = maxNo + 1
+    let w = 0
+    let r = 0
+    let d: number | undefined = dur ? 0 : undefined
+    if (prev) {
+      w = prev.weightKg
+      r = dur ? 0 : prev.reps
+      d = dur ? prev.durationSec ?? 0 : undefined
+    } else {
+      const best = bestSetResult(sessions, sid, exerciseId)
+      if (best) {
+        w = best.weightKg
+        r = dur ? 0 : best.reps
+        d = dur ? best.durationSec ?? 0 : undefined
+      }
+    }
     mutateSets([
       ...localSets,
-      makeSessionSet(exerciseId, setNo, 0, 0, exerciseIsDuration(exercises, exerciseId)),
+      { id: makeSetId(), exerciseId, setNumber: setNo, weightKg: w, reps: r, ...(d !== undefined ? { durationSec: d } : {}) },
     ])
   }
 
@@ -249,8 +269,4 @@ export default function Session() {
       </div>
     </div>
   )
-}
-
-function makeSessionSet(exerciseId: string, setNumber: number, weightKg: number, reps: number, duration: boolean): SessionSet {
-  return { id: makeSetId(), exerciseId, setNumber, weightKg, reps, ...(duration ? { durationSec: 0 } : {}) }
 }
