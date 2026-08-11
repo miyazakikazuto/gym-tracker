@@ -3,6 +3,8 @@ import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays, weekStart } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
 export default function Progress() {
   const { sessions, exercises } = useData()
 
@@ -24,9 +26,14 @@ export default function Progress() {
     return { start, end, vol }
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
-  const pageLabel =
-    weeks[0].start.slice(8, 10) + '/' + weeks[0].start.slice(5, 7) + '–' +
-    weeks[3].end.slice(8, 10) + '/' + weeks[3].end.slice(5, 7)
+  const pageLabel = (() => {
+    const [y1, m1] = weeks[0].start.split('-')
+    const [y2, m2] = weeks[3].end.split('-')
+    const a = MONTHS[Number(m1) - 1]
+    const b = MONTHS[Number(m2) - 1]
+    if (y1 === y2) return m1 === m2 ? `${a} ${y1}` : `${a}–${b} ${y1}`
+    return `${a} ${y1}–${b} ${y2}`
+  })()
   const weekLabel = (start: string, end: string) =>
     start.slice(8, 10) + '/' + start.slice(5, 7) + '–' + end.slice(8, 10) + '/' + end.slice(5, 7)
 
