@@ -37,6 +37,21 @@ export default function Progress() {
   const weekLabel = (start: string, end: string) =>
     start.slice(8, 10) + '/' + start.slice(5, 7) + '–' + end.slice(8, 10) + '/' + end.slice(5, 7)
 
+  // Volume per grup otot (mengikuti halaman pager volume)
+  const MUSCLE_TRACKED = ['Dada', 'Punggung', 'Kaki', 'Bahu', 'Bisep', 'Forearm']
+  const muscleVol = new Map<string, number>()
+  for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
+  for (const s of sessions) {
+    if (!weeks.some((w) => s.date >= w.start && s.date <= w.end)) continue
+    for (const set of s.sets) {
+      const ex = exercises.find((e) => e.id === set.exerciseId)
+      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) continue
+      muscleVol.set(ex.muscleGroup, (muscleVol.get(ex.muscleGroup) ?? 0) + volumeOf([set]))
+    }
+  }
+  const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
+  const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), 1)
+
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
     const start = addDays(weekStart(today), -w * 7)
@@ -149,6 +164,19 @@ export default function Progress() {
               <div className="bar-fill" style={{ width: `${(w.vol / maxVol) * 100}%` }} />
             </div>
             <span className="small" style={{ width: 52, textAlign: 'right' }}>{fmtNumber(w.vol)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-title">Volume per grup otot (kg)</div>
+        {muscleList.map(([m, v]) => (
+          <div key={m} className="row" style={{ marginTop: 6 }}>
+            <span className="small muted" style={{ width: 96 }}>{m}</span>
+            <div className="bar-track grow">
+              <div className="bar-fill" style={{ width: `${(v / maxMuscleVol) * 100}%` }} />
+            </div>
+            <span className="small" style={{ width: 60, textAlign: 'right' }}>{fmtNumber(v)}</span>
           </div>
         ))}
       </div>
