@@ -270,11 +270,11 @@ export default function Progress() {
           <button className={prMode === 'e1rm' ? 'active' : ''} onClick={() => setPrMode('e1rm')}>e1RM</button>
         </div>
         {prMuscles.length > 1 && (
-          <div className="cal-toggle muscle">
+          <select className="input" style={{ marginBottom: 10 }} value={prMuscle} onChange={(e) => setPrMuscle(e.target.value)}>
             {prMuscles.map((g) => (
-              <button key={g} className={prMuscle === g ? 'active' : ''} onClick={() => setPrMuscle(g)}>{g}</button>
+              <option key={g} value={g}>{g === 'Semua' ? 'Semua grup otot' : g}</option>
             ))}
-          </div>
+          </select>
         )}
         {prsFiltered.length === 0 ? (
           <div className="small muted">{prMuscle !== 'Semua' ? `Belum ada PR untuk ${prMuscle} di mode ini.` : 'Belum ada data set dengan beban. Isi beban di sesi latihan.'}</div>
