@@ -92,6 +92,7 @@ export default function Progress() {
 
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
+  const [prMuscle, setPrMuscle] = useState('Semua')
   const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false })
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
@@ -124,7 +125,10 @@ export default function Progress() {
     const pb = prMode === 'weight' ? b[1].weight : prMode === 'reps' ? b[1].reps : prMode === 'dur' ? b[1].durationSec : b[1].e1rm
     return pb - pa
   })
-  prs.length = Math.min(prs.length, 8)
+  const prMuscles = ['Semua', ...Array.from(new Set(Array.from(prMap.keys())
+    .map((exId) => exercises.find((e) => e.id === exId)?.muscleGroup)
+    .filter((g): g is string => !!g)))]
+  const prsFiltered = prMuscle === 'Semua' ? prs : prs.filter(([exId]) => exercises.find((e) => e.id === exId)?.muscleGroup === prMuscle)
 
   // Avg RPE per exercise (from sessions with rpes)
   const rpeMap = new Map<string, { sum: number; count: number }>()
@@ -265,11 +269,18 @@ export default function Progress() {
           <button className={prMode === 'dur' ? 'active' : ''} onClick={() => setPrMode('dur')}>Durasi</button>
           <button className={prMode === 'e1rm' ? 'active' : ''} onClick={() => setPrMode('e1rm')}>e1RM</button>
         </div>
-        {prs.length === 0 ? (
-          <div className="small muted">Belum ada data set dengan beban. Isi beban di sesi latihan.</div>
+        {prMuscles.length > 1 && (
+          <div className="cal-toggle muscle">
+            {prMuscles.map((g) => (
+              <button key={g} className={prMuscle === g ? 'active' : ''} onClick={() => setPrMuscle(g)}>{g}</button>
+            ))}
+          </div>
+        )}
+        {prsFiltered.length === 0 ? (
+          <div className="small muted">{prMuscle !== 'Semua' ? `Belum ada PR untuk ${prMuscle} di mode ini.` : 'Belum ada data set dengan beban. Isi beban di sesi latihan.'}</div>
         ) : (
           <div className="pr-list">
-            {prs.map(([exId, pr]) => {
+            {prsFiltered.map(([exId, pr]) => {
               const durEx = exerciseIsDuration(exercises, exId)
               return (
                 <div className="pr" key={exId}>
