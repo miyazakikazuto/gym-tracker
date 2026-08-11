@@ -10,18 +10,25 @@ export default function Progress() {
   const totalSets = sessions.reduce((acc, s) => acc + s.sets.length, 0)
   const totalVolume = sessions.reduce((acc, s) => acc + volumeOf(s.sets), 0)
 
-  // Last 4 weeks volume (minggu kalender, mulai Minggu)
+  // Last 4 weeks volume (minggu kalender, mulai Minggu); geser 4 minggu/halaman
   const today = todayKey()
+  const [volPage, setVolPage] = useState(0)
   const weeks = [3, 2, 1, 0].map((w) => {
-    const start = addDays(weekStart(today), -w * 7)
+    const k = w + volPage * 4
+    const start = addDays(weekStart(today), -k * 7)
     const end = addDays(start, 6)
     let vol = 0
     for (const s of sessions) {
       if (s.date >= start && s.date <= end) vol += volumeOf(s.sets)
     }
-    return { label: start.slice(8, 10) + '/' + start.slice(5, 7) + '–' + end.slice(8, 10) + '/' + end.slice(5, 7), vol }
+    return { start, end, vol }
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
+  const pageLabel =
+    weeks[0].start.slice(8, 10) + '/' + weeks[0].start.slice(5, 7) + '–' +
+    weeks[3].end.slice(8, 10) + '/' + weeks[3].end.slice(5, 7)
+  const weekLabel = (start: string, end: string) =>
+    start.slice(8, 10) + '/' + start.slice(5, 7) + '–' + end.slice(8, 10) + '/' + end.slice(5, 7)
 
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
@@ -120,10 +127,17 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title">Volume per minggu (kg)</div>
+        <div className="row spread" style={{ alignItems: 'center' }}>
+          <div className="card-title">Volume per minggu (kg)</div>
+          <div className="row" style={{ gap: 6, alignItems: 'center' }}>
+            <button className="btn sm ghost" onClick={() => setVolPage((p) => p + 1)}>‹</button>
+            <span className="small muted">{pageLabel}</span>
+            <button className="btn sm ghost" disabled={volPage === 0} onClick={() => setVolPage((p) => Math.max(0, p - 1))}>›</button>
+          </div>
+        </div>
         {weeks.map((w) => (
-          <div key={w.label} className="row" style={{ marginTop: 6 }}>
-            <span className="small muted" style={{ width: 96 }}>{w.label}</span>
+          <div key={weekLabel(w.start, w.end)} className="row" style={{ marginTop: 6 }}>
+            <span className="small muted" style={{ width: 96 }}>{weekLabel(w.start, w.end)}</span>
             <div className="bar-track grow">
               <div className="bar-fill" style={{ width: `${(w.vol / maxVol) * 100}%` }} />
             </div>
