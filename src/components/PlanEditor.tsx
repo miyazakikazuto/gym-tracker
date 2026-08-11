@@ -88,6 +88,18 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
     onClose()
   }
 
+  async function resetAll() {
+    if (plans.length === 0) return
+    if (!confirm(`Hapus SEMUA jadwal mingguan (${plans.length} hari)? Sesi latihan tidak terpengaruh.`)) return
+    setError('')
+    try {
+      await Promise.all(plans.map((p) => deletePlan(uid, p.id)))
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -184,6 +196,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
             {saving ? 'Menyimpan…' : 'Simpan'}
           </button>
           {plan && <button className="btn danger" onClick={() => void remove()}>Hapus</button>}
+          {plans.length > 0 && <button className="btn danger" onClick={() => void resetAll()}>Reset minggu</button>}
           <button className="btn ghost" onClick={onClose}>Tutup</button>
         </div>
       </div>
