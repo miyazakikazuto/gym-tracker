@@ -76,6 +76,8 @@ body {
   justify-content: space-between;
 }
 
+.card-title.toggle-head { cursor: pointer; user-select: none; }
+
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 

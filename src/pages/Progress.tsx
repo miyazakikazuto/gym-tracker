@@ -92,6 +92,7 @@ export default function Progress() {
 
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
+  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false })
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
   for (const s of sessions) {
@@ -184,7 +185,12 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title">Tren e1RM per gerakan (mingguan)</div>
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, trend: !o.trend }))}>
+          <span>Tren e1RM per gerakan (mingguan)</span>
+          <span>{openCards.trend ? '▾' : '▸'}</span>
+        </div>
+        {openCards.trend && (
+        <>
         {trends.length === 0 ? (
           <div className="small muted">Belum ada data. Isi beban & reps di sesi latihan untuk melihat tren.</div>
         ) : (
@@ -216,10 +222,17 @@ export default function Progress() {
             })}
           </div>
         )}
+        </>
+        )}
       </div>
 
       <div className="card">
-        <div className="card-title">RPE rata-rata per gerakan</div>
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, rpe: !o.rpe }))}>
+          <span>RPE rata-rata per gerakan</span>
+          <span>{openCards.rpe ? '▾' : '▸'}</span>
+        </div>
+        {openCards.rpe && (
+        <>
         {rpes.length === 0 ? (
           <div className="small muted">Belum ada data RPE. Atur RPE (6–10) di akhir tiap gerakan saat sesi.</div>
         ) : (
@@ -235,10 +248,17 @@ export default function Progress() {
             ))}
           </div>
         )}
+        </>
+        )}
       </div>
 
       <div className="card">
-        <div className="card-title">PR terbaik</div>
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, pr: !o.pr }))}>
+          <span>PR terbaik</span>
+          <span>{openCards.pr ? '▾' : '▸'}</span>
+        </div>
+        {openCards.pr && (
+        <>
         <div className="cal-toggle">
           <button className={prMode === 'weight' ? 'active' : ''} onClick={() => setPrMode('weight')}>Beban</button>
           <button className={prMode === 'reps' ? 'active' : ''} onClick={() => setPrMode('reps')}>Reps</button>
@@ -274,6 +294,8 @@ export default function Progress() {
               )
             })}
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
