@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useData } from '../context/DataContext'
-import { volumeOf, todayKey, addDays } from '../lib/date'
+import { volumeOf, todayKey, addDays, weekStart } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 
 export default function Progress() {
@@ -10,23 +10,23 @@ export default function Progress() {
   const totalSets = sessions.reduce((acc, s) => acc + s.sets.length, 0)
   const totalVolume = sessions.reduce((acc, s) => acc + volumeOf(s.sets), 0)
 
-  // Last 4 weeks volume
+  // Last 4 weeks volume (minggu kalender, mulai Minggu)
   const today = todayKey()
   const weeks = [3, 2, 1, 0].map((w) => {
-    const start = addDays(today, -(w * 7 + 6))
-    const end = addDays(today, -w * 7)
+    const start = addDays(weekStart(today), -w * 7)
+    const end = addDays(start, 6)
     let vol = 0
     for (const s of sessions) {
       if (s.date >= start && s.date <= end) vol += volumeOf(s.sets)
     }
-    return { label: start.slice(5, 7) + '/' + start.slice(8, 10) + '–' + end.slice(8, 10), vol }
+    return { label: start.slice(8, 10) + '/' + start.slice(5, 7) + '–' + end.slice(8, 10) + '/' + end.slice(5, 7), vol }
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
 
-  // Weekly best e1RM per exercise (8 minggu terakhir)
+  // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
-    const start = addDays(today, -(w * 7 + 6))
-    const end = addDays(today, -w * 7)
+    const start = addDays(weekStart(today), -w * 7)
+    const end = addDays(start, 6)
     return { start, end }
   })
   const trendMap = new Map<string, number[]>()
