@@ -8,10 +8,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', '
 export default function Progress() {
   const { sessions, exercises } = useData()
 
-  const totalSessions = sessions.filter((s) => s.endedAt).length
-  const totalSets = sessions.reduce((acc, s) => acc + s.sets.length, 0)
-
-  // Last 4 weeks volume (minggu kalender, mulai Minggu); geser 4 minggu/halaman
   const today = todayKey()
   const [volPage, setVolPage] = useState(0)
   const weeks = [3, 2, 1, 0].map((w) => {
@@ -26,6 +22,12 @@ export default function Progress() {
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
   const pageVolume = weeks.reduce((acc, w) => acc + w.vol, 0)
+  const pageSessions = sessions.filter(
+    (s) => s.endedAt !== null && weeks.some((w) => s.date >= w.start && s.date <= w.end),
+  ).length
+  const pageSets = sessions
+    .filter((s) => weeks.some((w) => s.date >= w.start && s.date <= w.end))
+    .reduce((acc, s) => acc + s.sets.length, 0)
   const pageLabel = (() => {
     const [y1, m1] = weeks[0].start.split('-')
     const [y2, m2] = weeks[3].end.split('-')
@@ -143,8 +145,8 @@ export default function Progress() {
       <div className="subtitle">Ringkasan latihan kamu</div>
 
       <div className="row wrap">
-        <StatCard label="Sesi selesai" value={String(totalSessions)} />
-        <StatCard label="Total set" value={String(totalSets)} />
+        <StatCard label="Sesi selesai" value={String(pageSessions)} />
+        <StatCard label="Total set" value={String(pageSets)} />
         <StatCard label="Volume total" value={fmtNumber(pageVolume) + ' kg'} />
       </div>
 
