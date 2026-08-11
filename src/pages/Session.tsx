@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult, categoryOfExercise, exerciseIsDuration, bestSetResult } from '../lib/helpers'
+import { getExerciseName, lastSetResult, categoryOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
 
@@ -112,6 +112,17 @@ export default function Session() {
     }, 400)
   }
 
+  function stepWeight(setId: string, delta: number) {
+    const s = localSets.find((x) => x.id === setId)
+    if (!s) return
+    patchSet(setId, { weightKg: Math.max(0, Math.round((s.weightKg + delta) * 10) / 10) })
+  }
+
+  function parseDec(raw: string): number | null {
+    const n = Number(raw.trim().replace(',', '.'))
+    return Number.isFinite(n) ? n : null
+  }
+
   async function finish() {
     await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
     navigate('/history')
@@ -185,16 +196,20 @@ export default function Session() {
             return (
               <div className="set-row" key={s.id}>
                 <span className="num">{s.setNumber}</span>
+                <button className="step-btn" onClick={() => stepWeight(s.id, -0.5)} disabled={!s.weightKg}>−</button>
                 <input
                   className="wt"
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min={0}
-                  step={0.5}
-                  value={s.weightKg || ''}
-                  placeholder={prev ? String(prev.weightKg) : '0'}
-                  onChange={(e) => patchSet(s.id, { weightKg: Number(e.target.value) })}
+                  autoComplete="off"
+                  value={s.weightKg ? fmtNumber(s.weightKg) : ''}
+                  placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
+                  onChange={(e) => {
+                    const n = parseDec(e.target.value)
+                    if (n !== null) patchSet(s.id, { weightKg: n })
+                  }}
                 />
+                <button className="step-btn" onClick={() => stepWeight(s.id, 0.5)}>＋</button>
                 <input
                   className="wt"
                   type="number"
