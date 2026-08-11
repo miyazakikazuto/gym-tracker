@@ -3,7 +3,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { createExercise, updateExercise, deleteExercise } from '../lib/gymstore'
 import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, EXERCISE_TYPES, type Exercise } from '../types'
-import { categoryOfExercise } from '../lib/helpers'
+import { categoryOfExercise, categoryKeysOfExercise } from '../lib/helpers'
 
 export default function Library() {
   const uid = useUid()
@@ -12,7 +12,7 @@ export default function Library() {
   const [editing, setEditing] = useState<Exercise | null>(null)
   const [tab, setTab] = useState<string>('push')
 
-  const list = exercises.filter((e) => categoryOfExercise(e) === tab)
+  const list = exercises.filter((e) => categoryKeysOfExercise(e).includes(tab))
 
   return (
     <div className="page">
@@ -26,7 +26,7 @@ export default function Library() {
 
       <div className="day-strip" style={{ paddingBottom: 10 }}>
         {EXERCISE_CATEGORIES.map((c) => {
-          const count = exercises.filter((e) => categoryOfExercise(e) === c.key).length
+          const count = exercises.filter((e) => categoryKeysOfExercise(e).includes(c.key)).length
           return (
             <button
               key={c.key}
@@ -49,7 +49,12 @@ export default function Library() {
         <div className="ex-item" key={ex.id}>
           <div>
             <div style={{ fontWeight: 700 }}>{ex.name}</div>
-            <div className="meta">{ex.muscleGroup} · {ex.type === 'duration' ? 'durasi' : 'reps'}</div>
+            <div className="meta">
+              {ex.muscleGroup} · {ex.type === 'duration' ? 'durasi' : 'reps'}
+              {ex.extraCategories && ex.extraCategories.length > 0 && (
+                <span> · juga: {ex.extraCategories.map((c) => EXERCISE_CATEGORIES.find((x) => x.key === c)?.name ?? c).join(', ')}</span>
+              )}
+            </div>
           </div>
           <div className="row">
             <span className="badge">{ex.equipment}</span>
@@ -89,6 +94,7 @@ function ExerciseForm({
   const [category, setCategory] = useState<string>(
     initial?.category ?? categoryOfExercise({ muscleGroup: initial?.muscleGroup ?? MUSCLE_GROUPS[0] }) ?? defaultCategory,
   )
+  const [extra, setExtra] = useState<string[]>(initial?.extraCategories ?? [])
   const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? 'reps')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -101,7 +107,7 @@ function ExerciseForm({
     }
     setBusy(true)
     try {
-      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment, category, type }
+      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment, category, extraCategories: extra.length > 0 ? extra : undefined, type }
       if (initial) await updateExercise(uid, initial.id, data)
       else await createExercise(uid, data)
       onSaved()
@@ -127,6 +133,25 @@ function ExerciseForm({
           <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
             {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
           </select>
+        </div>
+
+        <div className="field">
+          <label>Juga tampil di hari lain</label>
+          <div className="row wrap" style={{ gap: 6 }}>
+            {EXERCISE_CATEGORIES.filter((c) => c.key !== category).map((c) => {
+              const on = extra.includes(c.key)
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={'rpe-chip' + (on ? ' active' : '')}
+                  onClick={() => setExtra(on ? extra.filter((k) => k !== c.key) : [...extra, c.key])}
+                >
+                  {c.name}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="field">

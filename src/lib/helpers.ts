@@ -21,6 +21,11 @@ export function categoryOfExercise(ex: { category?: string; muscleGroup: string 
   return ex.category || MUSCLE_TO_CATEGORY[ex.muscleGroup] || 'push'
 }
 
+export function categoryKeysOfExercise(ex: Exercise): string[] {
+  const keys = [categoryOfExercise(ex), ...(ex.extraCategories ?? [])]
+  return keys.filter((k, i) => keys.indexOf(k) === i)
+}
+
 export function exerciseIsDuration(exercises: Exercise[], exerciseId: string): boolean {
   return exercises.find((e) => e.id === exerciseId)?.type === 'duration'
 }

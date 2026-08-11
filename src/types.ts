@@ -4,6 +4,7 @@ export interface Exercise {
   muscleGroup: string
   equipment: string
   category?: string // push | pull | leg | cardio | home
+  extraCategories?: string[] // hari tambahan selain kategori utama
   type?: 'reps' | 'duration' // tidak ada = reps
 }
 

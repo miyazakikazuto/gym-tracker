@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult, categoryOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
+import { getExerciseName, lastSetResult, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
 
@@ -149,7 +149,7 @@ export default function Session() {
 
   const addPool = (() => {
     const cat = presetByName(session.planName)?.key
-    return cat ? exercises.filter((e) => categoryOfExercise(e) === cat) : exercises
+    return cat ? exercises.filter((e) => categoryKeysOfExercise(e).includes(cat)) : exercises
   })()
 
   return (
