@@ -54,6 +54,9 @@ export function formatDMYWIB(key: string): string {
 }
 
 // volume helpers
-export function volumeOf(sets: { weightKg: number; reps: number }[]): number {
-  return sets.reduce((acc, s) => acc + s.weightKg * s.reps, 0)
+export function volumeOf(sets: { weightKg: number; reps: number; durationSec?: number }[]): number {
+  return sets.reduce(
+    (acc, s) => acc + s.weightKg * (s.durationSec != null ? s.durationSec / 60 : s.reps),
+    0,
+  )
 }

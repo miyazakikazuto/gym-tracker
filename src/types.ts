@@ -4,7 +4,13 @@ export interface Exercise {
   muscleGroup: string
   equipment: string
   category?: string // push | pull | leg | cardio | home
+  type?: 'reps' | 'duration' // tidak ada = reps
 }
+
+export const EXERCISE_TYPES = [
+  { key: 'reps', name: 'Reps' },
+  { key: 'duration', name: 'Durasi (detik)' },
+] as const
 
 export const EXERCISE_CATEGORIES = [
   { key: 'push', name: 'Push', shortLabel: 'PUSH' },
@@ -35,6 +41,7 @@ export interface SessionSet {
   setNumber: number
   weightKg: number
   reps: number
+  durationSec?: number // set gerakan durasi (tidak ada = reps)
 }
 
 export interface Session {

@@ -20,18 +20,22 @@ export function categoryOfExercise(ex: { category?: string; muscleGroup: string 
   return ex.category || MUSCLE_TO_CATEGORY[ex.muscleGroup] || 'push'
 }
 
+export function exerciseIsDuration(exercises: Exercise[], exerciseId: string): boolean {
+  return exercises.find((e) => e.id === exerciseId)?.type === 'duration'
+}
+
 export function lastSetResult(
   sessions: Session[],
   excludeId: string,
   exerciseId: string,
   setNumber: number,
-): { weightKg: number; reps: number } | null {
+): { weightKg: number; reps: number; durationSec?: number } | null {
   const finished = sessions
     .filter((s) => s.id !== excludeId && s.endedAt !== null)
     .sort((a, b) => (b.date < a.date ? -1 : 1) || b.startedAt - a.startedAt)
   for (const s of finished) {
     const set = s.sets.find((x) => x.exerciseId === exerciseId && x.setNumber === setNumber)
-    if (set && set.weightKg > 0) return { weightKg: set.weightKg, reps: set.reps }
+    if (set && set.weightKg > 0) return { weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec }
   }
   return null
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays } from '../lib/date'
-import { fmtNumber, getExerciseName } from '../lib/helpers'
+import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 
 export default function Progress() {
   const { sessions, exercises } = useData()
@@ -34,7 +34,7 @@ export default function Progress() {
     const winIdx = trendWins.findIndex((win) => s.date >= win.start && s.date <= win.end)
     if (winIdx < 0) continue
     for (const set of s.sets) {
-      if (set.weightKg > 0) {
+      if (set.weightKg > 0 && !exerciseIsDuration(exercises, set.exerciseId)) {
         const e = e1rmNum(set.weightKg, set.reps)
         const arr = trendMap.get(set.exerciseId) ?? new Array(8).fill(0)
         if (e > arr[winIdx]) arr[winIdx] = e
@@ -59,32 +59,37 @@ export default function Progress() {
     .sort((a, b) => b.lastVal - a.lastVal)
     .slice(0, 8)
 
-  // PR per exercise (3 dimensi: beban, reps, e1RM)
-  const [prMode, setPrMode] = useState<'weight' | 'reps' | 'e1rm'>('weight')
-  interface PrBest { weight: number; reps: number; e1rm: number; date: string }
-  const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; e1rm?: PrBest }>()
+  // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
+  const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
+  interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
+  const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
   for (const s of sessions) {
     for (const set of s.sets) {
       const cur = prMap.get(set.exerciseId) ?? {}
+      const durEx = exerciseIsDuration(exercises, set.exerciseId)
       const e1rm = set.weightKg * (1 + set.reps / 30)
-      if (set.weightKg > 0 && (!cur.weight || set.weightKg > cur.weight.weight || (set.weightKg === cur.weight.weight && set.reps > cur.weight.reps))) {
-        cur.weight = { weight: set.weightKg, reps: set.reps, e1rm, date: s.date }
+      const sec = set.durationSec ?? 0
+      if (set.weightKg > 0 && (!cur.weight || set.weightKg > cur.weight.weight || (set.weightKg === cur.weight.weight && (durEx ? sec : set.reps) > (durEx ? cur.weight.durationSec : cur.weight.reps)))) {
+        cur.weight = { weight: set.weightKg, reps: set.reps, durationSec: sec, e1rm, date: s.date }
       }
-      if (set.reps > 0 && (!cur.reps || set.reps > cur.reps.reps || (set.reps === cur.reps.reps && set.weightKg > cur.reps.weight))) {
-        cur.reps = { weight: set.weightKg, reps: set.reps, e1rm, date: s.date }
+      if (!durEx && set.reps > 0 && (!cur.reps || set.reps > cur.reps.reps || (set.reps === cur.reps.reps && set.weightKg > cur.reps.weight))) {
+        cur.reps = { weight: set.weightKg, reps: set.reps, durationSec: 0, e1rm, date: s.date }
       }
-      if (set.weightKg > 0 && (!cur.e1rm || e1rm > cur.e1rm.e1rm)) {
-        cur.e1rm = { weight: set.weightKg, reps: set.reps, e1rm, date: s.date }
+      if (durEx && sec > 0 && (!cur.dur || sec > cur.dur.durationSec)) {
+        cur.dur = { weight: set.weightKg, reps: 0, durationSec: sec, e1rm: 0, date: s.date }
+      }
+      if (!durEx && set.weightKg > 0 && (!cur.e1rm || e1rm > cur.e1rm.e1rm)) {
+        cur.e1rm = { weight: set.weightKg, reps: set.reps, durationSec: 0, e1rm, date: s.date }
       }
       prMap.set(set.exerciseId, cur)
     }
   }
   const prs: [string, PrBest][] = Array.from(prMap.entries())
     .map(([exId, v]) => [exId, v[prMode]] as [string, PrBest | undefined])
-    .filter(([, v]) => !!v && v.weight > 0) as [string, PrBest][]
+    .filter(([, v]) => !!v && (prMode === 'reps' ? v.reps > 0 : prMode === 'dur' ? v.durationSec > 0 : v.weight > 0)) as [string, PrBest][]
   prs.sort((a, b) => {
-    const pa = prMode === 'weight' ? a[1].weight : prMode === 'reps' ? a[1].reps : a[1].e1rm
-    const pb = prMode === 'weight' ? b[1].weight : prMode === 'reps' ? b[1].reps : b[1].e1rm
+    const pa = prMode === 'weight' ? a[1].weight : prMode === 'reps' ? a[1].reps : prMode === 'dur' ? a[1].durationSec : a[1].e1rm
+    const pb = prMode === 'weight' ? b[1].weight : prMode === 'reps' ? b[1].reps : prMode === 'dur' ? b[1].durationSec : b[1].e1rm
     return pb - pa
   })
   prs.length = Math.min(prs.length, 8)
@@ -186,26 +191,37 @@ export default function Progress() {
         <div className="cal-toggle">
           <button className={prMode === 'weight' ? 'active' : ''} onClick={() => setPrMode('weight')}>Beban</button>
           <button className={prMode === 'reps' ? 'active' : ''} onClick={() => setPrMode('reps')}>Reps</button>
+          <button className={prMode === 'dur' ? 'active' : ''} onClick={() => setPrMode('dur')}>Durasi</button>
           <button className={prMode === 'e1rm' ? 'active' : ''} onClick={() => setPrMode('e1rm')}>e1RM</button>
         </div>
         {prs.length === 0 ? (
           <div className="small muted">Belum ada data set dengan beban. Isi beban di sesi latihan.</div>
         ) : (
           <div className="pr-list">
-            {prs.map(([exId, pr]) => (
-              <div className="pr" key={exId}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
-                  <div className="small muted">
-                    {pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} ·{' '}
-                    {prMode === 'weight' ? pr.reps + ' rep' : prMode === 'reps' ? fmtNumber(pr.weight) + ' kg' : fmtNumber(pr.weight) + ' kg × ' + pr.reps + ' rep'}
+            {prs.map(([exId, pr]) => {
+              const durEx = exerciseIsDuration(exercises, exId)
+              return (
+                <div className="pr" key={exId}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
+                    <div className="small muted">
+                      {pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} ·{' '}
+                      {prMode === 'weight'
+                        ? (durEx ? pr.durationSec + ' dtk' : pr.reps + ' rep')
+                        : prMode === 'reps' || prMode === 'dur'
+                          ? (pr.weight > 0 ? fmtNumber(pr.weight) + ' kg' : '')
+                          : fmtNumber(pr.weight) + ' kg × ' + pr.reps + ' rep'}
+                    </div>
+                  </div>
+                  <div className="val">
+                    {prMode === 'weight' ? fmtNumber(pr.weight) + ' kg'
+                      : prMode === 'reps' ? pr.reps + ' rep'
+                      : prMode === 'dur' ? pr.durationSec + ' dtk'
+                      : '~' + e1RmKg(pr.weight, pr.reps) + ' kg e1RM'}
                   </div>
                 </div>
-                <div className="val">
-                  {prMode === 'weight' ? fmtNumber(pr.weight) + ' kg' : prMode === 'reps' ? pr.reps + ' rep' : '~' + e1RmKg(pr.weight, pr.reps) + ' kg e1RM'}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

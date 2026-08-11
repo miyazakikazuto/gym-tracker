@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES } from '../types'
 import { createPlan, updatePlan, deletePlan } from '../lib/gymstore'
 import { PLAN_PRESETS, presetByName, presetByKey } from '../lib/templates'
+import { exerciseIsDuration } from '../lib/helpers'
 
 interface Item {
   exerciseId: string
@@ -163,7 +164,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
                 value={it.reps}
                 min={1}
                 onChange={(e) => updateItem(i, { reps: Number(e.target.value) })}
-                title="Rep"
+                title={exerciseIsDuration(exercises, it.exerciseId) ? 'Durasi (dtk)' : 'Rep'}
               />
               <button className="icon-btn danger" onClick={() => removeItem(i)}>✕</button>
             </div>

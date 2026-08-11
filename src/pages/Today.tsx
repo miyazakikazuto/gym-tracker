@@ -7,6 +7,7 @@ import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { shortLabelFor, isRest } from '../lib/templates'
+import { exerciseIsDuration } from '../lib/helpers'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 
@@ -62,7 +63,10 @@ export default function Today() {
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
 
   async function createAndOpen(plan: WorkoutPlan | undefined | null) {
-    const ref = await createSession(uid, buildSession(plan, base))
+    const ref = await createSession(
+      uid,
+      buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps')),
+    )
     navigate(`/session/${ref.id}`)
   }
 
@@ -115,7 +119,7 @@ export default function Today() {
                   <div className="row" key={i} style={{ padding: '6px 0' }}>
                     <span className="num">{i + 1}.</span>
                     <span className="grow">{ex?.name ?? 'Gerakan'}</span>
-                    <span className="badge">{it.targetSets} × {it.reps}</span>
+                    <span className="badge">{it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}</span>
                   </div>
                 )
               })}

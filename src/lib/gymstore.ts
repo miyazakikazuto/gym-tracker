@@ -100,7 +100,11 @@ export async function deleteSession(uid: string, id: string) {
 }
 
 // Build a new session payload for a given date (default start 12:00 WIB)
-export function buildSession(plan: WorkoutPlan | null | undefined, dateKey: string): Omit<Session, 'id'> {
+export function buildSession(
+  plan: WorkoutPlan | null | undefined,
+  dateKey: string,
+  typeOf?: (exerciseId: string) => 'reps' | 'duration',
+): Omit<Session, 'id'> {
   const start = parseKey(dateKey).getTime() + 12 * 60 * 60 * 1000
   return {
     date: dateKey,
@@ -117,7 +121,8 @@ export function buildSession(plan: WorkoutPlan | null | undefined, dateKey: stri
         exerciseId: it.exerciseId,
         setNumber: i + 1,
         weightKg: 0,
-        reps: it.reps,
+        reps: typeOf?.(it.exerciseId) === 'duration' ? 0 : it.reps,
+        ...(typeOf?.(it.exerciseId) === 'duration' ? { durationSec: it.reps } : {}),
       })),
   }
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { createExercise, updateExercise, deleteExercise } from '../lib/gymstore'
-import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, type Exercise } from '../types'
+import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, EXERCISE_TYPES, type Exercise } from '../types'
 import { categoryOfExercise } from '../lib/helpers'
 
 export default function Library() {
@@ -49,7 +49,7 @@ export default function Library() {
         <div className="ex-item" key={ex.id}>
           <div>
             <div style={{ fontWeight: 700 }}>{ex.name}</div>
-            <div className="meta">{ex.muscleGroup}</div>
+            <div className="meta">{ex.muscleGroup} · {ex.type === 'duration' ? 'durasi' : 'reps'}</div>
           </div>
           <div className="row">
             <span className="badge">{ex.equipment}</span>
@@ -89,6 +89,7 @@ function ExerciseForm({
   const [category, setCategory] = useState<string>(
     initial?.category ?? categoryOfExercise({ muscleGroup: initial?.muscleGroup ?? MUSCLE_GROUPS[0] }) ?? defaultCategory,
   )
+  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? 'reps')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -100,7 +101,7 @@ function ExerciseForm({
     }
     setBusy(true)
     try {
-      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment, category }
+      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment, category, type }
       if (initial) await updateExercise(uid, initial.id, data)
       else await createExercise(uid, data)
       onSaved()
@@ -125,6 +126,13 @@ function ExerciseForm({
           <label>Kategori</label>
           <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
             {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+          </select>
+        </div>
+
+        <div className="field">
+          <label>Jenis set</label>
+          <select className="input" value={type} onChange={(e) => setType(e.target.value as 'reps' | 'duration')}>
+            {EXERCISE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
           </select>
         </div>
 

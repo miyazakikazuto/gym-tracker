@@ -6,6 +6,7 @@ import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import { exerciseIsDuration } from '../lib/helpers'
 import { fmtNumber } from '../lib/helpers'
 import type { Session, WorkoutPlan } from '../types'
 
@@ -27,7 +28,7 @@ function monthGrid(year: number, month: number): (string | null)[] {
 }
 
 export default function History() {
-  const { sessions, plans } = useData()
+  const { sessions, plans, exercises } = useData()
   const uid = useUid()
   const navigate = useNavigate()
 
@@ -68,7 +69,7 @@ export default function History() {
     setCreating(true)
     setError('')
     try {
-      const payload = buildSession(plan, selKey)
+      const payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'))
       payload.planName = name
       const ref = await createSession(uid, payload)
       setSelKey(null)

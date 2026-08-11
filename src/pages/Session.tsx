@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult, categoryOfExercise } from '../lib/helpers'
+import { getExerciseName, lastSetResult, categoryOfExercise, exerciseIsDuration } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
 
@@ -55,7 +55,10 @@ export default function Session() {
       .filter((s) => s.exerciseId === exerciseId)
       .reduce((m, s) => Math.max(m, s.setNumber), 0)
     const setNo = maxNo + 1
-    mutateSets([...localSets, makeSessionSet(exerciseId, setNo, 0, 0)])
+    mutateSets([
+      ...localSets,
+      makeSessionSet(exerciseId, setNo, 0, 0, exerciseIsDuration(exercises, exerciseId)),
+    ])
   }
 
   function removeSet(setId: string) {
@@ -143,7 +146,9 @@ export default function Session() {
         <div className="card empty">Belum ada gerakan. Tambahkan lewat tombol di bawah.</div>
       )}
 
-      {Array.from(grouped.entries()).map(([exId, sets]) => (
+      {Array.from(grouped.entries()).map(([exId, sets]) => {
+        const dur = exerciseIsDuration(exercises, exId)
+        return (
         <div className="card" key={exId}>
             <div className="card-title">
               <span>{getExerciseName(exercises, exId)}</span>
@@ -152,7 +157,7 @@ export default function Session() {
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>
             <span className="grow">Beban (kg)</span>
-            <span style={{ width: 60, textAlign: 'center' }}>Rep</span>
+            <span style={{ width: 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
             <span style={{ width: 32 }} />
           </div>
           {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
@@ -175,9 +180,9 @@ export default function Session() {
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  value={s.reps || ''}
-                  placeholder={prev ? String(prev.reps) : '0'}
-                  onChange={(e) => patchSet(s.id, { reps: Number(e.target.value) })}
+                  value={dur ? s.durationSec || '' : s.reps || ''}
+                  placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
+                  onChange={(e) => patchSet(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
                 />
                 <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
               </div>
@@ -201,7 +206,8 @@ export default function Session() {
             )}
           </div>
         </div>
-      ))}
+        )
+      })}
 
       <div className="card">
         <div className="card-title">Tambahkan gerakan</div>
@@ -245,6 +251,6 @@ export default function Session() {
   )
 }
 
-function makeSessionSet(exerciseId: string, setNumber: number, weightKg: number, reps: number): SessionSet {
-  return { id: makeSetId(), exerciseId, setNumber, weightKg, reps }
+function makeSessionSet(exerciseId: string, setNumber: number, weightKg: number, reps: number, duration: boolean): SessionSet {
+  return { id: makeSetId(), exerciseId, setNumber, weightKg, reps, ...(duration ? { durationSec: 0 } : {}) }
 }
