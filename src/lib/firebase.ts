@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
+import { getAuth, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 
 export const FIREBASE_CONFIG = {
@@ -24,7 +24,12 @@ export function getFirebaseApp(): FirebaseApp {
 }
 
 export function getAuthInstance(): Auth {
-  if (!authInstance) authInstance = getAuth(getFirebaseApp())
+  if (!authInstance) {
+    authInstance = getAuth(getFirebaseApp())
+    // localStorage (bukan IndexedDB): di iOS PWA standalone, localStorage
+    // berbagi storage dengan Safari sehingga login dari Safari ikut terbaca app.
+    setPersistence(authInstance, browserLocalPersistence).catch(() => undefined)
+  }
   return authInstance
 }
 

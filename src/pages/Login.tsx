@@ -110,12 +110,12 @@ export default function Login() {
 
         <div className="card" style={{ width: '100%' }}>
           <div className="small muted" style={{ marginBottom: 8 }}>
-            Login Google terputus di dalam app terpasang. Selesaikan sekali di Safari — setelah masuk, buka lagi aplikasi ini dan kamu sudah login otomatis.
+            Login Google terputus di dalam app terpasang. Selesaikan di Safari — setelah masuk, buka lagi aplikasi ini dan kamu sudah login otomatis.
           </div>
           {[
-            ['Ketuk "Lanjutkan di Safari"', 'Safari terbuka membawa aplikasi ini.'],
-            ['Pilih akun Google', 'Login normal seperti biasa.'],
-            ['Kembali ke aplikasi', 'Buka ikon Gym di layar utama — langsung masuk.'],
+            ['Ketuk "Lanjutkan di Safari"', 'Safari terbuka membawa halaman login aplikasi ini.'],
+            ['Ketuk "Masuk dengan Google" di Safari', 'Halaman itu perlu ditekan tombol logannya — selesaikan sampai muncul dashboard.'],
+            ['Buka lagi aplikasi di layar utama', 'Ikon Gym — kamu sudah login otomatis.'],
           ].map(([title, desc], i) => (
             <div className="row" key={i} style={{ padding: '6px 0', gap: 10 }}>
               <span className="badge accent" style={{ flex: 'none', minWidth: 26, textAlign: 'center' }}>{i + 1}</span>
