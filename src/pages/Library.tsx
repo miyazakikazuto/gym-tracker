@@ -107,7 +107,14 @@ function ExerciseForm({
     }
     setBusy(true)
     try {
-      const data: Omit<Exercise, 'id'> = { name: name.trim(), muscleGroup, equipment, category, extraCategories: extra.length > 0 ? extra : undefined, type }
+      const data: Omit<Exercise, 'id'> = {
+        name: name.trim(),
+        muscleGroup,
+        equipment,
+        category,
+        type,
+        ...(extra.length > 0 ? { extraCategories: extra } : {}),
+      }
       if (initial) await updateExercise(uid, initial.id, data)
       else await createExercise(uid, data)
       onSaved()
