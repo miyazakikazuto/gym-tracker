@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/gen-sw.cjs",
+    "icons": "node scripts/gen-icons.cjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

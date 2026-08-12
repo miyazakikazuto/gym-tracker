@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
@@ -10,6 +10,11 @@ import { shortLabelFor, isRest } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: string }>
+}
 
 function DayStrip({
   days,
@@ -51,6 +56,27 @@ export default function Today() {
   const navigate = useNavigate()
   const { plans, exercises, sessions, ready } = useData()
   const [showPlan, setShowPlan] = useState(false)
+  const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault()
+      setInstallEvt(e as BeforeInstallPromptEvent)
+    }
+    const onInstalled = () => setInstallEvt(null)
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  async function installApp() {
+    if (!installEvt) return
+    await installEvt.prompt()
+    setInstallEvt(null)
+  }
 
   const base = todayKey()
   const weekStart = addDays(base, -dayOfWeek(base))
@@ -89,11 +115,16 @@ export default function Today() {
           <div className="page-title">Gym Tracker</div>
           <div className="subtitle">Hari ini · {user?.email?.split('@')[0]}</div>
         </div>
-        <button className="icon-btn" title="Logout" onClick={() => getAuthInstance().signOut()}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          {installEvt && (
+            <button className="btn sm primary" onClick={() => void installApp()}>Pasang</button>
+          )}
+          <button className="icon-btn" title="Logout" onClick={() => getAuthInstance().signOut()}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <DayStrip days={days} base={base} sessions={sessions} plans={plans} />

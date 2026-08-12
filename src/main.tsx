@@ -9,6 +9,12 @@ import ErrorBoundary, { installGlobalErrorFallback } from './components/ErrorBou
 installGlobalErrorFallback()
 window.__GT_BOOTED = true
 
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(() => undefined)
+  })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
