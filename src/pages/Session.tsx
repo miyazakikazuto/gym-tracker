@@ -195,8 +195,8 @@ export default function Session() {
             </div>
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>
-            <span className="grow">Beban (kg)</span>
-            <span style={{ width: 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
+            {!isCardio(exId) && <span className="grow">Beban (kg)</span>}
+            <span className={isCardio(exId) ? 'grow' : ''} style={{ width: isCardio(exId) ? undefined : 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
             {isCardio(exId) && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
             <span style={{ width: 32 }} />
           </div>
@@ -205,6 +205,8 @@ export default function Session() {
             return (
               <div className="set-row" key={s.id}>
                 <span className="num">{s.setNumber}</span>
+                {!isCardio(exId) && (
+                <>
                 <button className="step-btn" onClick={() => stepWeight(s.id, -0.5)} disabled={!s.weightKg}>−</button>
                 <input
                   className="wt"
@@ -219,6 +221,8 @@ export default function Session() {
                   }}
                 />
                 <button className="step-btn" onClick={() => stepWeight(s.id, 0.5)}>＋</button>
+                </>
+                )}
                 <input
                   className="wt"
                   type="number"
