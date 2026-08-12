@@ -2,35 +2,78 @@ import { useEffect, useState } from 'react'
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth'
 import { getAuthInstance } from '../lib/firebase'
 
+const REDIRECT_FLAG = 'gt_redirecting'
+
 export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [usingRedirect, setUsingRedirect] = useState(false)
+  const [showSafariGuide, setShowSafariGuide] = useState(false)
+
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
 
   // Jika sebelumnya redirect sign-in dilakukan, proses hasilnya saat halaman dimuat ulang
   useEffect(() => {
     getRedirectResult(getAuthInstance())
-      .catch(() => { /* hasil redirect gagal / dibatalkan */ })
+      .then((res) => {
+        if (res) {
+          sessionStorage.removeItem(REDIRECT_FLAG)
+          // sukses → onAuthStateChanged akan memuat app
+        }
+      })
+      .catch(() => {
+        // hasil redirect gagal / dibatalkan
+      })
   }, [])
+
+  // Setelah OAuth kembali tapi masih belum login (redirect putus di webview standalone):
+  // arahkan ke Safari agar login selesai, bukan menampilkan loop tombol login.
+  useEffect(() => {
+    if (sessionStorage.getItem(REDIRECT_FLAG)) {
+      const t = setTimeout(() => {
+        sessionStorage.removeItem(REDIRECT_FLAG)
+        setShowSafariGuide(true)
+        setBusy(false)
+      }, 2500)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
+  async function startRedirect(auth: ReturnType<typeof getAuthInstance>, provider: GoogleAuthProvider) {
+    sessionStorage.setItem(REDIRECT_FLAG, '1')
+    setUsingRedirect(true)
+    setError('')
+    try {
+      await signInWithRedirect(auth, provider)
+    } catch (e2) {
+      sessionStorage.removeItem(REDIRECT_FLAG)
+      setUsingRedirect(false)
+      setError(msgOf(e2))
+    }
+  }
 
   async function signInGoogle() {
     setError('')
     setBusy(true)
     const auth = getAuthInstance()
     const provider = new GoogleAuthProvider()
+
+    // iOS standalone: popup selalu diblokir — langsung redirect
+    if (isIos && isStandalone) {
+      await startRedirect(auth, provider)
+      setBusy(false)
+      return
+    }
+
     try {
       await signInWithPopup(auth, provider)
+      sessionStorage.removeItem(REDIRECT_FLAG)
       // sukses → onAuthStateChanged akan memuat app
     } catch (err) {
       const code = (err as { code?: string }).code
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-        setUsingRedirect(true)
-        setError('')
-        try {
-          await signInWithRedirect(auth, provider)
-        } catch (e2) {
-          setError(msgOf(e2))
-        }
+        await startRedirect(auth, provider)
       } else if (code === 'auth/popup-closed-by-user') {
         // user batal — diam saja
       } else if (code === 'auth/unauthorized-domain') {
@@ -49,6 +92,47 @@ export default function Login() {
     } finally {
       setBusy(false)
     }
+  }
+
+  function openInSafari() {
+    const url = window.location.origin + window.location.pathname
+    window.open(url, '_blank')
+  }
+
+  if (showSafariGuide) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-logo">
+          <img src="/gym-tracker/dumbell.svg" alt="" onError={(el) => ((el.currentTarget as HTMLImageElement).style.display = 'none')} />
+        </div>
+        <div className="auth-brand">Gym Tracker</div>
+        <div className="auth-tag">Login belum selesai</div>
+
+        <div className="card" style={{ width: '100%' }}>
+          <div className="small muted" style={{ marginBottom: 8 }}>
+            Login Google terputus di dalam app terpasang. Selesaikan sekali di Safari — setelah masuk, buka lagi aplikasi ini dan kamu sudah login otomatis.
+          </div>
+          {[
+            ['Ketuk "Lanjutkan di Safari"', 'Safari terbuka membawa aplikasi ini.'],
+            ['Pilih akun Google', 'Login normal seperti biasa.'],
+            ['Kembali ke aplikasi', 'Buka ikon Gym di layar utama — langsung masuk.'],
+          ].map(([title, desc], i) => (
+            <div className="row" key={i} style={{ padding: '6px 0', gap: 10 }}>
+              <span className="badge accent" style={{ flex: 'none', minWidth: 26, textAlign: 'center' }}>{i + 1}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{title}</div>
+                <div className="small muted">{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="form-actions" style={{ width: '100%' }}>
+          <button className="btn primary" onClick={openInSafari}>Lanjutkan di Safari</button>
+          <button className="btn ghost" onClick={() => void signInGoogle()}>Coba lagi</button>
+        </div>
+      </div>
+    )
   }
 
   return (
