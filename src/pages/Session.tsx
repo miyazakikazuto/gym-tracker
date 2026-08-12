@@ -127,8 +127,7 @@ export default function Session() {
   }
 
   function isCardio(exId: string): boolean {
-    const ex = exercises.find((e) => e.id === exId)
-    return ex?.muscleGroup === 'Cardio' && ex?.type === 'duration'
+    return exercises.find((e) => e.id === exId)?.muscleGroup === 'Cardio'
   }
 
   async function finish() {
@@ -197,7 +196,7 @@ export default function Session() {
             <span className="num">#</span>
             {!isCardio(exId) && <span className="grow">Beban (kg)</span>}
             <span className={isCardio(exId) ? 'grow' : ''} style={{ width: isCardio(exId) ? undefined : 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
-            {isCardio(exId) && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
+            {isCardio(exId) && dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
             <span style={{ width: 32 }} />
           </div>
           {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
@@ -232,7 +231,7 @@ export default function Session() {
                   placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
                   onChange={(e) => patchSet(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
                 />
-                {isCardio(exId) && (
+                {isCardio(exId) && dur && (
                   <input
                     className="wt dist"
                     type="text"
