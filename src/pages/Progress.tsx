@@ -54,6 +54,23 @@ export default function Progress() {
   const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
   const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), 1)
 
+  // Ringkasan cardio (semua sesi)
+  const cardioMap = new Map<string, { dist: number; dur: number; sesi: Set<string> }>()
+  for (const s of sessions) {
+    for (const set of s.sets) {
+      const ex = exercises.find((e) => e.id === set.exerciseId)
+      if (!ex || ex.muscleGroup !== 'Cardio') continue
+      const c = cardioMap.get(set.exerciseId) ?? { dist: 0, dur: 0, sesi: new Set<string>() }
+      c.dist += set.distanceKm ?? 0
+      c.dur += set.durationSec ?? 0
+      c.sesi.add(s.id)
+      cardioMap.set(set.exerciseId, c)
+    }
+  }
+  const cardioList = Array.from(cardioMap.entries())
+    .map(([exId, c]) => ({ exId, dist: c.dist, dur: c.dur, n: c.sesi.size }))
+    .sort((a, b) => b.dist - a.dist)
+
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
     const start = addDays(weekStart(today), -w * 7)
@@ -93,6 +110,7 @@ export default function Progress() {
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
+  const [volTab, setVolTab] = useState<'muscle' | 'cardio'>('muscle')
   const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false })
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
@@ -176,7 +194,15 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title">Volume per grup otot (kg)</div>
+        <div className="row spread" style={{ alignItems: 'center', marginBottom: 8 }}>
+          <div className="card-title" style={{ margin: 0 }}>Volume per grup otot (kg)</div>
+          <div className="cal-toggle" style={{ margin: 0 }}>
+            <button className={volTab === 'muscle' ? 'active' : ''} onClick={() => setVolTab('muscle')}>Volume otot</button>
+            <button className={volTab === 'cardio' ? 'active' : ''} onClick={() => setVolTab('cardio')}>Cardio</button>
+          </div>
+        </div>
+        {volTab === 'muscle' ? (
+        <>
         {muscleList.map(([m, v]) => (
           <div key={m} className="row" style={{ marginTop: 6 }}>
             <span className="small muted" style={{ width: 96 }}>{m}</span>
@@ -186,6 +212,31 @@ export default function Progress() {
             <span className="small" style={{ width: 60, textAlign: 'right' }}>{fmtNumber(v)}</span>
           </div>
         ))}
+        </>
+        ) : (
+        <>
+        {cardioList.length === 0 ? (
+          <div className="small muted">Belum ada data cardio. Isi durasi & jarak (km) di sesi Cardio Day.</div>
+        ) : (
+          <div className="pr-list">
+            {cardioList.map(({ exId, dist, dur, n }) => {
+              const pace = dur > 0 && dist > 0 ? paceStr(dur / 60, dist) : null
+              return (
+                <div className="pr" key={exId}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
+                    <div className="small muted">
+                      {fmtNumber(dist)} km · {fmtMinutes(dur)} · {n} sesi{pace && ` · pace ${pace}/km`}
+                    </div>
+                  </div>
+                  <div className="val">{fmtNumber(dist)} km</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        </>
+        )}
       </div>
 
       <div className="card">
@@ -333,4 +384,16 @@ function e1RmStr(val: number): string {
 
 function e1RmKg(weight: number, reps: number): string {
   return e1RmStr(e1rmNum(weight, reps))
+}
+
+function fmtMinutes(sec: number): string {
+  const m = Math.round(sec / 60)
+  return m >= 60 ? Math.floor(m / 60) + ' j ' + (m % 60) + ' mnt' : m + ' mnt'
+}
+
+function paceStr(minutes: number, km: number): string {
+  const p = minutes / km
+  const m = Math.floor(p)
+  const s = Math.round((p - m) * 60)
+  return m + ':' + (s < 10 ? '0' + s : s)
 }

@@ -35,13 +35,15 @@ export function lastSetResult(
   excludeId: string,
   exerciseId: string,
   setNumber: number,
-): { weightKg: number; reps: number; durationSec?: number } | null {
+): { weightKg: number; reps: number; durationSec?: number; distanceKm?: number } | null {
   const finished = sessions
     .filter((s) => s.id !== excludeId && s.endedAt !== null)
     .sort((a, b) => (b.date < a.date ? -1 : 1) || b.startedAt - a.startedAt)
   for (const s of finished) {
     const set = s.sets.find((x) => x.exerciseId === exerciseId && x.setNumber === setNumber)
-    if (set && set.weightKg > 0) return { weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec }
+    if (set && (set.weightKg > 0 || set.durationSec != null || (set.distanceKm ?? 0) > 0)) {
+      return { weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec, distanceKm: set.distanceKm }
+    }
   }
   return null
 }
@@ -50,19 +52,23 @@ export function bestSetResult(
   sessions: Session[],
   excludeId: string,
   exerciseId: string,
-): { weightKg: number; reps: number; durationSec?: number } | null {
-  let best: { weightKg: number; reps: number; durationSec?: number; date: string } | null = null
+): { weightKg: number; reps: number; durationSec?: number; distanceKm?: number } | null {
+  let best: { primary: number; weightKg: number; reps: number; durationSec?: number; distanceKm?: number; date: string } | null = null
   for (const s of sessions) {
     if (s.id === excludeId || s.endedAt === null) continue
     for (const set of s.sets) {
-      if (set.exerciseId !== exerciseId || set.weightKg <= 0) continue
-      if (!best || set.weightKg > best.weightKg || (set.weightKg === best.weightKg && s.date > best.date)) {
-        best = { weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec, date: s.date }
+      if (set.exerciseId !== exerciseId) continue
+      const hasData = set.weightKg > 0 || set.durationSec != null || (set.distanceKm ?? 0) > 0
+      if (!hasData) continue
+      const km = set.distanceKm ?? 0
+      const primary: number = set.weightKg > 0 ? set.weightKg : km > 0 ? km : set.durationSec ?? 0
+      if (!best || primary > best.primary || (primary === best.primary && s.date > best.date)) {
+        best = { primary, weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec, distanceKm: set.distanceKm, date: s.date }
       }
     }
   }
   if (!best) return null
-  return { weightKg: best.weightKg, reps: best.reps, durationSec: best.durationSec }
+  return { weightKg: best.weightKg, reps: best.reps, durationSec: best.durationSec, distanceKm: best.distanceKm }
 }
 
 export function groupSetsByExercise(

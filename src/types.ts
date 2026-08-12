@@ -43,6 +43,7 @@ export interface SessionSet {
   weightKg: number
   reps: number
   durationSec?: number // set gerakan durasi (tidak ada = reps)
+  distanceKm?: number // jarak per set (cardio)
 }
 
 export interface Session {

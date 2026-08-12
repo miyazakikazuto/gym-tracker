@@ -63,21 +63,24 @@ export default function Session() {
     let w = 0
     let r = 0
     let d: number | undefined = dur ? 0 : undefined
+    let d2: number | undefined = undefined
     if (prev) {
       w = prev.weightKg
       r = dur ? 0 : prev.reps
       d = dur ? prev.durationSec ?? 0 : undefined
+      d2 = prev.distanceKm
     } else {
       const best = bestSetResult(sessions, sid, exerciseId)
       if (best) {
         w = best.weightKg
         r = dur ? 0 : best.reps
         d = dur ? best.durationSec ?? 0 : undefined
+        d2 = best.distanceKm
       }
     }
     mutateSets([
       ...localSets,
-      { id: makeSetId(), exerciseId, setNumber: setNo, weightKg: w, reps: r, ...(d !== undefined ? { durationSec: d } : {}) },
+      { id: makeSetId(), exerciseId, setNumber: setNo, weightKg: w, reps: r, ...(d !== undefined ? { durationSec: d } : {}), ...(d2 !== undefined ? { distanceKm: d2 } : {}) },
     ])
   }
 
@@ -121,6 +124,11 @@ export default function Session() {
   function parseDec(raw: string): number | null {
     const n = Number(raw.trim().replace(',', '.'))
     return Number.isFinite(n) ? n : null
+  }
+
+  function isCardio(exId: string): boolean {
+    const ex = exercises.find((e) => e.id === exId)
+    return ex?.muscleGroup === 'Cardio' && ex?.type === 'duration'
   }
 
   async function finish() {
@@ -189,6 +197,7 @@ export default function Session() {
             <span className="num">#</span>
             <span className="grow">Beban (kg)</span>
             <span style={{ width: 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
+            {isCardio(exId) && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
             <span style={{ width: 32 }} />
           </div>
           {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
@@ -219,6 +228,20 @@ export default function Session() {
                   placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
                   onChange={(e) => patchSet(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
                 />
+                {isCardio(exId) && (
+                  <input
+                    className="wt dist"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
+                    placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
+                    onChange={(e) => {
+                      const n = parseDec(e.target.value)
+                      if (n !== null) patchSet(s.id, { distanceKm: n })
+                    }}
+                  />
+                )}
                 <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
               </div>
             )
