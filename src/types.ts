@@ -75,8 +75,6 @@ export const EQUIPMENTS = [
   'Machine',
   'Kabel',
   'Bodyweight',
-  'Band',
-  'Lainnya',
 ] as const
 
 export const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const

@@ -171,6 +171,7 @@ function ExerciseForm({
         <div className="field">
           <label>Alat</label>
           <select className="input" value={equipment} onChange={(e) => setEquipment(e.target.value)}>
+            {!(EQUIPMENTS as readonly string[]).includes(equipment) && <option value={equipment}>{equipment}</option>}
             {EQUIPMENTS.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
