@@ -29,3 +29,20 @@ Firebase config hardcoded di `src/lib/firebase.ts` (config publik, bukan secret)
 Push ke `main` memicu GitHub Actions → build → publish ke GitHub Pages. Pastikan **Settings → Pages → Source = "GitHub Actions"**.
 
 URL: `https://miyazakikazuto.github.io/gym-tracker/`
+
+## Firestore Rules
+
+Rules source of truth: `firestore.rules` (di repo ini).
+
+Path `users/{uid}/...` digunakan bersama project `xauusd-jurnal` (app XAUUSD). Pastikan rules tidak saling bentrok.
+
+### Verifikasi rules lama
+1. Buka Firebase Console → project `xauusd-jurnal` → Firestore → Rules
+2. Pastikan ada `match /users/{uid}/{document=**}` dengan rule `allow read, write: if request.auth.uid == uid`
+3. Jika rules kosong/longgar → deploy rules baru (lihat di bawah)
+
+### Deploy
+- **Via CLI:** `npx firebase-tools deploy --only firestore:rules` (butuh login `npx firebase-tools login` terlebih dulu)
+- **Manual:** salin isi `firestore.rules` → paste di Firebase Console → Firestore → Rules → Publish
+
+> **Status saat ini:** Rules di console sudah benar — `users/{userId}/{document=**}` dengan `request.auth.uid == userId`. File ini di-sync sebagai source of truth.
