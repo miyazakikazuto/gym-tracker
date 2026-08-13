@@ -39,7 +39,7 @@ export function lastSetResult(
 ): { weightKg: number; reps: number; durationSec?: number; distanceKm?: number } | null {
   const finished = sessions
     .filter((s) => s.id !== excludeId && s.endedAt !== null)
-    .sort((a, b) => (b.date < a.date ? -1 : 1) || b.startedAt - a.startedAt)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.startedAt - a.startedAt))
   for (const s of finished) {
     const set = s.sets.find((x) => x.exerciseId === exerciseId && x.setNumber === setNumber)
     if (set && (set.weightKg > 0 || set.durationSec != null || (set.distanceKm ?? 0) > 0)) {
