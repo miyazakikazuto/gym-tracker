@@ -1,12 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, bestE1RmOf } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
+
+interface SetResult {
+  weightKg: number
+  reps: number
+  durationSec?: number
+  distanceKm?: number
+}
 
 export default function Session() {
   const { id } = useParams<{ id: string }>()
@@ -20,6 +27,116 @@ export default function Session() {
   const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
   const [syncPending, setSyncPending] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastWrittenRef = useRef('')
+
+  // Lookup best e1RM per gerakan — dibangun sekali per data, bukan scan per render
+  const bestE1RmMap = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const s of sessions) {
+      if (s.id === id || s.endedAt === null) continue
+      for (const set of s.sets) {
+        if (set.weightKg <= 0) continue
+        const e = set.weightKg * (1 + set.reps / 30)
+        if (e > (map.get(set.exerciseId) ?? 0)) map.set(set.exerciseId, e)
+      }
+    }
+    return map
+  }, [sessions, id])
+
+  // Lookup hasil set terakhir per (gerakan, set ke-N) — sesi selesai, terbaru dulu
+  const lastSetMap = useMemo(() => {
+    const map = new Map<string, Map<number, SetResult>>()
+    const finished = sessions
+      .filter((s) => s.id !== id && s.endedAt !== null)
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.startedAt - a.startedAt))
+    for (const s of finished) {
+      for (const set of s.sets) {
+        const hasData = set.weightKg > 0 || set.durationSec != null || (set.distanceKm ?? 0) > 0
+        if (!hasData) continue
+        let bySet = map.get(set.exerciseId)
+        if (!bySet) {
+          bySet = new Map()
+          map.set(set.exerciseId, bySet)
+        }
+        if (!bySet.has(set.setNumber)) {
+          bySet.set(set.setNumber, {
+            weightKg: set.weightKg,
+            reps: set.reps,
+            durationSec: set.durationSec,
+            distanceKm: set.distanceKm,
+          })
+        }
+      }
+    }
+    return map
+  }, [sessions, id])
+
+  // Autosave dengan diff: tulis Firestore hanya jika nilai benar-benar berubah
+  const scheduleSync = useCallback(
+    (nextSets: SessionSet[]) => {
+      if (!id) return
+      const json = JSON.stringify(nextSets)
+      if (json === lastWrittenRef.current) return
+      lastWrittenRef.current = json
+      setSyncPending(true)
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(async () => {
+        try {
+          await updateSession(uid, id, { sets: nextSets })
+        } catch {
+          /* snapshot akan menyinkronkan */
+        } finally {
+          setSyncPending(false)
+        }
+      }, 400)
+    },
+    [uid, id],
+  )
+
+  const mutateSets = useCallback(
+    (next: SessionSet[]) => {
+      setLocalSets(next)
+      scheduleSync(next)
+    },
+    [scheduleSync],
+  )
+
+  const patchSet = useCallback(
+    (setId: string, patch: Partial<SessionSet>) => {
+      setLocalSets((cur) => {
+        const next = cur.map((s) => (s.id === setId ? { ...s, ...patch } : s))
+        scheduleSync(next)
+        return next
+      })
+    },
+    [scheduleSync],
+  )
+
+  const removeSet = useCallback(
+    (setId: string) => {
+      setLocalSets((cur) => {
+        const next = cur.filter((s) => s.id !== setId)
+        scheduleSync(next)
+        return next
+      })
+    },
+    [scheduleSync],
+  )
+
+  const stepWeight = useCallback(
+    (setId: string, delta: number) => {
+      setLocalSets((cur) => {
+        const s = cur.find((x) => x.id === setId)
+        if (!s) return cur
+        const next = cur.map((x) =>
+          x.id === setId ? { ...x, weightKg: Math.max(0, Math.round((s.weightKg + delta) * 10) / 10) } : x,
+        )
+        scheduleSync(next)
+        return next
+      })
+    },
+    [scheduleSync],
+  )
 
   useEffect(() => {
     if (session) {
@@ -35,20 +152,6 @@ export default function Session() {
 
   const isActive = session.endedAt === null
   const sid = session.id
-
-  function scheduleSync(nextSets: SessionSet[]) {
-    setSyncPending(true)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
-      await updateSession(uid, sid, { sets: nextSets })
-      setSyncPending(false)
-    }, 400)
-  }
-
-  function mutateSets(next: SessionSet[]) {
-    setLocalSets(next)
-    scheduleSync(next)
-  }
 
   function addSet(exerciseId: string) {
     const dur = exerciseIsDuration(exercises, exerciseId)
@@ -84,21 +187,18 @@ export default function Session() {
     ])
   }
 
-  function removeSet(setId: string) {
-    mutateSets(localSets.filter((s) => s.id !== setId))
-  }
-
-  function patchSet(setId: string, patch: Partial<SessionSet>) {
-    mutateSets(localSets.map((s) => (s.id === setId ? { ...s, ...patch } : s)))
-  }
-
   function patchNote(next: string) {
     setNote(next)
     setSyncPending(true)
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
-      await updateSession(uid, sid, { note: next.trim() })
-      setSyncPending(false)
+      try {
+        await updateSession(uid, sid, { note: next.trim() })
+      } catch {
+        /* snapshot akan menyinkronkan */
+      } finally {
+        setSyncPending(false)
+      }
     }, 600)
   }
 
@@ -110,20 +210,14 @@ export default function Session() {
     setSyncPending(true)
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
-      await updateSession(uid, sid, { rpes: next })
-      setSyncPending(false)
+      try {
+        await updateSession(uid, sid, { rpes: next })
+      } catch {
+        /* snapshot akan menyinkronkan */
+      } finally {
+        setSyncPending(false)
+      }
     }, 400)
-  }
-
-  function stepWeight(setId: string, delta: number) {
-    const s = localSets.find((x) => x.id === setId)
-    if (!s) return
-    patchSet(setId, { weightKg: Math.max(0, Math.round((s.weightKg + delta) * 10) / 10) })
-  }
-
-  function parseDec(raw: string): number | null {
-    const n = Number(raw.trim().replace(',', '.'))
-    return Number.isFinite(n) ? n : null
   }
 
   function isCardio(exId: string): boolean {
@@ -186,13 +280,14 @@ export default function Session() {
 
       {Array.from(grouped.entries()).map(([exId, sets]) => {
         const dur = exerciseIsDuration(exercises, exId)
-        const e1RmRef = bestE1RmOf(sessions, sid, exId)
+        const cardio = isCardio(exId)
+        const e1RmRef = bestE1RmMap.get(exId) ?? 0
         return (
         <div className="card" key={exId}>
             <div className="card-title">
               <span>
                 {getExerciseName(exercises, exId)}
-                {!isCardio(exId) && e1RmRef > 0 && (
+                {!cardio && e1RmRef > 0 && (
                   <span className="badge accent" style={{ marginLeft: 8 }}>e1RM ~{fmtNumber(e1RmRef)} kg</span>
                 )}
               </span>
@@ -200,70 +295,29 @@ export default function Session() {
             </div>
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>
-            {!isCardio(exId) && <span className="grow">Beban (kg)</span>}
-            <span className={isCardio(exId) ? 'grow' : ''} style={{ width: isCardio(exId) ? undefined : 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
-            {isCardio(exId) && dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
-            {!isCardio(exId) && <span className="int">Int</span>}
+            {!cardio && <span className="grow">Beban (kg)</span>}
+            <span className={cardio ? 'grow' : ''} style={{ width: cardio ? undefined : 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
+            {cardio && dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
+            {!cardio && <span className="int">Int</span>}
             <span style={{ width: 32 }} />
           </div>
           {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
-            const prev = lastSetResult(sessions, sid, exId, s.setNumber)
-            const pct = !isCardio(exId) && !dur && s.weightKg > 0 && s.reps > 0 && e1RmRef > 0
+            const prev = lastSetMap.get(exId)?.get(s.setNumber) ?? null
+            const pct = !cardio && !dur && s.weightKg > 0 && s.reps > 0 && e1RmRef > 0
               ? (s.weightKg / e1RmRef) * 100
               : null
             return (
-              <div className="set-row" key={s.id}>
-                <span className="num">{s.setNumber}</span>
-                {!isCardio(exId) && (
-                <>
-                <button className="step-btn" onClick={() => stepWeight(s.id, -0.5)} disabled={!s.weightKg}>−</button>
-                <input
-                  className="wt"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={s.weightKg ? fmtNumber(s.weightKg) : ''}
-                  placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
-                  onChange={(e) => {
-                    const n = parseDec(e.target.value)
-                    if (n !== null) patchSet(s.id, { weightKg: n })
-                  }}
-                />
-                <button className="step-btn" onClick={() => stepWeight(s.id, 0.5)}>＋</button>
-                </>
-                )}
-                <input
-                  className="wt"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={dur ? s.durationSec || '' : s.reps || ''}
-                  placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
-                  onChange={(e) => patchSet(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
-                />
-                {isCardio(exId) && dur && (
-                  <input
-                    className="wt dist"
-                    type="text"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
-                    placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
-                    onChange={(e) => {
-                      const n = parseDec(e.target.value)
-                      if (n !== null) patchSet(s.id, { distanceKm: n })
-                    }}
-                  />
-                )}
-                {!isCardio(exId) && (
-                  pct !== null ? (
-                    <span className={'int int-' + intZone(pct)}>~{Math.round(pct)}%</span>
-                  ) : (
-                    <span className="int" />
-                  )
-                )}
-                <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
-              </div>
+              <SetRow
+                key={s.id}
+                s={s}
+                dur={dur}
+                isCardio={cardio}
+                prev={prev}
+                pct={pct}
+                onStep={stepWeight}
+                onPatch={patchSet}
+                onRemove={removeSet}
+              />
             )
           })}
           <div className="row" style={{ marginTop: 8 }}>
@@ -328,6 +382,86 @@ export default function Session() {
     </div>
   )
 }
+
+const SetRow = memo(function SetRow({
+  s,
+  dur,
+  isCardio,
+  prev,
+  pct,
+  onStep,
+  onPatch,
+  onRemove,
+}: {
+  s: SessionSet
+  dur: boolean
+  isCardio: boolean
+  prev: SetResult | null
+  pct: number | null
+  onStep: (id: string, delta: number) => void
+  onPatch: (id: string, patch: Partial<SessionSet>) => void
+  onRemove: (id: string) => void
+}) {
+  function parseDec(raw: string): number | null {
+    const n = Number(raw.trim().replace(',', '.'))
+    return Number.isFinite(n) ? n : null
+  }
+
+  return (
+    <div className="set-row">
+      <span className="num">{s.setNumber}</span>
+      {!isCardio && (
+      <>
+      <button className="step-btn" onClick={() => onStep(s.id, -0.5)} disabled={!s.weightKg}>−</button>
+      <input
+        className="wt"
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        value={s.weightKg ? fmtNumber(s.weightKg) : ''}
+        placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
+        onChange={(e) => {
+          const n = parseDec(e.target.value)
+          if (n !== null) onPatch(s.id, { weightKg: n })
+        }}
+      />
+      <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
+      </>
+      )}
+      <input
+        className="wt"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={dur ? s.durationSec || '' : s.reps || ''}
+        placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
+        onChange={(e) => onPatch(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
+      />
+      {isCardio && dur && (
+        <input
+          className="wt dist"
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
+          placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
+          onChange={(e) => {
+            const n = parseDec(e.target.value)
+            if (n !== null) onPatch(s.id, { distanceKm: n })
+          }}
+        />
+      )}
+      {!isCardio && (
+        pct !== null ? (
+          <span className={'int int-' + intZone(pct)}>~{Math.round(pct)}%</span>
+        ) : (
+          <span className="int" />
+        )
+      )}
+      <button className="icon-btn danger" onClick={() => onRemove(s.id)}>✕</button>
+    </div>
+  )
+})
 
 function intZone(pct: number): string {
   if (pct < 60) return 'recovery'
