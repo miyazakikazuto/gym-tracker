@@ -21,6 +21,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
 
   const [presetKey, setPresetKey] = useState<string>('')
   const [items, setItems] = useState<Item[]>([])
+  const [missingNames, setMissingNames] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -48,7 +49,26 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
 
   function selectPreset(key: string) {
     setPresetKey(key)
-    if (key === 'rest') setItems([])
+    if (key === 'rest') {
+      setItems([])
+      setMissingNames([])
+    } else if (items.length === 0) {
+      const preset = presetByKey(key)
+      if (preset) {
+        const matched: Item[] = []
+        const missing: string[] = []
+        for (const pe of preset.exercises) {
+          const ex = exercises.find((e) => e.name.trim().toLowerCase() === pe.name.trim().toLowerCase())
+          if (ex) {
+            matched.push({ exerciseId: ex.id, targetSets: 3, reps: 10 })
+          } else {
+            missing.push(pe.name)
+          }
+        }
+        setItems(matched)
+        setMissingNames(missing)
+      }
+    }
   }
 
   async function save() {
@@ -137,11 +157,17 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {items.length === 0 && (
+        {items.length === 0 && missingNames.length === 0 && (
           <div className="empty small">
             {presetKey === 'rest'
               ? 'Hari istirahat — tanpa gerakan. Simpan untuk menandai hari ini.'
               : 'Pilih jenis jadwal, lalu tambah gerakan manual di bawah.'}
+          </div>
+        )}
+
+        {missingNames.length > 0 && (
+          <div className="small muted" style={{ marginBottom: 8 }}>
+            {missingNames.length} gerakan belum ada di library: {missingNames.join(', ')}
           </div>
         )}
 
