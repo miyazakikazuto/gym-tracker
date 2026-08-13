@@ -42,7 +42,10 @@ export default function Login() {
         } catch (e2) {
           const code2 = (e2 as { code?: string }).code
           if (code2 === 'auth/email-already-in-use') {
-            setError('Email sudah terdaftar — periksa kembali kata sandi.')
+            setError(
+              'Email ini sudah terdaftar sebagai akun Google. Buka aplikasi di perangkat yang masih masuk Google ' +
+              '(tombol gembok di halaman Hari Ini → Atur kata sandi), lalu setelah itu login di sini.',
+            )
           } else {
             setError(msgOf(e2))
           }
