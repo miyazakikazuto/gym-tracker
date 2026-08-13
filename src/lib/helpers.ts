@@ -13,12 +13,13 @@ const MUSCLE_TO_CATEGORY: Record<string, string> = {
   Forearm: 'pull',
   Kaki: 'leg',
   Cardio: 'cardio',
-  Core: 'home',
-  Lainnya: 'home',
+  Core: 'easy',
+  Lainnya: 'easy',
 }
 
 export function categoryOfExercise(ex: { category?: string; muscleGroup: string }): string {
-  return ex.category || MUSCLE_TO_CATEGORY[ex.muscleGroup] || 'push'
+  const c = ex.category || MUSCLE_TO_CATEGORY[ex.muscleGroup] || 'push'
+  return c === 'home' ? 'easy' : c
 }
 
 export function categoryKeysOfExercise(ex: Exercise): string[] {

@@ -18,7 +18,7 @@ export const EXERCISE_CATEGORIES = [
   { key: 'pull', name: 'Pull', shortLabel: 'PULL' },
   { key: 'leg', name: 'Leg', shortLabel: 'LEG' },
   { key: 'cardio', name: 'Cardio', shortLabel: 'CARDIO' },
-  { key: 'home', name: 'Home Gym', shortLabel: 'HOME' },
+  { key: 'easy', name: 'Easy Day', shortLabel: 'EASY' },
 ] as const
 
 export interface PlanItem {
