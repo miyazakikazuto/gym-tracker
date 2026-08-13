@@ -3,7 +3,7 @@ import { getAuthInstance } from './firebase'
 
 // Google Cloud Console → project xauusd-jurnal → APIs & Services → Credentials →
 // "Web client (auto created by Google Service)" → Client ID
-export const GOOGLE_CLIENT_ID = 'PASTE_WEB_CLIENT_ID_HERE'
+export const GOOGLE_CLIENT_ID = '977650715760-66tcuklejebnqgff88ih12slt1a6chkh.apps.googleusercontent.com'
 
 interface TokenClientResponse {
   access_token: string
