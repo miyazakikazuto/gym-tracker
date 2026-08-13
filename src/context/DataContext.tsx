@@ -3,7 +3,6 @@ import {
   useContext,
   useEffect,
   useState,
-  useCallback,
   type ReactNode,
 } from 'react'
 import { useAuth } from './AuthContext'
@@ -21,7 +20,6 @@ interface DataState {
   plans: WorkoutPlan[]
   sessions: Session[]
   ready: boolean
-  refresh: () => Promise<void>
   setExercises: React.Dispatch<React.SetStateAction<Exercise[]>>
   setPlans: React.Dispatch<React.SetStateAction<WorkoutPlan[]>>
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
@@ -65,12 +63,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [uid, exercises])
 
-  const refresh = useCallback(async () => {
-    setReady(false)
-    await new Promise((r) => setTimeout(r, 300))
-    setReady(true)
-  }, [])
-
   return (
     <DataContext.Provider
       value={{
@@ -78,7 +70,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         plans,
         sessions,
         ready,
-        refresh,
         setExercises,
         setPlans,
         setSessions,
