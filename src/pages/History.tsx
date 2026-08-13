@@ -35,7 +35,7 @@ export default function History() {
   const t = parseKey(todayKey())
   const [viewYear, setViewYear] = useState(t.getUTCFullYear())
   const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
