@@ -7,12 +7,25 @@ import type { Exercise, Session } from '../types'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
 const SBD_LIFTS = [
-  { key: 'squat', label: 'Squat', keyword: 'squat' },
-  { key: 'bench', label: 'Bench Press', keyword: 'bench' },
-  { key: 'deadlift', label: 'Deadlift', keyword: 'deadlift' },
+  {
+    key: 'squat',
+    label: 'Squat',
+    keyword: 'squat',
+    exclude: ['front', 'box', 'pistol', 'sissy', 'bulgarian', 'goblet', 'hack', 'smith', 'machine', 'split'],
+  },
+  {
+    key: 'bench',
+    label: 'Bench Press',
+    keyword: 'bench',
+    exclude: ['incline', 'decline', 'dumbbell', 'machine', 'smith', 'floor', 'grip', 'reverse'],
+  },
+  {
+    key: 'deadlift',
+    label: 'Deadlift',
+    keyword: 'deadlift',
+    exclude: ['romanian', 'stiff', 'rack', 'deficit', 'snatch', 'trap', 'goblet', 'hack', 'smith', 'machine'],
+  },
 ] as const
-
-const SBD_EXCLUDE = ['romanian', 'goblet', 'hack', 'smith', 'machine', 'sumo', 'trap', 'split']
 
 export default function Progress() {
   const { sessions, exercises } = useData()
@@ -509,7 +522,7 @@ function isSbdExercise(ex: Exercise, liftKey: string): boolean {
   if (!lift) return false
   const n = ex.name.toLowerCase()
   if (!n.includes(lift.keyword)) return false
-  return !SBD_EXCLUDE.some((k) => n.includes(k))
+  return !lift.exclude.some((k) => n.includes(k))
 }
 
 function e1RmStr(val: number): string {
