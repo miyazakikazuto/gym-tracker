@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
 import { getAuthInstance } from '../lib/firebase'
 import { signInWithGsi } from '../lib/gsi'
 
@@ -7,15 +7,17 @@ export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [mode, setMode] = useState<'google' | 'email'>('google')
+  const [authMode, setAuthMode] = useState<'masuk' | 'daftar'>('masuk')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [resetMsg, setResetMsg] = useState('')
 
   async function signInGoogle() {
     setError('')
+    setResetMsg('')
     setBusy(true)
     try {
       await signInWithGsi()
-      // sukses → onAuthStateChanged akan memuat app
     } catch (err) {
       setError(msgOf(err))
     } finally {
@@ -23,33 +25,62 @@ export default function Login() {
     }
   }
 
-  async function signInEmail() {
+  async function handleEmailSubmit() {
     setError('')
+    setResetMsg('')
     const em = email.trim().toLowerCase()
     if (!em || !password) {
       setError('Isi email dan kata sandi dulu.')
       return
     }
+    if (authMode === 'daftar' && password.length < 6) {
+      setError('Kata sandi minimal 6 karakter.')
+      return
+    }
     setBusy(true)
     const auth = getAuthInstance()
     try {
-      await signInWithEmailAndPassword(auth, em, password)
+      if (authMode === 'masuk') {
+        await signInWithEmailAndPassword(auth, em, password)
+      } else {
+        await createUserWithEmailAndPassword(auth, em, password)
+      }
     } catch (err) {
       const code = (err as { code?: string }).code
-      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
-        try {
-          await createUserWithEmailAndPassword(auth, em, password)
-        } catch (e2) {
-          const code2 = (e2 as { code?: string }).code
-          if (code2 === 'auth/email-already-in-use') {
-            setError(
-              'Email ini sudah terdaftar sebagai akun Google. Buka aplikasi di perangkat yang masih masuk Google ' +
-              '(tombol gembok di halaman Hari Ini → Atur kata sandi), lalu setelah itu login di sini.',
-            )
-          } else {
-            setError(msgOf(e2))
-          }
+      if (authMode === 'masuk') {
+        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+          setError('Email belum terdaftar. Pilih mode Daftar untuk akun baru.')
+        } else {
+          setError(msgOf(err))
         }
+      } else {
+        if (code === 'auth/email-already-in-use') {
+          setError('Email sudah terdaftar. Pilih mode Masuk, atau gunakan "Lupa sandi?" jika lupa kata sandi.')
+        } else {
+          setError(msgOf(err))
+        }
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleResetPassword() {
+    setError('')
+    setResetMsg('')
+    const em = email.trim().toLowerCase()
+    if (!em) {
+      setError('Isi email dulu, lalu ketuk "Lupa sandi?".')
+      return
+    }
+    setBusy(true)
+    try {
+      await sendPasswordResetEmail(getAuthInstance(), em)
+      setResetMsg('Email reset terkirim — cek inbox (dan folder spam).')
+    } catch (err) {
+      const code = (err as { code?: string }).code
+      if (code === 'auth/user-not-found') {
+        setError('Email tidak terdaftar.')
       } else {
         setError(msgOf(err))
       }
@@ -67,6 +98,7 @@ export default function Login() {
       <div className="auth-tag">Jadwal & log latihan kamu</div>
 
       {error && <div className="auth-error">{error}</div>}
+      {resetMsg && <div className="auth-tag" style={{ color: 'var(--ok)' }}>{resetMsg}</div>}
 
       {mode === 'google' ? (
         <>
@@ -90,27 +122,36 @@ export default function Login() {
             <span>{busy ? 'Menghubungkan…' : 'Masuk dengan Google'}</span>
           </button>
           <button className="btn ghost" style={{ width: '100%', marginTop: 10 }}
-            onClick={() => { setError(''); setMode('email') }}>
+            onClick={() => { setError(''); setResetMsg(''); setMode('email') }}>
             Masuk dengan email
           </button>
         </>
       ) : (
         <form className="card" style={{ width: '100%', display: 'grid', gap: 10 }}
-          onSubmit={(e) => { e.preventDefault(); void signInEmail() }}>
+          onSubmit={(e) => { e.preventDefault(); void handleEmailSubmit() }}>
+          <div className="cal-toggle" style={{ marginBottom: 4 }}>
+            <button type="button" className={authMode === 'masuk' ? 'active' : ''}
+              onClick={() => { setError(''); setResetMsg(''); setAuthMode('masuk') }}>Masuk</button>
+            <button type="button" className={authMode === 'daftar' ? 'active' : ''}
+              onClick={() => { setError(''); setResetMsg(''); setAuthMode('daftar') }}>Daftar</button>
+          </div>
           <input className="input" type="email" inputMode="email" autoComplete="email"
             placeholder="Email" value={email}
             onChange={(e) => setEmail(e.target.value)} disabled={busy} />
-          <input className="input" type="password" autoComplete="current-password"
+          <input className="input" type="password" autoComplete={authMode === 'daftar' ? 'new-password' : 'current-password'}
             placeholder="Kata sandi" value={password}
             onChange={(e) => setPassword(e.target.value)} disabled={busy} />
           <button className="btn primary" disabled={busy}>
-            {busy ? 'Menghubungkan…' : 'Masuk'}
+            {busy ? 'Menghubungkan…' : authMode === 'masuk' ? 'Masuk' : 'Buat Akun'}
           </button>
-          <div className="small muted" style={{ textAlign: 'center' }}>
-            Akun baru dibuat otomatis saat pertama masuk.
-          </div>
+          {authMode === 'masuk' && (
+            <button type="button" className="btn ghost" disabled={busy}
+              onClick={() => void handleResetPassword()}>
+              Lupa sandi?
+            </button>
+          )}
           <button type="button" className="btn ghost" disabled={busy}
-            onClick={() => { setError(''); setMode('google') }}>
+            onClick={() => { setError(''); setResetMsg(''); setMode('google') }}>
             Kembali ke masuk Google
           </button>
         </form>
