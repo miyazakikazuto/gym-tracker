@@ -62,7 +62,7 @@ export default function Progress() {
     start.slice(8, 10) + '/' + start.slice(5, 7) + '–' + end.slice(8, 10) + '/' + end.slice(5, 7)
 
   // Volume per grup otot (mengikuti halaman pager volume)
-  const MUSCLE_TRACKED = ['Dada', 'Punggung', 'Kaki', 'Bahu', 'Bisep', 'Forearm']
+  const MUSCLE_TRACKED = ['Dada', 'Punggung', 'Kaki', 'Bahu', 'Bisep', 'Trisep', 'Forearm', 'Core']
   const muscleVol = new Map<string, number>()
   for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
   for (const s of sessions) {
