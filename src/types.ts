@@ -58,6 +58,12 @@ export interface Session {
   rpes?: Record<string, number> // exerciseId → RPE 6..10
 }
 
+export interface UserProfile {
+  bodyweightKg: number | null
+  sex: 'male' | 'female'
+  updatedAt?: number
+}
+
 export const MUSCLE_GROUPS = [
   'Dada',
   'Punggung',

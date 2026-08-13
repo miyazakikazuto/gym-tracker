@@ -6,6 +6,7 @@ import {
   deleteDoc,
   getDocs,
   onSnapshot,
+  setDoc,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
 import { parseKey } from './date'
@@ -14,10 +15,27 @@ import type {
   WorkoutPlan,
   Session,
   SessionSet,
+  UserProfile,
 } from '../types'
 
 export function userGymRef(uid: string, sub: string) {
   return collection(getDb(), 'users', uid, sub)
+}
+
+// ===== PROFILE =====
+export function profileRef(uid: string) {
+  return doc(getDb(), 'users', uid, 'profile', 'main')
+}
+
+export function subscribeProfile(uid: string, cb: (profile: UserProfile) => void) {
+  return onSnapshot(profileRef(uid), (d) => {
+    const data = d.data() as UserProfile | undefined
+    cb(data ?? { bodyweightKg: null, sex: 'male' })
+  })
+}
+
+export function setProfile(uid: string, patch: Partial<UserProfile>) {
+  return setDoc(profileRef(uid), { ...patch, updatedAt: Date.now() }, { merge: true })
 }
 
 // ===== EXERCISES =====

@@ -10,19 +10,23 @@ import {
   subscribeExercises,
   subscribePlans,
   subscribeSessions,
+  subscribeProfile,
+  setProfile,
   patchExerciseCategory,
 } from '../lib/gymstore'
 import { categoryOfExercise } from '../lib/helpers'
-import type { Exercise, WorkoutPlan, Session } from '../types'
+import type { Exercise, WorkoutPlan, Session, UserProfile } from '../types'
 
 interface DataState {
   exercises: Exercise[]
   plans: WorkoutPlan[]
   sessions: Session[]
+  profile: UserProfile
   ready: boolean
   setExercises: React.Dispatch<React.SetStateAction<Exercise[]>>
   setPlans: React.Dispatch<React.SetStateAction<WorkoutPlan[]>>
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
+  updateProfile: (patch: Partial<UserProfile>) => void
 }
 
 const DataContext = createContext<DataState | null>(null)
@@ -33,6 +37,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [plans, setPlans] = useState<WorkoutPlan[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
+  const [profile, setProfileState] = useState<UserProfile>({ bodyweightKg: null, sex: 'male' })
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -42,6 +47,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       subscribeExercises(uid, setExercises),
       subscribePlans(uid, setPlans),
       subscribeSessions(uid, setSessions),
+      subscribeProfile(uid, setProfileState),
     ]
     const t = setTimeout(() => setReady(true), 800)
     return () => {
@@ -63,16 +69,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [uid, exercises])
 
+  const updateProfile = (patch: Partial<UserProfile>) => {
+    if (!uid) return
+    setProfileState((cur) => ({ ...cur, ...patch }))
+    setProfile(uid, patch).catch(() => undefined)
+  }
+
   return (
     <DataContext.Provider
       value={{
         exercises,
         plans,
         sessions,
+        profile,
         ready,
         setExercises,
         setPlans,
         setSessions,
+        updateProfile,
       }}
     >
       {children}

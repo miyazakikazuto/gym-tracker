@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays, weekStart } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
-import type { Exercise, Session } from '../types'
+import { dotsScore, fmtDots } from '../lib/dots'
+import type { Exercise, Session, UserProfile } from '../types'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -28,7 +29,7 @@ const SBD_LIFTS = [
 ] as const
 
 export default function Progress() {
-  const { sessions, exercises } = useData()
+  const { sessions, exercises, profile, updateProfile } = useData()
 
   const today = todayKey()
   const [volPage, setVolPage] = useState(0)
@@ -154,7 +155,41 @@ export default function Progress() {
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
   const [volTab, setVolTab] = useState<'muscle' | 'cardio'>('muscle')
-  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false })
+  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false, dots: false })
+
+  // ===== DOTS Score =====
+  const [dotsBw, setDotsBw] = useState<string>(profile.bodyweightKg ? String(profile.bodyweightKg) : '')
+  const [dotsSex, setDotsSex] = useState<'male' | 'female'>(profile.sex)
+
+  // Sinkron dari profile (load awal / perubahan dari perangkat lain) tanpa menimpa ketikan
+  useEffect(() => {
+    setDotsSex(profile.sex)
+  }, [profile.sex])
+
+  useEffect(() => {
+    if (profile.bodyweightKg == null) return
+    setDotsBw((cur) => {
+      const parsed = parseFloat(cur.replace(',', '.'))
+      if (Number.isFinite(parsed) && parsed === profile.bodyweightKg) return cur
+      if (cur === '') return String(profile.bodyweightKg)
+      return cur
+    })
+  }, [profile.bodyweightKg])
+
+  // Autosave debounce (500ms) — hanya tulis saat nilai valid & berubah
+  useEffect(() => {
+    const parsed = parseFloat(dotsBw.replace(',', '.'))
+    const next: Partial<UserProfile> = {}
+    if (Number.isFinite(parsed) && parsed > 0) {
+      next.bodyweightKg = Math.round(parsed * 100) / 100
+    }
+    if (dotsSex !== profile.sex) next.sex = dotsSex
+    if (Object.keys(next).length === 0) return
+    const t = setTimeout(() => updateProfile(next), 500)
+    return () => clearTimeout(t)
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dotsBw, dotsSex])
+
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
   for (const s of sessions) {
@@ -178,6 +213,20 @@ export default function Progress() {
       prMap.set(set.exerciseId, cur)
     }
   }
+
+  // Total SBD untuk DOTS: best e1RM all-time per lift (Squat/Bench/Deadlift)
+  const dotsTotal = SBD_LIFTS.reduce((sum, lift) => {
+    let best = 0
+    for (const ex of exercises) {
+      if (!isSbdExercise(ex, lift.key)) continue
+      const e = prMap.get(ex.id)?.e1rm?.e1rm ?? 0
+      if (e > best) best = e
+    }
+    return sum + best
+  }, 0)
+  const bwParsed = parseFloat(dotsBw.replace(',', '.'))
+  const bwValid = Number.isFinite(bwParsed) && bwParsed > 0
+  const dotsVal = dotsTotal > 0 && bwValid ? dotsScore(dotsTotal, bwParsed, dotsSex) : null
   const prs: [string, PrBest][] = Array.from(prMap.entries())
     .map(([exId, v]) => [exId, v[prMode]] as [string, PrBest | undefined])
     .filter(([, v]) => !!v && (prMode === 'reps' ? v.reps > 0 : prMode === 'dur' ? v.durationSec > 0 : v.weight > 0)) as [string, PrBest][]
@@ -398,6 +447,56 @@ export default function Progress() {
               )}
             </div>
           ))}
+          </>
+        )}
+        </>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, dots: !o.dots }))}>
+          <span>DOTS Score</span>
+          <span>{openCards.dots ? '▾' : '▸'}</span>
+        </div>
+        {openCards.dots && (
+        <>
+        <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+          <div className="cal-toggle">
+            <button className={dotsSex === 'male' ? 'active' : ''} onClick={() => setDotsSex('male')}>Pria</button>
+            <button className={dotsSex === 'female' ? 'active' : ''} onClick={() => setDotsSex('female')}>Wanita</button>
+          </div>
+          <input
+            className="wt"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="Berat badan (kg)"
+            value={dotsBw}
+            onChange={(e) => setDotsBw(e.target.value)}
+            style={{ flex: 1, minWidth: 140 }}
+          />
+        </div>
+
+        {dotsTotal <= 0 ? (
+          <div className="small muted">
+            Belum ada data SBD. Catat Squat, Bench Press, dan Deadlift dengan beban & reps untuk melihat DOTS Score.
+          </div>
+        ) : !bwValid ? (
+          <div className="small muted">Isi berat badan (kg) dulu untuk menghitung DOTS Score.</div>
+        ) : (
+          <>
+            <div className="pr" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)' }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>DOTS Score</div>
+                <div className="small muted">
+                  Total SBD ~{fmtNumber(dotsTotal)} kg @ {fmtNumber(bwParsed)} kg BW ({dotsSex === 'male' ? 'Pria' : 'Wanita'})
+                </div>
+              </div>
+              <div className="val" style={{ fontSize: 24 }}>{fmtDots(dotsVal ?? 0)}</div>
+            </div>
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Standar DOTS (Mike Tuchscherer) — skor yang menormalkan total angkatan terhadap berat badan.
+            </div>
           </>
         )}
         </>
