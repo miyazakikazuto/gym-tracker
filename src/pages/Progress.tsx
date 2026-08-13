@@ -2,8 +2,17 @@ import { useState } from 'react'
 import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays, weekStart } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
+import type { Exercise, Session } from '../types'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+const SBD_LIFTS = [
+  { key: 'squat', label: 'Squat', keyword: 'squat' },
+  { key: 'bench', label: 'Bench Press', keyword: 'bench' },
+  { key: 'deadlift', label: 'Deadlift', keyword: 'deadlift' },
+] as const
+
+const SBD_EXCLUDE = ['romanian', 'goblet', 'hack', 'smith', 'machine', 'sumo', 'trap', 'split']
 
 export default function Progress() {
   const { sessions, exercises } = useData()
@@ -72,24 +81,8 @@ export default function Progress() {
     .sort((a, b) => b.dist - a.dist)
 
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
-  const trendWins = [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
-    const start = addDays(weekStart(today), -w * 7)
-    const end = addDays(start, 6)
-    return { start, end }
-  })
-  const trendMap = new Map<string, number[]>()
-  for (const s of sessions) {
-    const winIdx = trendWins.findIndex((win) => s.date >= win.start && s.date <= win.end)
-    if (winIdx < 0) continue
-    for (const set of s.sets) {
-      if (set.weightKg > 0 && !exerciseIsDuration(exercises, set.exerciseId)) {
-        const e = e1rmNum(set.weightKg, set.reps)
-        const arr = trendMap.get(set.exerciseId) ?? new Array(8).fill(0)
-        if (e > arr[winIdx]) arr[winIdx] = e
-        trendMap.set(set.exerciseId, arr)
-      }
-    }
-  }
+  const trendWins = buildTrendWeeks(today)
+  const trendMap = buildTrendMap(sessions, exercises, trendWins)
   const trends = Array.from(trendMap.entries())
     .filter(([, vals]) => vals.some((v) => v > 0))
     .map(([exId, vals]) => {
@@ -107,11 +100,48 @@ export default function Progress() {
     .sort((a, b) => b.lastVal - a.lastVal)
     .slice(0, 8)
 
+  // Tren e1RM per lift (SBD): Squat, Bench Press, Deadlift
+  interface SbdRow { exId: string; vals: number[]; lastVal: number; delta: number | null; bestIdx: number }
+  const sbdLifts = SBD_LIFTS.map((lift) => {
+    const rows: SbdRow[] = exercises
+      .filter((ex) => isSbdExercise(ex, lift.key))
+      .map((ex) => {
+        const vals = trendMap.get(ex.id) ?? new Array(8).fill(0)
+        let lastIdx = -1
+        for (let i = 7; i >= 0; i--) {
+          if (vals[i] > 0) { lastIdx = i; break }
+        }
+        let prev = 0
+        for (let i = lastIdx - 1; i >= 0; i--) {
+          if (vals[i] > 0) { prev = vals[i]; break }
+        }
+        const lastVal = lastIdx >= 0 ? vals[lastIdx] : 0
+        let bestIdx = -1
+        let best = 0
+        for (let i = 0; i < vals.length; i++) {
+          if (vals[i] > best) { best = vals[i]; bestIdx = i }
+        }
+        return {
+          exId: ex.id,
+          vals,
+          lastVal,
+          delta: lastVal > 0 && prev > 0 ? lastVal - prev : null,
+          bestIdx: best > 0 ? bestIdx : -1,
+        }
+      })
+      .filter((r) => r.lastVal > 0)
+    const score = rows.reduce((m, r) => Math.max(m, r.lastVal), 0)
+    return { ...lift, rows, score }
+  })
+  const sbdTotal = sbdLifts.reduce((acc, l) => acc + l.score, 0)
+  const sbdAnyData = sbdLifts.some((l) => l.score > 0)
+  const sbdMissing = sbdLifts.filter((l) => l.score === 0).map((l) => l.label)
+
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
   const [volTab, setVolTab] = useState<'muscle' | 'cardio'>('muscle')
-  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false })
+  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false })
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
   for (const s of sessions) {
@@ -294,6 +324,74 @@ export default function Progress() {
       </div>
 
       <div className="card">
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, sbd: !o.sbd }))}>
+          <span>Tren e1RM per lift (SBD)</span>
+          <span>{openCards.sbd ? '▾' : '▸'}</span>
+        </div>
+        {openCards.sbd && (
+        <>
+        {!sbdAnyData ? (
+          <div className="small muted">Belum ada data SBD. Catat Squat, Bench Press, dan Deadlift dengan beban & reps di sesi latihan.</div>
+        ) : (
+          <>
+          <div className="pr" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Total SBD</div>
+              <div className="small muted">
+                {sbdMissing.length > 0
+                  ? 'parsial — ' + sbdMissing.join(' & ') + ' belum tercatat'
+                  : 'Squat + Bench Press + Deadlift'}
+              </div>
+            </div>
+            <div className="val">~{e1RmStr(sbdTotal)} kg</div>
+          </div>
+          {sbdLifts.map((lift) => (
+            <div key={lift.key} style={{ marginTop: 8 }}>
+              <div className="small muted" style={{ fontWeight: 800, letterSpacing: 1, marginBottom: 4 }}>
+                {lift.label.toUpperCase()}
+              </div>
+              {lift.rows.length === 0 ? (
+                <div className="small muted">Belum ada gerakan {lift.label} — tambahkan di tab Gerakan.</div>
+              ) : (
+                lift.rows.map((t) => {
+                  const max = Math.max(...t.vals, 1)
+                  return (
+                    <div className="pr trend" key={t.exId}>
+                      <div style={{ flex: 1 }}>
+                        <div className="trend-val">
+                          <span style={{ fontWeight: 700 }}>{getExerciseName(exercises, t.exId)}</span>
+                          <span>
+                            <span className="val" style={{ fontSize: 14 }}>~{e1RmStr(t.lastVal)} kg</span>
+                            {t.delta !== null && (
+                              <span className={'delta ' + (t.delta > 0 ? 'up' : t.delta < 0 ? 'down' : 'flat')}>
+                                {' '}{t.delta > 0 ? '▲ +' + e1RmStr(t.delta) : t.delta < 0 ? '▼ −' + e1RmStr(-t.delta) : '• 0'}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="trend-bars">
+                          {t.vals.map((v, i) => (
+                            <div
+                              key={i}
+                              className={'trend-bar' + (i === 7 ? ' now' : '') + (i === t.bestIdx ? ' pr' : '')}
+                              style={{ height: Math.max(3, (v / max) * 100) + '%' }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          ))}
+          </>
+        )}
+        </>
+        )}
+      </div>
+
+      <div className="card">
         <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, trend: !o.trend }))}>
           <span>Tren e1RM per gerakan (mingguan)</span>
           <span>{openCards.trend ? '▾' : '▸'}</span>
@@ -375,6 +473,43 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 function e1rmNum(weight: number, reps: number): number {
   return weight * (1 + reps / 30)
+}
+
+function buildTrendWeeks(today: string): { start: string; end: string }[] {
+  return [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
+    const start = addDays(weekStart(today), -w * 7)
+    const end = addDays(start, 6)
+    return { start, end }
+  })
+}
+
+function buildTrendMap(
+  sessions: Session[],
+  exercises: Exercise[],
+  weeks: { start: string; end: string }[],
+): Map<string, number[]> {
+  const map = new Map<string, number[]>()
+  for (const s of sessions) {
+    const winIdx = weeks.findIndex((win) => s.date >= win.start && s.date <= win.end)
+    if (winIdx < 0) continue
+    for (const set of s.sets) {
+      if (set.weightKg > 0 && !exerciseIsDuration(exercises, set.exerciseId)) {
+        const e = e1rmNum(set.weightKg, set.reps)
+        const arr = map.get(set.exerciseId) ?? new Array(weeks.length).fill(0)
+        if (e > arr[winIdx]) arr[winIdx] = e
+        map.set(set.exerciseId, arr)
+      }
+    }
+  }
+  return map
+}
+
+function isSbdExercise(ex: Exercise, liftKey: string): boolean {
+  const lift = SBD_LIFTS.find((l) => l.key === liftKey)
+  if (!lift) return false
+  const n = ex.name.toLowerCase()
+  if (!n.includes(lift.keyword)) return false
+  return !SBD_EXCLUDE.some((k) => n.includes(k))
 }
 
 function e1RmStr(val: number): string {

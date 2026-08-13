@@ -309,6 +309,7 @@ body {
 .trend-bars { display:flex; align-items:flex-end; gap:3px; height:30px; margin-top:6px; }
 .trend-bar { flex:1; border-radius:3px 3px 0 0; background: linear-gradient(180deg, var(--accent-2), var(--accent)); min-height:3px; }
 .trend-bar.now { opacity:.45; }
+.trend-bar.pr { opacity:1; box-shadow: 0 0 0 1.5px var(--accent); background: linear-gradient(180deg, #fff3c4, #fbbf24); }
 .bar-track { height: 18px; background: var(--bg2); border-radius: 999px; overflow:hidden; margin-top:8px; }
 .bar-fill { height:100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius:999px; min-width:2px; }
 .empty { text-align:center; color:var(--muted); padding: 28px 12px; font-size:14px; }
