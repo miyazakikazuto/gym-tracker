@@ -52,7 +52,7 @@ export default function Library() {
             <div className="meta">
               {ex.muscleGroup} · {ex.type === 'duration' ? 'durasi' : 'reps'}
               {ex.extraCategories && ex.extraCategories.length > 0 && (
-                <span> · juga: {ex.extraCategories.map((c) => EXERCISE_CATEGORIES.find((x) => x.key === c)?.name ?? c).join(', ')}</span>
+                <span> · juga: {ex.extraCategories.map((c) => EXERCISE_CATEGORIES.find((x) => x.key === (c === 'home' ? 'easy' : c))?.name ?? c).join(', ')}</span>
               )}
             </div>
           </div>
@@ -92,7 +92,9 @@ function ExerciseForm({
   const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? MUSCLE_GROUPS[0])
   const [equipment, setEquipment] = useState<string>(initial?.equipment ?? EQUIPMENTS[0])
   const [category, setCategory] = useState<string>(
-    initial?.category ?? categoryOfExercise({ muscleGroup: initial?.muscleGroup ?? MUSCLE_GROUPS[0] }) ?? defaultCategory,
+    () => (initial?.category
+      ? categoryOfExercise({ category: initial.category, muscleGroup: initial.muscleGroup })
+      : defaultCategory),
   )
   const [extra, setExtra] = useState<string[]>(initial?.extraCategories ?? [])
   const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? 'reps')
