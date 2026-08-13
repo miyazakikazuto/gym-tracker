@@ -39,6 +39,7 @@ export default function History() {
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const [visibleCount, setVisibleCount] = useState(30)
 
   const cells = monthGrid(viewYear, viewMonth)
 
@@ -49,6 +50,7 @@ export default function History() {
     if (m > 11) { m = 0; y++ }
     setViewMonth(m)
     setViewYear(y)
+    setVisibleCount(30)
   }
 
     const monthPrefix = viewYear + '-' + String(viewMonth + 1).padStart(2, '0')
@@ -69,7 +71,7 @@ export default function History() {
     setCreating(true)
     setError('')
     try {
-      const payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'))
+      const payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now())
       payload.planName = name
       const ref = await createSession(uid, payload)
       setSelKey(null)
@@ -155,7 +157,14 @@ export default function History() {
       {list.length === 0 ? (
         <div className="card empty">Tidak ada sesi di bulan ini. Geser ‹ ›, atau ketuk tanggal di kalender.</div>
       ) : (
-        list.slice(0, 30).map((s) => <SessionRow key={s.id} s={s} onOpen={() => navigate(`/session/${s.id}`)} />)
+        <>
+          {list.slice(0, visibleCount).map((s) => <SessionRow key={s.id} s={s} onOpen={() => navigate(`/session/${s.id}`)} />)}
+          {list.length > visibleCount && (
+            <button className="btn ghost wide" style={{ marginTop: 8 }} onClick={() => setVisibleCount((c) => c + 30)}>
+              Tampilkan lebih banyak ({list.length - visibleCount} sisanya)
+            </button>
+          )}
+        </>
       )}
 
       {selKey && (

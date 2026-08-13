@@ -104,8 +104,9 @@ export function buildSession(
   plan: WorkoutPlan | null | undefined,
   dateKey: string,
   typeOf?: (exerciseId: string) => 'reps' | 'duration',
+  startAt?: number,
 ): Omit<Session, 'id'> {
-  const start = parseKey(dateKey).getTime() + 12 * 60 * 60 * 1000
+  const start = startAt ?? parseKey(dateKey).getTime() + 12 * 60 * 60 * 1000
   return {
     date: dateKey,
     planId: plan?.id ?? null,

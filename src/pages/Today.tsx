@@ -104,7 +104,7 @@ export default function Today() {
   async function createAndOpen(plan: WorkoutPlan | undefined | null) {
     const ref = await createSession(
       uid,
-      buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps')),
+      buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now()),
     )
     navigate(`/session/${ref.id}`)
   }
