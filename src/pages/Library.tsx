@@ -145,7 +145,7 @@ function ExerciseForm({
         <div className="field">
           <label>Juga tampil di hari lain</label>
           <div className="row wrap" style={{ gap: 6 }}>
-            {EXERCISE_CATEGORIES.filter((c) => c.key !== category).map((c) => {
+            {EXERCISE_CATEGORIES.filter((c) => c.key !== category && c.key !== 'cardio').map((c) => {
               const on = extra.includes(c.key)
               return (
                 <button
