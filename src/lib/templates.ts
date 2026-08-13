@@ -14,6 +14,20 @@ export interface PlanPreset {
 
 export const PLAN_PRESETS: PlanPreset[] = [
   {
+    key: 'leg',
+    name: 'Leg Day',
+    shortLabel: 'LEG',
+    dotColor: '#44cc88',
+    exercises: [
+      { name: 'Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      { name: 'Leg Press', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      { name: 'Leg Extension', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Leg Curl', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+    ],
+  },
+  {
     key: 'push',
     name: 'Push Day',
     shortLabel: 'PUSH',
@@ -42,17 +56,16 @@ export const PLAN_PRESETS: PlanPreset[] = [
     ],
   },
   {
-    key: 'leg',
-    name: 'Leg Day',
-    shortLabel: 'LEG',
-    dotColor: '#44cc88',
+    key: 'easy',
+    name: 'Easy Day',
+    shortLabel: 'EASY',
+    dotColor: '#7ee787',
     exercises: [
-      { name: 'Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
-      { name: 'Leg Press', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Barbell' },
-      { name: 'Leg Extension', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Leg Curl', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Goblet Squat', muscleGroup: 'Kaki', equipment: 'Dumbbell' },
+      { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight' },
+      { name: 'Pull-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
+      { name: 'Dumbbell Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
     ],
   },
   {
@@ -65,24 +78,6 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Machine' },
       { name: 'Row Machine', muscleGroup: 'Cardio', equipment: 'Machine' },
       { name: 'Jump Rope', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
-    ],
-  },
-  {
-    key: 'home',
-    name: 'Home Gym',
-    shortLabel: 'HOME',
-    dotColor: '#ffcc44',
-    exercises: [
-      { name: 'Pull-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
-      { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
-      { name: 'Dumbbell Row', muscleGroup: 'Punggung', equipment: 'Dumbbell' },
-      { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight' },
-      { name: 'Dumbbell Floor Press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
-      { name: 'Dumbbell Shoulder Press', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
-      { name: 'Dumbbell Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
-      { name: 'Dumbbell Bicep Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
-      { name: 'Goblet Squat', muscleGroup: 'Kaki', equipment: 'Dumbbell' },
-      { name: 'Dumbbell Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Dumbbell' },
     ],
   },
   {
