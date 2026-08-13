@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, lastSetResult, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
+import { getExerciseName, lastSetResult, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, bestE1RmOf } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
 import type { SessionSet } from '../types'
 
@@ -186,10 +186,16 @@ export default function Session() {
 
       {Array.from(grouped.entries()).map(([exId, sets]) => {
         const dur = exerciseIsDuration(exercises, exId)
+        const e1RmRef = bestE1RmOf(sessions, sid, exId)
         return (
         <div className="card" key={exId}>
             <div className="card-title">
-              <span>{getExerciseName(exercises, exId)}</span>
+              <span>
+                {getExerciseName(exercises, exId)}
+                {!isCardio(exId) && e1RmRef > 0 && (
+                  <span className="badge accent" style={{ marginLeft: 8 }}>e1RM ~{fmtNumber(e1RmRef)} kg</span>
+                )}
+              </span>
               <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
             </div>
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
@@ -197,10 +203,14 @@ export default function Session() {
             {!isCardio(exId) && <span className="grow">Beban (kg)</span>}
             <span className={isCardio(exId) ? 'grow' : ''} style={{ width: isCardio(exId) ? undefined : 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
             {isCardio(exId) && dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
+            {!isCardio(exId) && <span className="int">Int</span>}
             <span style={{ width: 32 }} />
           </div>
           {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
             const prev = lastSetResult(sessions, sid, exId, s.setNumber)
+            const pct = !isCardio(exId) && !dur && s.weightKg > 0 && s.reps > 0 && e1RmRef > 0
+              ? (s.weightKg / e1RmRef) * 100
+              : null
             return (
               <div className="set-row" key={s.id}>
                 <span className="num">{s.setNumber}</span>
@@ -244,6 +254,13 @@ export default function Session() {
                       if (n !== null) patchSet(s.id, { distanceKm: n })
                     }}
                   />
+                )}
+                {!isCardio(exId) && (
+                  pct !== null ? (
+                    <span className={'int int-' + intZone(pct)}>~{Math.round(pct)}%</span>
+                  ) : (
+                    <span className="int" />
+                  )
                 )}
                 <button className="icon-btn danger" onClick={() => removeSet(s.id)}>✕</button>
               </div>
@@ -310,4 +327,11 @@ export default function Session() {
       </div>
     </div>
   )
+}
+
+function intZone(pct: number): string {
+  if (pct < 60) return 'recovery'
+  if (pct < 75) return 'hypert'
+  if (pct < 90) return 'strength'
+  return 'peak'
 }

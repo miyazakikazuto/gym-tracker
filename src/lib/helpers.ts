@@ -84,6 +84,23 @@ export function groupSetsByExercise(
   return map
 }
 
+export function e1rmOf(weight: number, reps: number): number {
+  return weight * (1 + reps / 30)
+}
+
+export function bestE1RmOf(sessions: Session[], excludeId: string, exerciseId: string): number {
+  let best = 0
+  for (const s of sessions) {
+    if (s.id === excludeId || s.endedAt === null) continue
+    for (const set of s.sets) {
+      if (set.exerciseId !== exerciseId || set.weightKg <= 0) continue
+      const e = e1rmOf(set.weightKg, set.reps)
+      if (e > best) best = e
+    }
+  }
+  return best
+}
+
 export function fmtNumber(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1).replace('.', ',')
 }
