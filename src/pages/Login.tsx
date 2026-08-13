@@ -11,9 +11,7 @@ export default function Login() {
   const [showSafariGuide, setShowSafariGuide] = useState(false)
 
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
 
-  // Jika sebelumnya redirect sign-in dilakukan, proses hasilnya saat halaman dimuat ulang
   useEffect(() => {
     getRedirectResult(getAuthInstance())
       .then((res) => {
@@ -22,8 +20,10 @@ export default function Login() {
           // sukses → onAuthStateChanged akan memuat app
         }
       })
-      .catch(() => {
-        // hasil redirect gagal / dibatalkan
+      .catch((err) => {
+        sessionStorage.removeItem(REDIRECT_FLAG)
+        setError(msgOf(err))
+        console.error('getRedirectResult', err)
       })
   }, [])
 
@@ -59,8 +59,9 @@ export default function Login() {
     const auth = getAuthInstance()
     const provider = new GoogleAuthProvider()
 
-    // iOS standalone: popup selalu diblokir — langsung redirect
-    if (isIos && isStandalone) {
+    // iOS (Safari/standalone): popup Google diblokir ITP (third-party cookies) —
+    // selalu pakai redirect first-party yang tidak terblokir.
+    if (isIos) {
       await startRedirect(auth, provider)
       setBusy(false)
       return
