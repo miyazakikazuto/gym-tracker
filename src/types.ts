@@ -14,11 +14,11 @@ export const EXERCISE_TYPES = [
 ] as const
 
 export const EXERCISE_CATEGORIES = [
+  { key: 'leg', name: 'Leg', shortLabel: 'LEG' },
   { key: 'push', name: 'Push', shortLabel: 'PUSH' },
   { key: 'pull', name: 'Pull', shortLabel: 'PULL' },
-  { key: 'leg', name: 'Leg', shortLabel: 'LEG' },
-  { key: 'cardio', name: 'Cardio', shortLabel: 'CARDIO' },
   { key: 'easy', name: 'Easy Day', shortLabel: 'EASY' },
+  { key: 'cardio', name: 'Cardio', shortLabel: 'CARDIO' },
 ] as const
 
 export interface PlanItem {
