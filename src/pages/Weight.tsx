@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useData } from '../context/DataContext'
 import { todayKey, addDays } from '../lib/date'
 import { fmtNumber } from '../lib/helpers'
-import { dotsScore, fmtDots } from '../lib/dots'
+import { dotsScore, fmtDots, dotsLevel } from '../lib/dots'
 import { sbdBestLifts } from '../lib/sbd'
 import Modal from '../components/Modal'
 import type { Bodyweight } from '../types'
@@ -189,6 +189,7 @@ export default function Weight() {
   const bwParsed = parseFloat(dotsBw.replace(',', '.'))
   const bwValid = Number.isFinite(bwParsed) && bwParsed > 0
   const dotsVal = dotsTotal > 0 && bwValid ? dotsScore(dotsTotal, bwParsed) : null
+  const lvl = dotsVal != null ? dotsLevel(dotsVal) : null
 
   const sbdBreakdown = (
     <div className="row" style={{ gap: 8, marginTop: 8 }}>
@@ -196,6 +197,9 @@ export default function Weight() {
         <div key={l.key} style={{ flex: 1, background: 'var(--bg2)', borderRadius: 10, padding: '8px 10px' }}>
           <div className="small muted">{l.label}</div>
           <div style={{ fontWeight: 700 }}>{l.best > 0 ? '~' + fmtNumber(l.best) + ' kg' : '—'}</div>
+          <div className="small muted" style={{ fontSize: 10, marginTop: 2 }}>
+            {l.best > 0 && l.date ? 'PR ' + l.date.slice(8, 10) + '/' + l.date.slice(5, 7) + '/' + l.date.slice(0, 4) : 'Belum ada data'}
+          </div>
         </div>
       ))}
     </div>
@@ -256,7 +260,14 @@ export default function Weight() {
           <>
             <div className="pr" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)' }}>
               <div>
-                <div style={{ fontWeight: 800 }}>DOTS Score</div>
+                <div style={{ fontWeight: 800 }}>
+                  DOTS Score
+                  {lvl && (
+                    <span className="badge" style={{ marginLeft: 8, color: lvl.color, background: 'rgba(255,255,255,.07)' }}>
+                      {lvl.label}
+                    </span>
+                  )}
+                </div>
                 <div className="small muted">
                   Total SBD ~{fmtNumber(dotsTotal)} kg (beban terberat per lift) @ {fmtNumber(bwParsed)} kg BW
                 </div>
@@ -265,7 +276,7 @@ export default function Weight() {
             </div>
             {sbdBreakdown}
             <div className="small muted" style={{ marginTop: 8 }}>
-              Standar DOTS (Mike Tuchscherer) — skor yang menormalkan total angkatan terhadap berat badan.
+              Standar DOTS (Mike Tuchscherer) — skor yang menormalkan total angkatan terhadap berat badan. Level: Pemula &lt;250 · Novis 250+ · Menengah 300+ · Lanjut 350+ · Elit 400+.
             </div>
           </>
         )}

@@ -29,18 +29,22 @@ export function isSbdExercise(ex: Exercise, liftKey: string): boolean {
   return !lift.exclude.some((k) => n.includes(k))
 }
 
-// Beban terberat all-time per lift (Squat/Bench/Deadlift)
-export function sbdBestLifts(sessions: Session[], exercises: Exercise[]): { key: string; label: string; best: number }[] {
+// Beban terberat all-time per lift (Squat/Bench/Deadlift) + tanggal PR-nya
+export function sbdBestLifts(sessions: Session[], exercises: Exercise[]): { key: string; label: string; best: number; date: string | null }[] {
   return SBD_LIFTS.map((lift) => {
     let best = 0
+    let bestDate: string | null = null
     for (const s of sessions) {
       for (const set of s.sets) {
         if (set.weightKg <= best) continue
         const ex = exercises.find((e) => e.id === set.exerciseId)
-        if (ex && isSbdExercise(ex, lift.key)) best = set.weightKg
+        if (ex && isSbdExercise(ex, lift.key)) {
+          best = set.weightKg
+          bestDate = s.date
+        }
       }
     }
-    return { key: lift.key, label: lift.label, best }
+    return { key: lift.key, label: lift.label, best, date: bestDate }
   })
 }
 

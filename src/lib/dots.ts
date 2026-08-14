@@ -17,3 +17,14 @@ export function fmtDots(score: number): string {
   const r = Math.round(score * 10) / 10
   return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1)
 }
+
+// Klasifikasi level DOTS (referensi umum):
+// Pemula <250 · Novis 250+ · Menengah 300+ · Lanjut 350+ · Elit 400+
+export function dotsLevel(score: number): { label: string; color: string } | null {
+  if (!(score > 0)) return null
+  if (score >= 400) return { label: 'Elit', color: '#fbbf24' }
+  if (score >= 350) return { label: 'Lanjut', color: '#a78bfa' }
+  if (score >= 300) return { label: 'Menengah', color: '#60a5fa' }
+  if (score >= 250) return { label: 'Novis', color: '#4ade80' }
+  return { label: 'Pemula', color: 'var(--muted)' }
+}
