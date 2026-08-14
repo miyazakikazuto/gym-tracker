@@ -1,19 +1,116 @@
 import { useEffect, useRef, useState } from 'react'
 import { useData } from '../context/DataContext'
-import { todayKey } from '../lib/date'
+import { todayKey, addDays } from '../lib/date'
 import { fmtNumber } from '../lib/helpers'
 import { dotsScore, fmtDots } from '../lib/dots'
 import { sbdBestLifts } from '../lib/sbd'
+import Modal from '../components/Modal'
+import type { Bodyweight } from '../types'
+
+const RANGES = [
+  { key: '7', label: '7 hari' },
+  { key: '30', label: '30 hari' },
+  { key: 'all', label: 'Semua' },
+] as const
+type RangeKey = (typeof RANGES)[number]['key']
+
+// Selisih berat terakhir vs entri terdekat ≤ N hari lalu (null jika belum cukup data)
+function deltaKg(entries: Bodyweight[], daysAgo: number, today: string): number | null {
+  if (entries.length === 0) return null
+  const from = addDays(today, -daysAgo)
+  const prev = [...entries].reverse().find((b) => b.date <= from)
+  if (!prev) return null
+  return Math.round((entries[entries.length - 1].kg - prev.kg) * 100) / 100
+}
+
+function DeltaStat({ label, val }: { label: string; val: number | null }) {
+  return (
+    <div className="stat">
+      <div className={'v' + (val == null ? '' : val > 0 ? ' up' : val < 0 ? ' down' : '')}>
+        {val == null ? '—' : (val > 0 ? '+' : '') + fmtNumber(val) + ' kg'}
+      </div>
+      <div className="l">{label}</div>
+    </div>
+  )
+}
+
+function LineChart({ data, target }: { data: Bodyweight[]; target: number | null }) {
+  if (data.length < 2) {
+    return <div className="small muted">Butuh minimal 2 penimbangan untuk menampilkan grafik.</div>
+  }
+  const W = 300
+  const H = 90
+  const PAD = 8
+  const kgs = data.map((b) => b.kg)
+  const lo = Math.min(...kgs, target ?? Infinity)
+  const hi = Math.max(...kgs, target ?? -Infinity)
+  const span = hi - lo || 1
+  const x = (i: number) => (i / (data.length - 1)) * (W - PAD * 2) + PAD
+  const y = (kg: number) => H - PAD - ((kg - lo) / span) * (H - PAD * 2)
+  const pts = data.map((b, i) => `${x(i).toFixed(1)},${y(b.kg).toFixed(1)}`).join(' ')
+  const minK = Math.min(...kgs)
+  const maxK = Math.max(...kgs)
+  const minIdx = kgs.indexOf(minK)
+  const maxIdx = kgs.indexOf(maxK)
+  const last = data[data.length - 1]
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+      role="img"
+      aria-label="Grafik tren berat badan"
+    >
+      {target != null && (
+        <line x1={PAD} x2={W - PAD} y1={y(target)} y2={y(target)} stroke="var(--accent)" strokeWidth={1} strokeDasharray="4 3" opacity={0.7} />
+      )}
+      <polyline points={pts} fill="none" stroke="var(--accent-2)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      {data.map((b, i) => (
+        <circle
+          key={b.id}
+          cx={x(i)}
+          cy={y(b.kg)}
+          r={i === data.length - 1 ? 3.2 : 2}
+          fill={i === minIdx || i === maxIdx ? '#fbbf24' : 'var(--accent)'}
+        />
+      ))}
+      <text x={PAD} y={H - 2} fontSize={8} fill="var(--muted)">{fmtNumber(lo)}</text>
+      <text x={W - PAD} y={H - 2} fontSize={8} fill="var(--muted)" textAnchor="end">{fmtNumber(hi)}</text>
+      <text x={W - PAD} y={10} fontSize={8} fill="var(--muted)" textAnchor="end">{fmtNumber(last.kg)} kg terakhir</text>
+    </svg>
+  )
+}
 
 export default function Weight() {
-  const { sessions, exercises, bodyweights, saveBodyweight, removeBodyweight } = useData()
+  const { sessions, exercises, bodyweights, settings, saveSettings, saveBodyweight, removeBodyweight } = useData()
 
   const sortedBw = [...bodyweights].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const latestKg = sortedBw.length > 0 ? sortedBw[sortedBw.length - 1].kg : null
+  const latestDate = sortedBw.length > 0 ? sortedBw[sortedBw.length - 1].date : null
   const [dotsBw, setDotsBw] = useState<string>(latestKg ? String(latestKg) : '')
   const [dotsDirty, setDotsDirty] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle')
   const saveTimer = useRef<number | undefined>(undefined)
+
+  const today = todayKey()
+
+  // Filter rentang untuk grafik & daftar
+  const [range, setRange] = useState<RangeKey>('30')
+  const rangeStart = range === '7' ? addDays(today, -6) : range === '30' ? addDays(today, -29) : null
+  const filteredBw = rangeStart ? sortedBw.filter((b) => b.date >= rangeStart) : sortedBw
+
+  // Target berat badan
+  const [showTarget, setShowTarget] = useState(false)
+  const [targetInput, setTargetInput] = useState('')
+  const target = typeof settings.weightTarget === 'number' ? settings.weightTarget : null
+  const targetDiff = target != null && latestKg != null ? Math.round((latestKg - target) * 100) / 100 : null
+  const targetPct = target != null && latestKg != null ? Math.min(100, Math.round((latestKg / target) * 100)) : null
+
+  // Ringkasan: delta & min/max 30 hari
+  const delta7 = deltaKg(sortedBw, 7, today)
+  const delta30 = deltaKg(sortedBw, 30, today)
+  const win30 = sortedBw.filter((b) => b.date >= addDays(today, -29))
+  const min30 = win30.length > 0 ? Math.min(...win30.map((b) => b.kg)) : null
+  const max30 = win30.length > 0 ? Math.max(...win30.map((b) => b.kg)) : null
 
   const parseKg = (raw: string): number | null => {
     const parsed = parseFloat(raw.replace(',', '.'))
@@ -148,7 +245,57 @@ export default function Weight() {
       </div>
 
       <div className="card">
+        <div className="card-title">
+          <span>Ringkasan</span>
+          <button className="btn sm ghost" onClick={() => { setTargetInput(target ? String(target) : ''); setShowTarget(true) }}>
+            {target ? `Target ${fmtNumber(target)} kg` : 'Atur target'}
+          </button>
+        </div>
+        {sortedBw.length === 0 ? (
+          <div className="small muted">Belum ada data — catat berat hari ini di kotak di atas.</div>
+        ) : (
+          <>
+            <div className="stat-row">
+              <div className="stat">
+                <div className="v">{fmtNumber(latestKg ?? 0)} kg</div>
+                <div className="l">Terakhir · {latestDate ? latestDate.slice(8, 10) + '/' + latestDate.slice(5, 7) : ''}</div>
+              </div>
+              <DeltaStat label="Δ 7 hari" val={delta7} />
+              <DeltaStat label="Δ 30 hari" val={delta30} />
+            </div>
+            <div className="small muted">
+              Min {min30 == null ? '—' : fmtNumber(min30) + ' kg'} · Max {max30 == null ? '—' : fmtNumber(max30) + ' kg'} (30 hari)
+            </div>
+            {target != null && latestKg != null && targetDiff !== null && (
+              <div style={{ marginTop: 10 }}>
+                <div className="row spread" style={{ marginBottom: 4 }}>
+                  <span className="small muted">
+                    {targetDiff === 0
+                      ? 'Target tercapai ✓'
+                      : targetDiff > 0
+                        ? `Kelebihan ${fmtNumber(targetDiff)} kg dari target`
+                        : `Tinggal ${fmtNumber(-targetDiff)} kg lagi ke target`}
+                  </span>
+                  <span className="small muted">{fmtNumber(latestKg)} / {fmtNumber(target)} kg</span>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: (targetPct ?? 0) + '%' }} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="card">
         <div className="card-title">Log Berat Badan</div>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+          {RANGES.map((r) => (
+            <button key={r.key} className={'chipb' + (range === r.key ? ' on' : '')} onClick={() => setRange(r.key)}>
+              {r.label}
+            </button>
+          ))}
+        </div>
         {sortedBw.length === 0 ? (
           <div className="small muted">
             Belum ada catatan berat badan. Isi kotak di atas untuk mencatat berat hari ini.
@@ -156,31 +303,10 @@ export default function Weight() {
         ) : (
           <>
             <div className="pr trend">
-              <div style={{ flex: 1 }}>
-                <div className="trend-val">
-                  <span style={{ fontWeight: 700 }}>12 penimbangan terakhir</span>
-                  <span>
-                    <span className="val" style={{ fontSize: 14 }}>{fmtNumber(sortedBw[sortedBw.length - 1].kg)} kg</span>
-                  </span>
-                </div>
-                <div className="trend-bars">
-                  {(() => {
-                    const window = sortedBw.slice(-12)
-                    const max = Math.max(...window.map((b) => b.kg), 1)
-                    return window.map((b, i) => (
-                      <div
-                        key={b.id}
-                        className={'trend-bar' + (i === window.length - 1 ? ' now' : '')}
-                        style={{ height: Math.max(4, (b.kg / max) * 100) + '%' }}
-                        title={b.date + ' — ' + fmtNumber(b.kg) + ' kg'}
-                      />
-                    ))
-                  })()}
-                </div>
-              </div>
+              <LineChart data={filteredBw} target={target} />
             </div>
             <div className="pr-list" style={{ marginTop: 8 }}>
-              {[...sortedBw].reverse().slice(0, 15).map((b) => (
+              {[...filteredBw].reverse().slice(0, 15).map((b) => (
                 <div className="pr" key={b.id} style={{ padding: '8px 0' }}>
                   <div className="small muted">{b.date.slice(8, 10) + '/' + b.date.slice(5, 7) + '/' + b.date.slice(0, 4)}</div>
                   <div className="val" style={{ fontSize: 14 }}>{fmtNumber(b.kg)} kg</div>
@@ -191,6 +317,42 @@ export default function Weight() {
           </>
         )}
       </div>
+
+      {showTarget && (
+        <Modal onClose={() => setShowTarget(false)} label="Target berat badan">
+          <h3>Target berat badan</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Isi target (kg). Kosongkan lalu Simpan untuk menghapus target.
+          </div>
+          <input
+            className="input"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="Target (kg)"
+            value={targetInput}
+            onChange={(e) => setTargetInput(e.target.value)}
+          />
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setShowTarget(false)}>Batal</button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                const raw = targetInput.trim()
+                if (raw === '') {
+                  saveSettings({ weightTarget: null })
+                } else {
+                  const kg = parseKg(raw)
+                  if (kg != null) saveSettings({ weightTarget: kg })
+                }
+                setShowTarget(false)
+              }}
+            >
+              Simpan
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

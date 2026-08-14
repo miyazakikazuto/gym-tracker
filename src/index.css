@@ -408,6 +408,8 @@ body {
 .stat-row { display: flex; gap: 8px; margin-bottom: 11px; }
 .stat { flex: 1; background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border); border-radius: 14px; padding: 12px 10px; text-align: center; }
 .stat .v { font-size: 20px; font-weight: 900; letter-spacing: -.3px; }
+.stat .v.up { color: var(--warn); }
+.stat .v.down { color: var(--ok); }
 .stat .l { font-size: 10px; color: var(--muted); margin-top: 3px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
 .suggest {
   background: linear-gradient(160deg, rgba(99,102,241,.18), rgba(167,139,250,.10)), var(--card);
