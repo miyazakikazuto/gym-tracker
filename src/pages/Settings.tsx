@@ -6,7 +6,7 @@ import { todayKey, addDays } from '../lib/date'
 import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
-import { shiftForDate, SHIFT_LABELS } from '../lib/shift'
+import { shiftForDate, SHIFT_LABELS, SHIFT_TYPES, alignAnchor } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
@@ -248,6 +248,22 @@ export default function Settings() {
             <div className="card-title" style={{ marginTop: 4 }}>Shift kerja</div>
             <div className="small muted" style={{ marginBottom: 8 }}>
               Shift dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b>, bergilir Pagi → Siang → Malam.
+            </div>
+            <div className="small" style={{ marginBottom: 6, fontWeight: 700 }}>Set patokan dari shift hari ini:</div>
+            <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+              {SHIFT_TYPES.map((sh) => (
+                <button
+                  key={sh}
+                  className="chipb"
+                  onClick={() => saveSettings({ shiftAnchor: alignAnchor(rot.anchor, todayKey(), sh) })}
+                >
+                  {SHIFT_LABELS[sh]}
+                </button>
+              ))}
+            </div>
+            <div className="small muted" style={{ marginBottom: 8 }}>
+              Patokan terhitung otomatis mundur dari pilihan Anda — saat ini <b>{rot.anchor}</b> (hari ke-1 Pagi).
+              Sudah terisi otomatis, tidak perlu diubah kecuali pola berubah.
             </div>
             <label className="row small" style={{ gap: 8, alignItems: 'center', marginBottom: 10 }}>
               <span className="grow">Tanggal patokan (hari ke-1 Pagi)</span>

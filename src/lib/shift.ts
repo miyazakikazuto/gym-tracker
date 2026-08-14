@@ -1,4 +1,4 @@
-import { parseKey } from './date'
+import { parseKey, dateKey } from './date'
 import type { UserSettings } from '../types'
 
 export type ShiftType = 'pagi' | 'siang' | 'malam' | 'libur'
@@ -23,13 +23,30 @@ export const SHIFT_LABELS: Record<ShiftType, string> = {
 
 export const SHIFT_TYPES: ShiftType[] = ['pagi', 'siang', 'malam', 'libur']
 
+// Shift pada tanggal tertentu menurut siklus (tanpa override)
+export function cycleShiftAt(anchor: string, date: string): ShiftType {
+  const diff = Math.round((parseKey(date).getTime() - parseKey(anchor).getTime()) / 86400000)
+  return SHIFT_CYCLE_PATTERN[((diff % 12) + 12) % 12] ?? 'pagi'
+}
+
 // Shift pada tanggal tertentu: override manual → siklus (dari anchor) → legacy.
 export function shiftForDate(date: string, settings: Partial<UserSettings>): ShiftType {
   const ov = settings.shiftOverride?.[date]
   if (ov === 'pagi' || ov === 'siang' || ov === 'malam' || ov === 'libur') return ov
-  const anchor = settings.shiftAnchor || DEFAULT_SHIFT_ANCHOR
-  const diff = Math.round((parseKey(date).getTime() - parseKey(anchor).getTime()) / 86400000)
-  return SHIFT_CYCLE_PATTERN[((diff % 12) + 12) % 12] ?? 'pagi'
+  return cycleShiftAt(settings.shiftAnchor || DEFAULT_SHIFT_ANCHOR, date)
+}
+
+// Hitung patokan mundur: geser anchor seminimal mungkin agar shift(today) = shift yang dipilih.
+// Dipakai untuk "set dari shift hari ini" — user cukup menandai shift-nya, app yang menghitung tanggal patokan.
+export function alignAnchor(anchor: string, today: string, shift: ShiftType): string {
+  const base = parseKey(anchor).getTime()
+  for (let delta = 0; delta <= 12; delta++) {
+    for (const d of delta === 0 ? [0] : [delta, -delta]) {
+      const cand = dateKey(new Date(base + d * 86400000))
+      if (cycleShiftAt(cand, today) === shift) return cand
+    }
+  }
+  return anchor
 }
 
 // Saran waktu terbaik berlatih per shift.
