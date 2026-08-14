@@ -373,6 +373,30 @@ body {
 .bar-track { height: 18px; background: var(--bg2); border-radius: 999px; overflow:hidden; margin-top:8px; }
 .bar-fill { height:100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius:999px; min-width:2px; }
 .empty { text-align:center; color:var(--muted); padding: 28px 12px; font-size:14px; }
+.toast {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--bg2);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: toast-in 0.2s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 .fab {
   position: fixed;
   bottom: 88px;

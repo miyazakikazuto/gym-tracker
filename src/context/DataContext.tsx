@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -46,6 +47,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [bodyweights, setBodyweights] = useState<Bodyweight[]>([])
   const [settings, setSettings] = useState<Partial<UserSettings>>({})
   const [ready, setReady] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<number | undefined>(undefined)
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 3500)
+  }
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), [])
 
   useEffect(() => {
     if (!uid) return
@@ -84,12 +95,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const removeBodyweight = (date: string) => {
     if (!uid) return
-    deleteBodyweight(uid, date).catch(() => undefined)
+    deleteBodyweight(uid, date).catch(() => showToast('Gagal menghapus — cek koneksi internet'))
   }
 
   const saveSettings = (patch: Partial<UserSettings>) => {
     if (!uid) return
-    updateSettings(uid, patch).catch(() => undefined)
+    updateSettings(uid, patch).catch(() => showToast('Gagal menyimpan — cek koneksi internet'))
   }
 
   return (
@@ -110,6 +121,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {toast && (
+        <div className="toast" role="alert">
+          {toast}
+        </div>
+      )}
     </DataContext.Provider>
   )
 }
