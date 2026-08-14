@@ -161,6 +161,17 @@ export default function History() {
           <span><span className="legend-dot" style={{ background: SHIFT_COLORS.malam }} />Malam</span>
           <span><span className="legend-dot" style={{ background: SHIFT_COLORS.libur }} />Libur</span>
         </div>
+        <div className="small muted" style={{ margin: '10px 0 4px' }}>Rekap {MONTHS[viewMonth]} {viewYear}:</div>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 4 }}>
+          {SHIFT_TYPES.map((sh) => {
+            const n = cells.filter((k) => k && shiftForDate(k, settings) === sh).length
+            return (
+              <span key={sh} className="badge" style={{ color: SHIFT_COLORS[sh], background: 'rgba(255,255,255,.07)' }}>
+                <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} /> {SHIFT_LABELS[sh]} {n}
+              </span>
+            )
+          })}
+        </div>
       </div>
 
       <div className="row spread">
@@ -187,7 +198,10 @@ export default function History() {
 
             {selShift && (
               <div className="small" style={{ marginBottom: 8 }}>
-                Shift: <b style={{ color: SHIFT_COLORS[selShift] }}>{SHIFT_LABELS[selShift]}</b>
+                Shift: <b style={{ color: SHIFT_COLORS[selShift] }}>{SHIFT_LABELS[selShift]}</b>{' '}
+                <span className={'badge ' + (settings.shiftOverride?.[selKey] ? 'warn' : 'ok')}>
+                  {settings.shiftOverride?.[selKey] ? 'ditimpa' : 'otomatis'}
+                </span>
               </div>
             )}
             <div className="small muted" style={{ marginBottom: 6 }}>

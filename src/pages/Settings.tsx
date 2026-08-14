@@ -6,7 +6,7 @@ import { todayKey, addDays } from '../lib/date'
 import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
-import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_TYPES, SHIFT_COLORS, alignAnchor } from '../lib/shift'
+import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
@@ -250,21 +250,8 @@ export default function Settings() {
             <div className="small muted" style={{ marginBottom: 8 }}>
               Shift dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b>, bergilir Sore → Malam → Pagi (rotasi maju).
             </div>
-            <div className="small" style={{ marginBottom: 6, fontWeight: 700 }}>Set patokan dari shift hari ini:</div>
-            <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
-              {SHIFT_TYPES.map((sh) => (
-                <button
-                  key={sh}
-                  className="chipb"
-                  onClick={() => saveSettings({ shiftAnchor: alignAnchor(rot.anchor, todayKey(), sh) })}
-                >
-                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
-                  {SHIFT_LABELS[sh]}
-                </button>
-              ))}
-            </div>
             <div className="small muted" style={{ marginBottom: 10 }}>
-              Patokan dihitung otomatis mundur dari pilihan Anda — saat ini <b>{rot.anchor}</b> (hari ke-1 Sore).
+              Patokan siklus otomatis: <b>{rot.anchor}</b> (hari ke-1 Sore) — sudah benar, tidak perlu diubah.
             </div>
             <div className="row wrap" style={{ gap: 6, marginBottom: 8 }}>
               {nextShifts.map(({ date, sh }) => (

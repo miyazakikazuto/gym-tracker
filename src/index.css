@@ -227,6 +227,22 @@ body {
 .day-chip.done { opacity: 0.85; }
 .day-chip.done .dnum::after { content: ' ✓'; color: var(--ok); font-size: 12px; }
 
+.shift-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
+.shift-week-cell {
+  background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 6px 2px; text-align: center;
+}
+.shift-week-cell.today { background: rgba(167, 139, 250, 0.12); }
+.shift-week-cell .sw-dow {
+  font-size: 9px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px;
+}
+.shift-week-cell.today .sw-dow { color: var(--text); }
+.shift-week-cell .sw-dnum { font-size: 14px; font-weight: 800; margin: 1px 0 3px; }
+.shift-week-cell .sw-shift {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 6px; color: #1a1230; font-size: 11px; font-weight: 800;
+}
+
 /* RPE chips */
 .rpe-chip {
   flex: 0 0 auto;

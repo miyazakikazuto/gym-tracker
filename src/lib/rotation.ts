@@ -10,7 +10,6 @@ export const DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
 export interface RotationState {
   rotation: string[]
   weeklyTarget: number
-  shift: UserSettings['shift']
   anchor: string
 }
 
@@ -18,7 +17,6 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
   return {
     rotation: settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION,
     weeklyTarget: settings.weeklyTarget ?? 4,
-    shift: settings.shift ?? null,
     anchor: resolveShiftAnchor(settings.shiftAnchor),
   }
 }

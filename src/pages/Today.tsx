@@ -236,7 +236,7 @@ export default function Today() {
             <div className="card-title">
               <span className="row" style={{ gap: 8 }}>
                 <span className="shift-dot" style={{ background: SHIFT_COLORS[todayShift] }} />
-                <span>Shift hari ini</span>
+                <span>Shift minggu ini</span>
               </span>
               <span className="row" style={{ gap: 6 }}>
                 <span className="badge" style={{ color: SHIFT_COLORS[todayShift], background: 'rgba(255,255,255,.07)' }}>
@@ -247,7 +247,25 @@ export default function Today() {
                 </span>
               </span>
             </div>
-            <div className="small muted">{shiftAdvice(todayShift)}</div>
+            <div className="shift-week">
+              {Array.from({ length: 7 }, (_, i) => {
+                const k = addDays(base, i)
+                const sh = shiftForDate(k, settings)
+                const isToday = k === base
+                return (
+                  <div
+                    key={k}
+                    className={'shift-week-cell' + (isToday ? ' today' : '')}
+                    style={isToday ? { borderColor: SHIFT_COLORS[sh] } : undefined}
+                  >
+                    <div className="sw-dow">{i === 0 ? 'Hari ini' : DAY_NAMES[dayOfWeek(k)].slice(0, 3)}</div>
+                    <div className="sw-dnum">{k.slice(8, 10)}</div>
+                    <span className="sw-shift" style={{ background: SHIFT_COLORS[sh] }}>{SHIFT_LABELS[sh][0]}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="small muted" style={{ marginTop: 10 }}>{shiftAdvice(todayShift)}</div>
             <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
               {SHIFT_TYPES.map((sh) => (
                 <button
