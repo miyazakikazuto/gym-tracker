@@ -56,17 +56,27 @@ export default function Weight() {
 
       <div className="card">
         <div className="card-title">DOTS Score</div>
-        <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px' }}>
+          <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3v5" />
+            <circle cx="12" cy="11" r="3" />
+            <path d="M6.5 21L5 12.5a8.4 8.4 0 0 1 14 0L17.5 21" />
+            <path d="M4 21h16" />
+          </svg>
           <input
-            className="wt"
+            className="input"
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            placeholder="Berat badan hari ini (kg)"
+            placeholder="Berat hari ini (kg)"
             value={dotsBw}
             onChange={(e) => setDotsBw(e.target.value)}
-            style={{ flex: 1, minWidth: 140 }}
+            style={{ flex: 1, border: 'none', background: 'transparent', padding: '8px 4px', fontSize: 18, fontWeight: 700 }}
           />
+          <span style={{ fontWeight: 700, color: 'var(--muted)', fontSize: 15 }}>kg</span>
+        </div>
+        <div className="small muted" style={{ marginTop: 6, marginBottom: 10 }}>
+          Hari ini · {todayKey().slice(8, 10) + '/' + todayKey().slice(5, 7) + '/' + todayKey().slice(0, 4)} · tersimpan otomatis
         </div>
 
         {dotsTotal <= 0 ? (
