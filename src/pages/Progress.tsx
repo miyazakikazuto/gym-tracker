@@ -264,60 +264,6 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, pr: !o.pr }))}>
-          <span>PR terbaik</span>
-          <span>{openCards.pr ? '▾' : '▸'}</span>
-        </div>
-        {openCards.pr && (
-        <>
-        <div className="cal-toggle">
-          <button className={prMode === 'weight' ? 'active' : ''} onClick={() => setPrMode('weight')}>Beban</button>
-          <button className={prMode === 'reps' ? 'active' : ''} onClick={() => setPrMode('reps')}>Reps</button>
-          <button className={prMode === 'dur' ? 'active' : ''} onClick={() => setPrMode('dur')}>Durasi</button>
-          <button className={prMode === 'e1rm' ? 'active' : ''} onClick={() => setPrMode('e1rm')}>e1RM</button>
-        </div>
-        {prMuscles.length > 1 && (
-          <select className="input" style={{ marginBottom: 10 }} value={prMuscle} onChange={(e) => setPrMuscle(e.target.value)}>
-            {prMuscles.map((g) => (
-              <option key={g} value={g}>{g === 'Semua' ? 'Semua grup otot' : g}</option>
-            ))}
-          </select>
-        )}
-        {prsFiltered.length === 0 ? (
-          <div className="small muted">{prMuscle !== 'Semua' ? `Belum ada PR untuk ${prMuscle} di mode ini.` : 'Belum ada data set dengan beban. Isi beban di sesi latihan.'}</div>
-        ) : (
-          <div className="pr-list">
-            {prsFiltered.map(([exId, pr]) => {
-              const durEx = exerciseIsDuration(exercises, exId)
-              return (
-                <div className="pr" key={exId}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
-                    <div className="small muted">
-                      {pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} ·{' '}
-                      {prMode === 'weight'
-                        ? (durEx ? pr.durationSec + ' dtk' : pr.reps + ' rep')
-                        : prMode === 'reps' || prMode === 'dur'
-                          ? (pr.weight > 0 ? fmtNumber(pr.weight) + ' kg' : '')
-                          : fmtNumber(pr.weight) + ' kg × ' + pr.reps + ' rep'}
-                    </div>
-                  </div>
-                  <div className="val">
-                    {prMode === 'weight' ? fmtNumber(pr.weight) + ' kg'
-                      : prMode === 'reps' ? pr.reps + ' rep'
-                      : prMode === 'dur' ? pr.durationSec + ' dtk'
-                      : '~' + e1RmKg(pr.weight, pr.reps) + ' kg e1RM'}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        </>
-        )}
-      </div>
-
-      <div className="card">
         <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, sbd: !o.sbd }))}>
           <span>Tren e1RM per lift (SBD)</span>
           <span>{openCards.sbd ? '▾' : '▸'}</span>
@@ -417,6 +363,60 @@ export default function Progress() {
                         <div key={i} className={'trend-bar' + (i === 7 ? ' now' : '')} style={{ height: Math.max(3, (v / max) * 100) + '%' }} />
                       ))}
                     </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        </>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, pr: !o.pr }))}>
+          <span>PR terbaik</span>
+          <span>{openCards.pr ? '▾' : '▸'}</span>
+        </div>
+        {openCards.pr && (
+        <>
+        <div className="cal-toggle">
+          <button className={prMode === 'weight' ? 'active' : ''} onClick={() => setPrMode('weight')}>Beban</button>
+          <button className={prMode === 'reps' ? 'active' : ''} onClick={() => setPrMode('reps')}>Reps</button>
+          <button className={prMode === 'dur' ? 'active' : ''} onClick={() => setPrMode('dur')}>Durasi</button>
+          <button className={prMode === 'e1rm' ? 'active' : ''} onClick={() => setPrMode('e1rm')}>e1RM</button>
+        </div>
+        {prMuscles.length > 1 && (
+          <select className="input" style={{ marginBottom: 10 }} value={prMuscle} onChange={(e) => setPrMuscle(e.target.value)}>
+            {prMuscles.map((g) => (
+              <option key={g} value={g}>{g === 'Semua' ? 'Semua grup otot' : g}</option>
+            ))}
+          </select>
+        )}
+        {prsFiltered.length === 0 ? (
+          <div className="small muted">{prMuscle !== 'Semua' ? `Belum ada PR untuk ${prMuscle} di mode ini.` : 'Belum ada data set dengan beban. Isi beban di sesi latihan.'}</div>
+        ) : (
+          <div className="pr-list">
+            {prsFiltered.map(([exId, pr]) => {
+              const durEx = exerciseIsDuration(exercises, exId)
+              return (
+                <div className="pr" key={exId}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
+                    <div className="small muted">
+                      {pr.date.slice(8, 10)}/{pr.date.slice(5, 7)}/{pr.date.slice(0, 4)} ·{' '}
+                      {prMode === 'weight'
+                        ? (durEx ? pr.durationSec + ' dtk' : pr.reps + ' rep')
+                        : prMode === 'reps' || prMode === 'dur'
+                          ? (pr.weight > 0 ? fmtNumber(pr.weight) + ' kg' : '')
+                          : fmtNumber(pr.weight) + ' kg × ' + pr.reps + ' rep'}
+                    </div>
+                  </div>
+                  <div className="val">
+                    {prMode === 'weight' ? fmtNumber(pr.weight) + ' kg'
+                      : prMode === 'reps' ? pr.reps + ' rep'
+                      : prMode === 'dur' ? pr.durationSec + ' dtk'
+                      : '~' + e1RmKg(pr.weight, pr.reps) + ' kg e1RM'}
                   </div>
                 </div>
               )
