@@ -98,13 +98,26 @@ export default function Weight() {
   const [range, setRange] = useState<RangeKey>('30')
   const rangeStart = range === '7' ? addDays(today, -6) : range === '30' ? addDays(today, -29) : null
   const filteredBw = rangeStart ? sortedBw.filter((b) => b.date >= rangeStart) : sortedBw
+  const [visibleCount, setVisibleCount] = useState(15)
+  const [confirmDel, setConfirmDel] = useState<string | null>(null)
 
   // Target berat badan
   const [showTarget, setShowTarget] = useState(false)
   const [targetInput, setTargetInput] = useState('')
   const target = typeof settings.weightTarget === 'number' ? settings.weightTarget : null
+  const targetBase = typeof settings.weightTargetBase === 'number' ? settings.weightTargetBase : null
   const targetDiff = target != null && latestKg != null ? Math.round((latestKg - target) * 100) / 100 : null
-  const targetPct = target != null && latestKg != null ? Math.min(100, Math.round((latestKg / target) * 100)) : null
+  // Kemajuan menuju target (baseline = berat saat target diset); fallback rasio jika tanpa baseline
+  const targetPct = (() => {
+    if (target == null || latestKg == null) return null
+    if (targetBase != null && targetBase !== target) {
+      const pct = target < targetBase
+        ? ((targetBase - latestKg) / (targetBase - target)) * 100
+        : ((latestKg - targetBase) / (target - targetBase)) * 100
+      return Math.min(100, Math.max(0, Math.round(pct)))
+    }
+    return Math.min(100, Math.round((latestKg / target) * 100))
+  })()
 
   // Ringkasan: delta & min/max 30 hari
   const delta7 = deltaKg(sortedBw, 7, today)
@@ -112,6 +125,13 @@ export default function Weight() {
   const win30 = sortedBw.filter((b) => b.date >= addDays(today, -29))
   const min30 = win30.length > 0 ? Math.min(...win30.map((b) => b.kg)) : null
   const max30 = win30.length > 0 ? Math.max(...win30.map((b) => b.kg)) : null
+
+  // Label tanggal terakhir — sertakan tahun hanya jika beda dari tahun berjalan
+  const lastDateLabel = (() => {
+    if (!latestDate) return ''
+    const d = latestDate.slice(8, 10) + '/' + latestDate.slice(5, 7)
+    return latestDate.slice(0, 4) === today.slice(0, 4) ? d : d + '/' + latestDate.slice(0, 4)
+  })()
 
   const parseKg = (raw: string): number | null => {
     const parsed = parseFloat(raw.replace(',', '.'))
@@ -265,7 +285,7 @@ export default function Weight() {
             <div className="stat-row">
               <div className="stat">
                 <div className="v">{fmtNumber(latestKg ?? 0)} kg</div>
-                <div className="l">Terakhir · {latestDate ? latestDate.slice(8, 10) + '/' + latestDate.slice(5, 7) : ''}</div>
+                <div className="l">Terakhir · {lastDateLabel}</div>
               </div>
               <DeltaStat label="Δ 7 hari" val={delta7} />
               <DeltaStat label="Δ 30 hari" val={delta30} />
@@ -298,7 +318,7 @@ export default function Weight() {
         <div className="card-title">Log Berat Badan</div>
         <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
           {RANGES.map((r) => (
-            <button key={r.key} className={'chipb' + (range === r.key ? ' on' : '')} onClick={() => setRange(r.key)}>
+            <button key={r.key} className={'chipb' + (range === r.key ? ' on' : '')} onClick={() => { setRange(r.key); setVisibleCount(15) }}>
               {r.label}
             </button>
           ))}
@@ -313,14 +333,19 @@ export default function Weight() {
               <LineChart data={filteredBw} target={target} />
             </div>
             <div className="pr-list" style={{ marginTop: 8 }}>
-              {[...filteredBw].reverse().slice(0, 15).map((b) => (
+              {[...filteredBw].reverse().slice(0, visibleCount).map((b) => (
                 <div className="pr" key={b.id} style={{ padding: '8px 0' }}>
                   <div className="small muted">{b.date.slice(8, 10) + '/' + b.date.slice(5, 7) + '/' + b.date.slice(0, 4)}</div>
                   <div className="val" style={{ fontSize: 14 }}>{fmtNumber(b.kg)} kg</div>
-                  <button className="icon-btn danger" aria-label={`Hapus penimbangan ${b.date}`} onClick={() => { if (confirm('Hapus penimbangan ' + b.date + '?')) removeBodyweight(b.date) }}>✕</button>
+                  <button className="icon-btn danger" aria-label={`Hapus penimbangan ${b.date}`} onClick={() => setConfirmDel(b.date)}>✕</button>
                 </div>
               ))}
             </div>
+            {filteredBw.length > visibleCount && (
+              <button className="btn ghost wide" style={{ marginTop: 8 }} onClick={() => setVisibleCount((c) => c + 15)}>
+                Tampilkan lebih banyak ({filteredBw.length - visibleCount} sisanya)
+              </button>
+            )}
           </>
         )}
       </div>
@@ -347,16 +372,35 @@ export default function Weight() {
               onClick={() => {
                 const raw = targetInput.trim()
                 if (raw === '') {
-                  saveSettings({ weightTarget: null })
+                  saveSettings({ weightTarget: null, weightTargetBase: null })
                 } else {
                   const kg = parseKg(raw)
-                  if (kg != null) saveSettings({ weightTarget: kg })
+                  if (kg != null) {
+                    const base = target == null && latestKg != null ? latestKg : (settings.weightTargetBase ?? null)
+                    saveSettings({ weightTarget: kg, weightTargetBase: base })
+                  }
                 }
                 setShowTarget(false)
               }}
             >
               Simpan
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmDel && (
+        <Modal onClose={() => setConfirmDel(null)} label="Hapus penimbangan">
+          <h3>Hapus penimbangan?</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            {(() => {
+              const b = sortedBw.find((x) => x.date === confirmDel)
+              return (b ? fmtNumber(b.kg) + ' kg' : 'Entri') + ' tanggal ' + confirmDel.slice(8, 10) + '/' + confirmDel.slice(5, 7) + '/' + confirmDel.slice(0, 4) + ' akan dihapus.'
+            })()}
+          </div>
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setConfirmDel(null)}>Batal</button>
+            <button className="btn danger" onClick={() => { removeBodyweight(confirmDel); setConfirmDel(null) }}>Hapus</button>
           </div>
         </Modal>
       )}

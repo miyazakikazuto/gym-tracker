@@ -70,6 +70,7 @@ export interface UserSettings {
   rotation: string[] // urutan rotasi — key preset (default: leg → easy → push → pull)
   shiftAnchor: string // tanggal patokan siklus shift — hari ke-1 blok Sore (default '2026-08-12')
   weightTarget: number | null // target berat badan (kg) — null = tanpa target
+  weightTargetBase: number | null // berat awal saat target diset (baseline kemajuan)
   shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur' (timpa manual per hari)
 }
 
