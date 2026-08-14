@@ -26,8 +26,14 @@ export default function Session() {
   const [localSets, setLocalSets] = useState<SessionSet[]>(session?.sets ?? [])
   const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
   const [syncPending, setSyncPending] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Timer terpisah per jenis data — aksi satu jenis tidak membatalkan write jenis lain
+  const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastWrittenRef = useRef('')
+  const pendingCount = useRef(0)
+  // Perubahan yang belum sukses ditulis — dipakai untuk flush saat keluar halaman
+  const dirtyRef = useRef<{ sets?: SessionSet[]; note?: string; rpes?: Record<string, number> }>({})
 
   // Lookup best e1RM per gerakan — dibangun sekali per data, bukan scan per render
   const bestE1RmMap = useMemo(() => {
@@ -76,17 +82,26 @@ export default function Session() {
     (nextSets: SessionSet[]) => {
       if (!id) return
       const json = JSON.stringify(nextSets)
-      if (json === lastWrittenRef.current) return
-      lastWrittenRef.current = json
+      if (json === lastWrittenRef.current) {
+        // Sudah tersimpan di server → tidak ada yang perlu ditulis
+        delete dirtyRef.current.sets
+        return
+      }
+      dirtyRef.current.sets = nextSets
       setSyncPending(true)
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(async () => {
+      pendingCount.current++
+      if (setsTimer.current) clearTimeout(setsTimer.current)
+      setsTimer.current = setTimeout(async () => {
         try {
           await updateSession(uid, id, { sets: nextSets })
+          // Ref baru di-update SETELAH write sukses — kalau gagal, edit tetap dicoba lagi
+          lastWrittenRef.current = json
+          if (dirtyRef.current.sets === nextSets) delete dirtyRef.current.sets
         } catch {
-          /* snapshot akan menyinkronkan */
+          /* gagal: tetap dirty → ditulis ulang saat aksi berikutnya / keluar halaman */
         } finally {
-          setSyncPending(false)
+          pendingCount.current = Math.max(0, pendingCount.current - 1)
+          if (pendingCount.current === 0) setSyncPending(false)
         }
       }, 400)
     },
@@ -146,6 +161,22 @@ export default function Session() {
     }
   }, [id, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Flush best-effort saat keluar halaman: tulis perubahan yang belum sempat tersimpan
+  useEffect(() => {
+    return () => {
+      ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
+      const d = dirtyRef.current
+      const payload: { sets?: SessionSet[]; note?: string; rpes?: Record<string, number> } = {}
+      if (d.sets) payload.sets = d.sets
+      if (d.note != null) payload.note = d.note
+      if (d.rpes) payload.rpes = d.rpes
+      if (Object.keys(payload).length > 0 && id) {
+        updateSession(uid, id, payload).catch(() => undefined)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   if (!ready || !session) {
     return <div className="empty">Memuat sesi…</div>
   }
@@ -189,15 +220,20 @@ export default function Session() {
 
   function patchNote(next: string) {
     setNote(next)
+    const trimmed = next.trim()
+    dirtyRef.current.note = trimmed
     setSyncPending(true)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
+    pendingCount.current++
+    if (noteTimer.current) clearTimeout(noteTimer.current)
+    noteTimer.current = setTimeout(async () => {
       try {
-        await updateSession(uid, sid, { note: next.trim() })
+        await updateSession(uid, sid, { note: trimmed })
+        if (dirtyRef.current.note === trimmed) delete dirtyRef.current.note
       } catch {
-        /* snapshot akan menyinkronkan */
+        /* gagal: tetap dirty, ditulis ulang saat keluar halaman */
       } finally {
-        setSyncPending(false)
+        pendingCount.current = Math.max(0, pendingCount.current - 1)
+        if (pendingCount.current === 0) setSyncPending(false)
       }
     }, 600)
   }
@@ -207,15 +243,19 @@ export default function Session() {
     if (value === null) delete next[exerciseId]
     else next[exerciseId] = value
     setLocalRpes(next)
+    dirtyRef.current.rpes = next
     setSyncPending(true)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
+    pendingCount.current++
+    if (rpeTimer.current) clearTimeout(rpeTimer.current)
+    rpeTimer.current = setTimeout(async () => {
       try {
         await updateSession(uid, sid, { rpes: next })
+        if (dirtyRef.current.rpes === next) delete dirtyRef.current.rpes
       } catch {
-        /* snapshot akan menyinkronkan */
+        /* gagal: tetap dirty */
       } finally {
-        setSyncPending(false)
+        pendingCount.current = Math.max(0, pendingCount.current - 1)
+        if (pendingCount.current === 0) setSyncPending(false)
       }
     }, 400)
   }
@@ -226,11 +266,15 @@ export default function Session() {
 
   async function finish() {
     await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
+    dirtyRef.current = {}
+    ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
     navigate('/history')
   }
 
   async function saveDone() {
     await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
+    dirtyRef.current = {}
+    ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
     setSyncPending(false)
     navigate(-1)
   }
