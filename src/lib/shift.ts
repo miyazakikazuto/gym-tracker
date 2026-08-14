@@ -1,27 +1,29 @@
 import { parseKey, dateKey } from './date'
 import type { UserSettings } from '../types'
 
-export type ShiftType = 'pagi' | 'siang' | 'malam' | 'libur'
+export type ShiftType = 'pagi' | 'sore' | 'malam' | 'libur'
 
-// Pola siklus shift user: 3 hari kerja → 1 hari libur, bergilir Pagi → Siang → Malam → ulang.
-// Panjang siklus 12 hari: [P P P L] [S S S L] [M M M L].
+// Pola siklus shift user (dari jadwal resmi Agustus 2026): 3 hari kerja → 1 hari libur,
+// rotasi maju Shift 2 (Sore) → Shift 3 (Malam) → Shift 1 (Pagi) → ulang.
+// Panjang siklus 12 hari: [Sore Sore Sore L] [Malam Malam Malam L] [Pagi Pagi Pagi L].
 export const SHIFT_CYCLE_PATTERN: ShiftType[] = [
-  'pagi', 'pagi', 'pagi', 'libur',
-  'siang', 'siang', 'siang', 'libur',
+  'sore', 'sore', 'sore', 'libur',
   'malam', 'malam', 'malam', 'libur',
+  'pagi', 'pagi', 'pagi', 'libur',
 ]
 
-// Tanggal patokan (anchor) — 12 Agustus 2026 = hari ke-1 blok Pagi (resmi dari user).
-export const DEFAULT_SHIFT_ANCHOR = '2026-08-12'
+// Tanggal patokan (anchor) — 15 Agustus 2026 = hari ke-1 blok Sore (awal siklus bersih,
+// cocok 17/17 hari pada 15–31 Agustus).
+export const DEFAULT_SHIFT_ANCHOR = '2026-08-15'
 
 export const SHIFT_LABELS: Record<ShiftType, string> = {
   pagi: 'Pagi',
-  siang: 'Siang',
+  sore: 'Sore',
   malam: 'Malam',
   libur: 'Libur',
 }
 
-export const SHIFT_TYPES: ShiftType[] = ['pagi', 'siang', 'malam', 'libur']
+export const SHIFT_TYPES: ShiftType[] = ['pagi', 'sore', 'malam', 'libur']
 
 // Shift pada tanggal tertentu menurut siklus (tanpa override)
 export function cycleShiftAt(anchor: string, date: string): ShiftType {
@@ -32,7 +34,10 @@ export function cycleShiftAt(anchor: string, date: string): ShiftType {
 // Shift pada tanggal tertentu: override manual → siklus (dari anchor) → legacy.
 export function shiftForDate(date: string, settings: Partial<UserSettings>): ShiftType {
   const ov = settings.shiftOverride?.[date]
-  if (ov === 'pagi' || ov === 'siang' || ov === 'malam' || ov === 'libur') return ov
+  // 'siang' = alias lama untuk 'sore' (sebelum pola shift dikoreksi dari jadwal resmi)
+  if (ov === 'pagi' || ov === 'siang' || ov === 'sore' || ov === 'malam' || ov === 'libur') {
+    return ov === 'siang' ? 'sore' : ov
+  }
   return cycleShiftAt(settings.shiftAnchor || DEFAULT_SHIFT_ANCHOR, date)
 }
 
@@ -54,7 +59,7 @@ export function shiftAdvice(shift: ShiftType): string {
   switch (shift) {
     case 'pagi':
       return 'Latihan sore setelah kerja (±15–17) — badan sudah hangat, tidur malam tetap terjaga.'
-    case 'siang':
+    case 'sore':
       return 'Latihan pagi sebelum shift (±08–10) — jendela terbaik, tidak bentrok kerja.'
     case 'malam':
       return 'Latihan sebelum shift atau setelah bangun tidur — jangan langsung setelah lembur. Disarankan sesi ringan (Easy).'

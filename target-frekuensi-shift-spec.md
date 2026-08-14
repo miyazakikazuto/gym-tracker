@@ -61,21 +61,22 @@ frekuensi kategori X (7 hari berjalan) = jumlah sesi dengan plan kategori X
 Shift kerja = jadwal kerja harian user (pagi/siang/malam/libur) yang dipakai app untuk **menyesuaikan saran latihan** — karena shift sangat memengaruhi waktu, energi, dan recovery.
 
 ### 3.2 Pola siklus shift (fakta dari user)
-User bekerja pola **3 hari kerja → 1 hari libur**, bergilir **Pagi → Siang → Malam → berulang**:
+User bekerja pola **3 hari kerja → 1 hari libur**, rotasi maju **Sore → Malam → Pagi → ulang** (dari jadwal resmi Agustus 2026 — dikoreksi; sebelumnya keliru dianggap Pagi → Siang → Malam):
 
 | Hari dalam siklus | Shift |
 |---|---|
-| 1–3 | **Pagi** |
+| 1–3 | **Sore** (15:00–23:00) |
 | 4 | Libur |
-| 5–7 | **Siang** |
+| 5–7 | **Malam** (23:00–07:00) |
 | 8 | Libur |
-| 9–11 | **Malam** |
+| 9–11 | **Pagi** (07:00–15:00) |
 | 12 | Libur |
 
-- Panjang siklus: **12 hari**, berulang terus; urutan **selalu** Pagi → Siang → Malam (tidak pernah terbalik).
-- **Tanggal patokan (anchor): 12 Agustus 2026 = hari ke-1 blok Pagi** (resmi dari user).
+- Panjang siklus: **12 hari**, berulang terus; urutan **selalu** Sore → Malam → Pagi.
+- **Tanggal patokan (anchor): 15 Agustus 2026 = hari ke-1 blok Sore** (awal siklus bersih).
 - Rumus hitung otomatis: `pos = (tanggal − anchor) mod 12` → petakan ke tabel di atas.
-  - Verifikasi: 12–14 Ags = Pagi ✓ · 15 Ags = Libur ✓ · 16–18 Ags = Siang ✓ · 19 Ags = Libur ✓ · 20–22 Ags = Malam ✓ · 23 Ags = Libur ✓ · 24 Ags kembali Pagi ✓
+  - Verifikasi vs jadwal resmi: **17/17 hari cocok pada 15–31 Ags** (15–17 Sore ✓ · 18 Libur ✓ · 19–21 Malam ✓ · 22 Libur ✓ · 23–25 Pagi ✓ · 26 Libur ✓ · 27–29 Sore ✓ · 30 Libur ✓ · 31 Malam ✓).
+  - Catatan: 1–14 Ags = periode transisi yang tidak mengikuti pola (libur 2–3 hari) — bisa ditimpa manual per hari.
 - Cara pakai di app: **auto-hitung dari pola** (set pola + tanggal patokan sekali di Pengaturan) **+ override manual per hari** bila ada perubahan mendadak.
 
 ### 3.3 Keputusan yang disepakati
@@ -94,8 +95,8 @@ Berdasarkan analisa recovery & jadwal shift:
 | Shift | Saran jenis latihan | Saran waktu latihan |
 |---|---|---|
 | Pagi (07–15) | Normal (sesuai rotasi) | Sore setelah kerja (±15–17) |
-| Siang (13–21) | Normal (sesuai rotasi) | Pagi sebelum shift (±08–10) — jendela terbaik |
-| Malam (21–05) | **Easy** (ringan) | Sebelum shift / setelah bangun tidur — jangan langsung setelah lembur tanpa tidur |
+| Sore (15–23) | Normal (sesuai rotasi) | Pagi sebelum shift (±08–10) — jendela terbaik |
+| Malam (23–07) | **Easy** (ringan) | Sebelum shift / setelah bangun tidur — jangan langsung setelah lembur tanpa tidur |
 | Libur | Normal (sesuai rotasi) | Bebas — waktu terbaik untuk sesi berat/tambahan |
 
 Aturan emas (opsional, bisa jadi copy di app): *tidur < 6 jam → jangan latihan berat; jadikan hari itu rest aktif.*
@@ -121,7 +122,7 @@ Aturan emas (opsional, bisa jadi copy di app): *tidur < 6 jam → jangan latihan
 - Blok malam membuat angka macet — diterima
 
 **Shift kerja** = penyesuaian saran berdasarkan shift **hari ini**:
-- Pola siklus 12 hari: 3× Pagi → libur → 3× Siang → libur → 3× Malam → libur → ulang (anchor: 12 Ags 2026)
+- Pola siklus 12 hari: 3× Sore → libur → 3× Malam → libur → 3× Pagi → libur → ulang (anchor: 15 Ags 2026; cocok 17/17 hari 15–31 Ags)
 - Auto-hitung dari pola siklus + override manual per hari
 - Semua shift berpengaruh; ada saran waktu latihan per shift
 - Alasan perubahan saran ditampilkan jelas
@@ -135,7 +136,7 @@ Aturan emas (opsional, bisa jadi copy di app): *tidur < 6 jam → jangan latihan
 | Area | File terlibat | Perubahan potensial |
 |---|---|---|
 | Data | `src/types.ts` (UserSettings), `src/context/DataContext.tsx` | `shiftCycle` (pola + anchor 12 Ags 2026) + override per tanggal; mungkin target per kategori |
-| Logika | `src/lib/rotation.ts` (atau file baru `src/lib/shift.ts`) | `shiftFor(date)` dari pola siklus 12 hari; `freq7` → per kategori + sertakan sesi berjalan; efek shift pagi/siang |
+| Logika | `src/lib/rotation.ts` + `src/lib/shift.ts` | `shiftForDate()` dari pola siklus 12 hari; `freq7` → per kategori + sertakan sesi berjalan; efek shift pagi/sore |
 | UI Hari Ini | `src/pages/Today.tsx` | Shift hari ini (auto + override); rincian frekuensi per kategori; saran waktu |
 | UI Pengaturan | `src/pages/Settings.tsx` | Setup pola siklus + tanggal patokan; penjelasan target frekuensi |
 | Copy | teks bantuan di kedua halaman | Penjelasan singkat tiap konsep |

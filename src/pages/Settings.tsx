@@ -6,7 +6,7 @@ import { todayKey, addDays } from '../lib/date'
 import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
-import { shiftForDate, SHIFT_LABELS, SHIFT_TYPES, alignAnchor } from '../lib/shift'
+import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_TYPES, alignAnchor } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
@@ -38,8 +38,9 @@ export default function Settings() {
   const rotationMode = settings.rotationMode !== false // default: aktif
   const nextShifts = Array.from({ length: 12 }, (_, i) => {
     const date = addDays(rot.anchor, i)
-    return { date, sh: shiftForDate(date, settings) }
+    return { date, sh: cycleShiftAt(rot.anchor, date) }
   })
+  const overrideCount = Object.keys(settings.shiftOverride ?? {}).length
   const [state, setState] = useState<'idle' | 'done' | 'error'>('idle')
   const [showPw, setShowPw] = useState(false)
   const [pw1, setPw1] = useState('')
@@ -247,7 +248,7 @@ export default function Settings() {
             <div className="divider" />
             <div className="card-title" style={{ marginTop: 4 }}>Shift kerja</div>
             <div className="small muted" style={{ marginBottom: 8 }}>
-              Shift dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b>, bergilir Pagi → Siang → Malam.
+              Shift dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b>, bergilir Sore → Malam → Pagi (rotasi maju).
             </div>
             <div className="small" style={{ marginBottom: 6, fontWeight: 700 }}>Set patokan dari shift hari ini:</div>
             <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
@@ -262,11 +263,11 @@ export default function Settings() {
               ))}
             </div>
             <div className="small muted" style={{ marginBottom: 8 }}>
-              Patokan terhitung otomatis mundur dari pilihan Anda — saat ini <b>{rot.anchor}</b> (hari ke-1 Pagi).
+              Patokan terhitung otomatis mundur dari pilihan Anda — saat ini <b>{rot.anchor}</b> (hari ke-1 Sore).
               Sudah terisi otomatis, tidak perlu diubah kecuali pola berubah.
             </div>
             <label className="row small" style={{ gap: 8, alignItems: 'center', marginBottom: 10 }}>
-              <span className="grow">Tanggal patokan (hari ke-1 Pagi)</span>
+              <span className="grow">Tanggal patokan (hari ke-1 Sore)</span>
               <input
                 type="date"
                 className="input"
@@ -281,6 +282,19 @@ export default function Settings() {
                   {date.slice(8, 10)}/{date.slice(5, 7)} {SHIFT_LABELS[sh]}
                 </span>
               ))}
+            </div>
+            <div className="row wrap" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              {overrideCount > 0 && (
+                <>
+                  <span className="small muted grow">{overrideCount} tanggal ditimpa manual</span>
+                  <button className="btn sm ghost" onClick={() => saveSettings({ shiftOverride: {} })}>
+                    Hapus penimpaan
+                  </button>
+                </>
+              )}
+              <button className="btn sm ghost" onClick={() => saveSettings({ shiftAnchor: DEFAULT_SHIFT_ANCHOR })}>
+                Reset patokan ke 15 Ags 2026
+              </button>
             </div>
             <div className="small muted">
               Saat shift <b>Malam</b>, saran otomatis ringan (Easy). Timpa shift hari ini di halaman Hari Ini.

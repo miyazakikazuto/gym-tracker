@@ -234,6 +234,7 @@ export default function Today() {
             <div className="card-title">
               <span>Shift hari ini</span>
               <span className="badge warn">{SHIFT_LABELS[todayShift]}</span>
+              <span className="badge">{settings.shiftOverride?.[base] ? 'ditimpa' : 'otomatis'}</span>
             </div>
             <div className="small muted">{shiftAdvice(todayShift)}</div>
             <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
@@ -248,7 +249,7 @@ export default function Today() {
               ))}
             </div>
             <div className="small muted" style={{ marginTop: 8 }}>
-              Dihitung otomatis dari siklus 3 kerja + 1 libur (Pagi → Siang → Malam). Ketuk untuk menimpa hari ini.
+              Dihitung otomatis dari siklus 3 kerja + 1 libur (Sore → Malam → Pagi). Ketuk untuk menimpa hari ini.
             </div>
           </div>
 
