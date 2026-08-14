@@ -202,10 +202,6 @@ export default function Today() {
               <div className="v">{dsl == null ? '—' : dsl === 0 ? 'Hari ini' : dsl === 1 ? 'Kemarin' : dsl + ' hari'}</div>
               <div className="l">Sejak latihan</div>
             </div>
-            <div className="stat">
-              <div className="v" style={{ color: SHIFT_COLORS[todayShift] }}>{SHIFT_LABELS[todayShift]}</div>
-              <div className="l">Shift hari ini</div>
-            </div>
           </div>
 
           <div className="row wrap" style={{ gap: 6 }}>
