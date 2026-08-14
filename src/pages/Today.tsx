@@ -358,34 +358,10 @@ export default function Today() {
         </>
       )}
 
-      <div className="row spread">
-        <div className="card-title" style={{ marginTop: 6 }}>Sesi</div>
-        <button className="btn sm ghost" onClick={() => setShowPlan(true)}>Kelola jadwal</button>
-      </div>
-
       {!ready ? (
         <div className="empty">Memuat…</div>
       ) : (
         <>
-          {todaySessions.length > 0 && (
-            <div className="card">
-              <div className="card-title">Sesi hari ini</div>
-              {todaySessions.map((s) => (
-                <div className="list-item" key={s.id}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{s.planName}</div>
-                    <div className="small muted">
-                      {s.sets.length} set · {s.endedAt ? 'Selesai' : 'Berjalan'}
-                    </div>
-                  </div>
-                  <button className="btn sm accent" onClick={() => navigate(`/session/${s.id}`)}>
-                    {s.endedAt ? 'Lihat' : 'Lanjut'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
           {showStart && (
             <button className="btn primary wide" onClick={handleStart}>
               {startLabel}
