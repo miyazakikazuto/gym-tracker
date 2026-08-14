@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preview Ikon PWA — Gym Tracker</title>
+<style>
+  body { background: #0f0f14; color: #f2f2f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 32px 24px; }
+  h2 { color: #a78bfa; margin: 0 0 6px; }
+  .sub { color: #9a9ab0; font-size: 13px; margin-bottom: 28px; }
+  .grid { display: flex; gap: 44px; flex-wrap: wrap; align-items: flex-start; }
+  .cell { text-align: center; }
+  .cell img { border-radius: 18%; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .cell .bg { background: #17171f; border-radius: 18%; padding: 12px; display: inline-block; }
+  .lbl { font-size: 12px; color: #9a9ab0; margin-top: 10px; }
+  .lbl b { color: #f2f2f7; }
+  .note { margin-top: 30px; color: #9a9ab0; font-size: 12.5px; max-width: 640px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h2>Ikon shortcut PWA — Dumbell Disempurnakan</h2>
+<div class="sub">Gradien ungu brand (#6366f1 → #a78bfa) · dumbell diagonal dengan plat membulat</div>
+
+<div class="grid">
+  <div class="cell">
+    <img src="../public/icons/icon-512.png" width="192" height="192" alt="icon-512" />
+    <div class="lbl"><b>icon-512</b> · shortcut Android / PWA</div>
+  </div>
+  <div class="cell">
+    <img src="../public/icons/icon-192.png" width="192" height="192" alt="icon-192" />
+    <div class="lbl"><b>icon-192</b></div>
+  </div>
+  <div class="cell">
+    <img src="../public/icons/maskable-512.png" width="192" height="192" alt="maskable" />
+    <div class="lbl"><b>maskable-512</b> · ikon adaptif (full-bleed)</div>
+  </div>
+  <div class="cell">
+    <img src="../public/icons/apple-touch-icon.png" width="180" height="180" alt="apple-touch" />
+    <div class="lbl"><b>apple-touch-icon</b> · shortcut iPhone</div>
+  </div>
+  <div class="cell">
+    <span class="bg"><img src="../public/dumbell.svg" width="72" height="72" alt="favicon" /></span>
+    <div class="lbl"><b>dumbell.svg</b> · favicon &amp; logo login</div>
+  </div>
+</div>
+
+<div class="note">
+  Buka file ini dari folder proyek: <code>docs/icon-preview.html</code>.
+  Ikon dipakai oleh <code>manifest.webmanifest</code> (start shortcut PWA), <code>index.html</code> (apple-touch-icon &amp; favicon),
+  dan di-pre-cache oleh service worker.
+</div>
+</body>
+</html>

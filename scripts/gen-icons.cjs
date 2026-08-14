@@ -60,11 +60,30 @@ function writePng(file, w, h, rgba) {
 const C0 = [0x63, 0x66, 0xf1] // #6366f1
 const C1 = [0xa7, 0x8b, 0xfa] // #a78bfa
 
+// Persegi panjang membulat — dipakai untuk bar & plat dumbell (desain lebih modern)
+function inRoundRect(u, v, cu, cv, hw, hh, r) {
+  const au = Math.abs(u - cu)
+  const av = Math.abs(v - cv)
+  if (au > hw || av > hh) return false
+  if (au <= hw - r || av <= hh - r) return true
+  const du = au - (hw - r)
+  const dv = av - (hh - r)
+  return du * du + dv * dv <= r * r
+}
+
 function inGlyph(u, v) {
-  const bar = Math.abs(v) <= 0.05 && Math.abs(u) <= 0.34
-  const plate = Math.abs(u) >= 0.36 && Math.abs(u) <= 0.48 && Math.abs(v) <= 0.19
-  const cap = Math.abs(u) >= 0.55 && Math.abs(u) <= 0.62 && Math.abs(v) <= 0.07
-  return bar || plate || cap
+  // Bar utama (tebal, ujung membulat)
+  if (inRoundRect(u, v, 0, 0, 0.28, 0.05, 0.05)) return true
+  // Plat dalam (besar)
+  if (inRoundRect(u, v, 0.38, 0, 0.075, 0.21, 0.06)) return true
+  if (inRoundRect(u, v, -0.38, 0, 0.075, 0.21, 0.06)) return true
+  // Plat luar (kecil)
+  if (inRoundRect(u, v, 0.525, 0, 0.055, 0.14, 0.05)) return true
+  if (inRoundRect(u, v, -0.525, 0, 0.055, 0.14, 0.05)) return true
+  // Penutup ujung
+  if (inRoundRect(u, v, 0.625, 0, 0.035, 0.078, 0.032)) return true
+  if (inRoundRect(u, v, -0.625, 0, 0.035, 0.078, 0.032)) return true
+  return false
 }
 
 function inRounded(x, y, s, r) {
@@ -93,8 +112,9 @@ function draw(s, rounded, glyphScale, alpha) {
           const px = x + (sx + 0.5) / SS
           const py = y + (sy + 0.5) / SS
           if (!rounded || inRounded(px - s / 2, py - s / 2, s, r)) a += 1
-          const xc = (px - s / 2) * gs
-          const yc = (py - s / 2) * gs
+          // Normalisasi koordinat ke [-0.5, 0.5] — tanpa ini glyph nyaris tak terlihat
+          const xc = ((px - s / 2) / s) * gs
+          const yc = ((py - s / 2) / s) * gs
           const u = (xc + yc) * 0.70710678
           const v = (yc - xc) * 0.70710678
           if (inGlyph(u, v)) g += 1
