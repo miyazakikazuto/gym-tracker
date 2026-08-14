@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
@@ -37,8 +37,40 @@ export default function History() {
   const t = parseKey(todayKey())
   const [viewYear, setViewYear] = useState(t.getUTCFullYear())
   const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
-  const [expanded, setExpanded] = useState(true)
-  const [showShift, setShowShift] = useState(true)
+  // Preferensi tampilan kalender — tersimpan di localStorage (gt:calPrefs)
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('gt:calPrefs')
+      if (raw) {
+        const p = JSON.parse(raw) as { expanded?: boolean; showShift?: boolean }
+        if (typeof p.expanded === 'boolean') return p.expanded
+      }
+    } catch {
+      /* localStorage tidak tersedia — pakai default */
+    }
+    return true
+  })
+  const [showShift, setShowShift] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('gt:calPrefs')
+      if (raw) {
+        const p = JSON.parse(raw) as { expanded?: boolean; showShift?: boolean }
+        if (typeof p.showShift === 'boolean') return p.showShift
+      }
+    } catch {
+      /* localStorage tidak tersedia — pakai default */
+    }
+    return true
+  })
+
+  // Simpan preferensi setiap kali berubah
+  useEffect(() => {
+    try {
+      localStorage.setItem('gt:calPrefs', JSON.stringify({ expanded, showShift }))
+    } catch {
+      /* mode private / penuh — abaikan */
+    }
+  }, [expanded, showShift])
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
