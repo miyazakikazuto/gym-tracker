@@ -11,9 +11,6 @@ import {
   rotationOf,
   suggestKey,
   planForKey,
-  freq7,
-  freqByCategory,
-  daysSinceLast,
   lastFinishedSession,
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
@@ -111,9 +108,6 @@ export default function Today() {
   const sug = suggestKey(settings, sessions, todayShift)
   const sugPlan = planForKey(plans, sug.key)
   const sugPreset = presetByKey(sug.key)
-  const f7 = freq7(sessions, base)
-  const catFreq = freqByCategory(sessions, base)
-  const dsl = daysSinceLast(sessions, base)
 
   const todaySessions = sessions.filter((s) => s.date === base)
   const todayDone = todaySessions.some((s) => s.endedAt !== null)
@@ -193,29 +187,6 @@ export default function Today() {
 
       {rotationMode ? (
         <>
-          <div className="stat-row">
-            <div className="stat">
-              <div className="v">{f7}</div>
-              <div className="l">Sesi · 7 hari</div>
-            </div>
-            <div className="stat">
-              <div className="v">{dsl == null ? '—' : dsl === 0 ? 'Hari ini' : dsl === 1 ? 'Kemarin' : dsl + ' hari'}</div>
-              <div className="l">Sejak latihan</div>
-            </div>
-          </div>
-
-          <div className="row wrap" style={{ gap: 6 }}>
-            {catFreq.length === 0 ? (
-              <span className="small muted">Belum ada sesi minggu ini (Easy tidak dihitung)</span>
-            ) : (
-              catFreq.map((f) => (
-                <span key={f.key} className="badge">
-                  {presetByKey(f.key)?.shortLabel ?? f.key.toUpperCase()} {f.count}×
-                </span>
-              ))
-            )}
-          </div>
-
           <div className="card shift-card">
             <div className="card-title">
               <span className="row" style={{ gap: 8 }}>
