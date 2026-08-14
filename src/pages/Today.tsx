@@ -112,6 +112,7 @@ export default function Today() {
   const dsl = daysSinceLast(sessions, base)
 
   const todaySessions = sessions.filter((s) => s.date === base)
+  const todayDone = todaySessions.some((s) => s.endedAt !== null)
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
 
   const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
@@ -128,7 +129,7 @@ export default function Today() {
       sub: `${o.plan.items.length} gerakan`,
     }))
 
-  const showStart = rotationMode ? !restToday : !todayIsRest
+  const showStart = rotationMode ? !restToday && !todayDone : !todayIsRest
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
     : rotationMode
@@ -205,47 +206,68 @@ export default function Today() {
           <div className="card suggest">
             <div className="card-title">
               <span>Saran Hari Ini</span>
-              {rot.shift && <span className="badge warn">shift: {rot.shift}</span>}
+              {todayDone ? (
+                <span className="badge" style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>SELESAI ✓</span>
+              ) : rot.shift ? (
+                <span className="badge warn">shift: {rot.shift}</span>
+              ) : null}
             </div>
-            <div className="suggest-big">
-              <span className="dot" style={{ background: sugPlan ? dotColorFor(sugPlan.name) : 'var(--accent)' }} />
-              <span className="name">{sugPreset?.shortLabel ?? sug.key.toUpperCase()}</span>
-            </div>
-            <div className="suggest-meta">
-              {last
-                ? `Latihan terakhir: ${shortLabelFor(last.planName) || last.planName} · ${dsl === 0 ? 'hari ini' : dsl === 1 ? 'kemarin' : dsl + ' hari lalu'}`
-                : 'Belum ada sesi — rotasi mulai dari Leg'}
-              {sug.isNightLight && ' · disarankan ringan (shift malam)'}
-            </div>
-            {!sugPlan ? (
-              <div className="small muted" style={{ marginBottom: 10 }}>
-                Plan {sugPreset?.name ?? sug.key} belum dibuat — atur lewat "Kelola jadwal" dulu.
-              </div>
+            {todayDone ? (
+              <>
+                <div className="suggest-big">
+                  <span className="dot" style={{ background: last ? dotColorFor(last.planName) : 'var(--accent)' }} />
+                  <span className="name">{last ? shortLabelFor(last.planName) || last.planName : 'Latihan'}</span>
+                </div>
+                <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
+                <div className="small muted" style={{ marginTop: 4 }}>
+                  Sesi berikutnya: {presetByKey(sug.key)?.shortLabel ?? sug.key.toUpperCase()} — mulai setelah istirahat cukup.
+                </div>
+                <div style={{ height: 10 }} />
+                <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
+              </>
             ) : (
-              sugPlan.items.map((it, i) => {
-                const ex = exercises.find((e) => e.id === it.exerciseId)
-                return (
-                  <div className="row" key={i} style={{ padding: '5px 0' }}>
-                    <span className="num">{i + 1}.</span>
-                    <span className="grow">{ex?.name ?? 'Gerakan'}</span>
-                    <span className="badge">
-                      {it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}
-                    </span>
+              <>
+                <div className="suggest-big">
+                  <span className="dot" style={{ background: sugPlan ? dotColorFor(sugPlan.name) : 'var(--accent)' }} />
+                  <span className="name">{sugPreset?.shortLabel ?? sug.key.toUpperCase()}</span>
+                </div>
+                <div className="suggest-meta">
+                  {last
+                    ? `Latihan terakhir: ${shortLabelFor(last.planName) || last.planName} · ${dsl === 0 ? 'hari ini' : dsl === 1 ? 'kemarin' : dsl + ' hari lalu'}`
+                    : 'Belum ada sesi — rotasi mulai dari Leg'}
+                  {sug.isNightLight && ' · disarankan ringan (shift malam)'}
+                </div>
+                {!sugPlan ? (
+                  <div className="small muted" style={{ marginBottom: 10 }}>
+                    Plan {sugPreset?.name ?? sug.key} belum dibuat — atur lewat "Kelola jadwal" dulu.
                   </div>
-                )
-              })
-            )}
-            <div style={{ height: 10 }} />
-            {restToday ? (
-              <button className="btn sm ghost wide" onClick={() => setRestToday(false)}>Batalkan istirahat</button>
-            ) : (
-              <div className="action-row">
-                <button className="btn primary" onClick={handleStart}>
-                  {sugPlan ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}` : 'Buat plan dulu'}
-                </button>
-                <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
-                <button className="btn ghost" onClick={() => setRestToday(true)}>Istirahat hari ini</button>
-              </div>
+                ) : (
+                  sugPlan.items.map((it, i) => {
+                    const ex = exercises.find((e) => e.id === it.exerciseId)
+                    return (
+                      <div className="row" key={i} style={{ padding: '5px 0' }}>
+                        <span className="num">{i + 1}.</span>
+                        <span className="grow">{ex?.name ?? 'Gerakan'}</span>
+                        <span className="badge">
+                          {it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
+                <div style={{ height: 10 }} />
+                {restToday ? (
+                  <button className="btn sm ghost wide" onClick={() => setRestToday(false)}>Batalkan istirahat</button>
+                ) : (
+                  <div className="action-row">
+                    <button className="btn primary" onClick={handleStart}>
+                      {sugPlan ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}` : 'Buat plan dulu'}
+                    </button>
+                    <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
+                    <button className="btn ghost" onClick={() => setRestToday(true)}>Istirahat hari ini</button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
