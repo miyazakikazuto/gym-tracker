@@ -73,10 +73,10 @@ User bekerja pola **3 hari kerja → 1 hari libur**, rotasi maju **Sore → Mala
 | 12 | Libur |
 
 - Panjang siklus: **12 hari**, berulang terus; urutan **selalu** Sore → Malam → Pagi.
-- **Tanggal patokan (anchor): 15 Agustus 2026 = hari ke-1 blok Sore** (awal siklus bersih).
+- **Tanggal patokan (anchor): 12 Agustus 2026 = hari ke-1 blok Sore** (dikonfirmasi dari bacaan kalender asli — sebelumnya keliru 15 Ags, fase bergeser 3 hari).
 - Rumus hitung otomatis: `pos = (tanggal − anchor) mod 12` → petakan ke tabel di atas.
-  - Verifikasi vs jadwal resmi (bacaan kalender yang dikoreksi): **31/31 hari cocok sepanjang Agustus** — 1 Pagi · 2 Libur · 3–5 Sore · 6 Libur · 7–9 Malam · 10 Libur · 11–13 Pagi · 14 Libur · lalu 3-on/1-off mulus sampai 31. September juga cocok **30/30**, dan awal Oktober (1 Okt Libur · 2 Okt Sore) sesuai.
-  - Catatan: **tidak ada periode transisi** — siklus berlaku mulus dari 1 Ags. (Kesimpulan "1–14 Ags di luar pola" sebelumnya berasal dari tabel yang salah baca dan sudah dikoreksi.)
+  - Verifikasi (bacaan yang dikonfirmasi user): **11 Libur · 12–14 Sore · 15 Libur · 16–18 Malam · 19 Libur · 20–22 Pagi · 23 Libur · 24–26 Sore · 27 Libur · 28–30 Malam · 31 Libur** — jadi 14 Ags = Sore, 15 Ags = Libur.
+  - Catatan: tanggal di luar blok yang dikonfirmasi (1–10 Ags, dst.) mengikuti siklus yang sama — bisa ditimpa manual per hari bila berbeda dari kenyataan.
 - Cara pakai di app: **auto-hitung dari pola** (set pola + tanggal patokan sekali di Pengaturan) **+ override manual per hari** bila ada perubahan mendadak.
 
 ### 3.3 Keputusan yang disepakati
@@ -122,7 +122,7 @@ Aturan emas (opsional, bisa jadi copy di app): *tidur < 6 jam → jangan latihan
 - Blok malam membuat angka macet — diterima
 
 **Shift kerja** = penyesuaian saran berdasarkan shift **hari ini**:
-- Pola siklus 12 hari: 3× Sore → libur → 3× Malam → libur → 3× Pagi → libur → ulang (anchor: 15 Ags 2026; cocok 31/31 hari Agustus, 30/30 September)
+- Pola siklus 12 hari: 3× Sore → libur → 3× Malam → libur → 3× Pagi → libur → ulang (anchor: 12 Ags 2026 = hari ke-1 Sore; 14 Ags = Sore, 15 Ags = Libur)
 - Auto-hitung dari pola siklus + override manual per hari
 - Semua shift berpengaruh; ada saran waktu latihan per shift
 - Alasan perubahan saran ditampilkan jelas

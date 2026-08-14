@@ -70,7 +70,7 @@ export interface UserSettings {
   rotation: string[] // urutan rotasi — key preset (default: leg → easy → push → pull)
   weeklyTarget: number // target sesi per 7 hari berjalan
   shift: 'pagi' | 'siang' | 'malam' | null // legacy: pilihan shift tetap (tak dipakai; 'siang' lama = 'sore')
-  shiftAnchor: string // tanggal patokan siklus shift — hari ke-1 blok Sore (default '2026-08-15')
+  shiftAnchor: string // tanggal patokan siklus shift — hari ke-1 blok Sore (default '2026-08-12')
   shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur' (timpa manual per hari)
 }
 

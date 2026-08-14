@@ -288,7 +288,7 @@ export default function Settings() {
                 </>
               )}
               <button className="btn sm ghost" onClick={() => saveSettings({ shiftAnchor: DEFAULT_SHIFT_ANCHOR })}>
-                Reset patokan ke 15 Ags 2026
+                Reset patokan ke 12 Ags 2026
               </button>
             </div>
             <div className="small muted">
