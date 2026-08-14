@@ -12,8 +12,9 @@ export const SHIFT_CYCLE_PATTERN: ShiftType[] = [
   'pagi', 'pagi', 'pagi', 'libur',
 ]
 
-// Tanggal patokan (anchor) — 15 Agustus 2026 = hari ke-1 blok Sore (awal siklus bersih,
-// cocok 17/17 hari pada 15–31 Agustus).
+// Tanggal patokan (anchor) — 15 Agustus 2026 = hari ke-1 blok Sore.
+// Cocok 31/31 hari sepanjang Agustus (bacaan kalender yang dikoreksi), 30/30 September,
+// dan berlanjut otomatis 3-on/1-off ke bulan berikutnya.
 export const DEFAULT_SHIFT_ANCHOR = '2026-08-15'
 
 // Nilai patokan basi dari versi lama (default sebelum pola dikoreksi dari jadwal resmi,

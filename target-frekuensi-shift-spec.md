@@ -75,8 +75,8 @@ User bekerja pola **3 hari kerja → 1 hari libur**, rotasi maju **Sore → Mala
 - Panjang siklus: **12 hari**, berulang terus; urutan **selalu** Sore → Malam → Pagi.
 - **Tanggal patokan (anchor): 15 Agustus 2026 = hari ke-1 blok Sore** (awal siklus bersih).
 - Rumus hitung otomatis: `pos = (tanggal − anchor) mod 12` → petakan ke tabel di atas.
-  - Verifikasi vs jadwal resmi: **17/17 hari cocok pada 15–31 Ags** (15–17 Sore ✓ · 18 Libur ✓ · 19–21 Malam ✓ · 22 Libur ✓ · 23–25 Pagi ✓ · 26 Libur ✓ · 27–29 Sore ✓ · 30 Libur ✓ · 31 Malam ✓).
-  - Catatan: 1–14 Ags = periode transisi yang tidak mengikuti pola (libur 2–3 hari) — bisa ditimpa manual per hari.
+  - Verifikasi vs jadwal resmi (bacaan kalender yang dikoreksi): **31/31 hari cocok sepanjang Agustus** — 1 Pagi · 2 Libur · 3–5 Sore · 6 Libur · 7–9 Malam · 10 Libur · 11–13 Pagi · 14 Libur · lalu 3-on/1-off mulus sampai 31. September juga cocok **30/30**, dan awal Oktober (1 Okt Libur · 2 Okt Sore) sesuai.
+  - Catatan: **tidak ada periode transisi** — siklus berlaku mulus dari 1 Ags. (Kesimpulan "1–14 Ags di luar pola" sebelumnya berasal dari tabel yang salah baca dan sudah dikoreksi.)
 - Cara pakai di app: **auto-hitung dari pola** (set pola + tanggal patokan sekali di Pengaturan) **+ override manual per hari** bila ada perubahan mendadak.
 
 ### 3.3 Keputusan yang disepakati
@@ -122,7 +122,7 @@ Aturan emas (opsional, bisa jadi copy di app): *tidur < 6 jam → jangan latihan
 - Blok malam membuat angka macet — diterima
 
 **Shift kerja** = penyesuaian saran berdasarkan shift **hari ini**:
-- Pola siklus 12 hari: 3× Sore → libur → 3× Malam → libur → 3× Pagi → libur → ulang (anchor: 15 Ags 2026; cocok 17/17 hari 15–31 Ags)
+- Pola siklus 12 hari: 3× Sore → libur → 3× Malam → libur → 3× Pagi → libur → ulang (anchor: 15 Ags 2026; cocok 31/31 hari Agustus, 30/30 September)
 - Auto-hitung dari pola siklus + override manual per hari
 - Semua shift berpengaruh; ada saran waktu latihan per shift
 - Alasan perubahan saran ditampilkan jelas
