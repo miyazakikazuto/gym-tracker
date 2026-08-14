@@ -16,7 +16,7 @@ import {
   daysSinceLast,
   lastFinishedSession,
 } from '../lib/rotation'
-import { shiftForDate, SHIFT_LABELS, SHIFT_TYPES, SHIFT_COLORS, shiftAdvice, type ShiftType } from '../lib/shift'
+import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -64,7 +64,7 @@ export default function Today() {
   const { user } = useAuth()
   const uid = useUid()
   const navigate = useNavigate()
-  const { plans, exercises, sessions, settings, ready, saveSettings } = useData()
+  const { plans, exercises, sessions, settings, ready } = useData()
   const [showPlan, setShowPlan] = useState(false)
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
@@ -135,16 +135,6 @@ export default function Today() {
 
   const showStart = rotationMode ? !restToday && !todayDone : !todayIsRest
 
-  function setTodayShift(sh: ShiftType) {
-    const cur = settings.shiftOverride?.[base]
-    const next = { ...(settings.shiftOverride ?? {}) }
-    if (cur === sh) {
-      delete next[base]
-    } else {
-      next[base] = sh
-    }
-    saveSettings({ shiftOverride: next })
-  }
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
     : rotationMode
@@ -264,23 +254,6 @@ export default function Today() {
                   </div>
                 )
               })}
-            </div>
-            <div className="small muted" style={{ marginTop: 10 }}>{shiftAdvice(todayShift)}</div>
-            <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
-              {SHIFT_TYPES.map((sh) => (
-                <button
-                  key={sh}
-                  className={'chipb' + (todayShift === sh ? ' on' : '')}
-                  style={todayShift === sh ? { background: SHIFT_COLORS[sh], borderColor: SHIFT_COLORS[sh], color: '#1a1230' } : undefined}
-                  onClick={() => setTodayShift(sh)}
-                >
-                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
-                  {SHIFT_LABELS[sh]}
-                </button>
-              ))}
-            </div>
-            <div className="small muted" style={{ marginTop: 8 }}>
-              Dihitung otomatis dari siklus 3 kerja + 1 libur (Sore → Malam → Pagi). Ketuk untuk menimpa hari ini.
             </div>
           </div>
 
