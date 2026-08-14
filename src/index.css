@@ -429,13 +429,6 @@ body {
 }
 .chipb:hover { border-color: var(--accent); }
 .chipb.on { background: var(--accent); border-color: var(--accent); color: #1a1230; box-shadow: 0 2px 10px rgba(167,139,250,.3); }
-.chipb.rest { opacity: .55; text-decoration: line-through; }
-.stepper { display: flex; align-items: center; gap: 10px; }
-.stepper .b {
-  width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border);
-  background: var(--card2); color: var(--text); font-weight: 800; cursor: pointer; font-size: 16px;
-}
-.stepper .val { font-size: 16px; font-weight: 800; min-width: 22px; text-align: center; }
 .rotate-item {
   display: flex; align-items: center; gap: 8px; background: var(--bg2);
   border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
