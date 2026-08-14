@@ -31,24 +31,6 @@ export function exerciseIsDuration(exercises: Exercise[], exerciseId: string): b
   return exercises.find((e) => e.id === exerciseId)?.type === 'duration'
 }
 
-export function lastSetResult(
-  sessions: Session[],
-  excludeId: string,
-  exerciseId: string,
-  setNumber: number,
-): { weightKg: number; reps: number; durationSec?: number; distanceKm?: number } | null {
-  const finished = sessions
-    .filter((s) => s.id !== excludeId && s.endedAt !== null)
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.startedAt - a.startedAt))
-  for (const s of finished) {
-    const set = s.sets.find((x) => x.exerciseId === exerciseId && x.setNumber === setNumber)
-    if (set && (set.weightKg > 0 || set.durationSec != null || (set.distanceKm ?? 0) > 0)) {
-      return { weightKg: set.weightKg, reps: set.reps, durationSec: set.durationSec, distanceKm: set.distanceKm }
-    }
-  }
-  return null
-}
-
 export function bestSetResult(
   sessions: Session[],
   excludeId: string,
@@ -70,35 +52,6 @@ export function bestSetResult(
   }
   if (!best) return null
   return { weightKg: best.weightKg, reps: best.reps, durationSec: best.durationSec, distanceKm: best.distanceKm }
-}
-
-export function groupSetsByExercise(
-  sets: { exerciseId: string; setNumber: number; weightKg: number; reps: number }[],
-) {
-  const map = new Map<string, typeof sets>()
-  for (const set of sets) {
-    const arr = map.get(set.exerciseId) ?? []
-    arr.push(set)
-    map.set(set.exerciseId, arr)
-  }
-  return map
-}
-
-export function e1rmOf(weight: number, reps: number): number {
-  return weight * (1 + reps / 30)
-}
-
-export function bestE1RmOf(sessions: Session[], excludeId: string, exerciseId: string): number {
-  let best = 0
-  for (const s of sessions) {
-    if (s.id === excludeId || s.endedAt === null) continue
-    for (const set of s.sets) {
-      if (set.exerciseId !== exerciseId || set.weightKg <= 0) continue
-      const e = e1rmOf(set.weightKg, set.reps)
-      if (e > best) best = e
-    }
-  }
-  return best
 }
 
 export function fmtNumber(n: number): string {

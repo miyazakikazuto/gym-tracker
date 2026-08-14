@@ -1,11 +1,11 @@
-import { addDays, parseKey } from './date'
+import { parseKey } from './date'
 import { presetByName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
 
 // Urutan default: mulai dari Leg, lalu Easy (recovery), Push, Pull.
 // User bisa mengubah urutan di Pengaturan.
-export const DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
+const DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
 
 export interface RotationState {
   rotation: string[]
@@ -29,33 +29,6 @@ export function lastFinishedSession(sessions: Session[]): Session | null {
   return best
 }
 
-// Apakah sesi dihitung ke frekuensi? Easy/Rest tidak (latihan ringan) — K2.
-export function countsRealSession(s: Session): boolean {
-  const k = presetByName(s.planName)?.key
-  return k !== 'easy' && k !== 'rest'
-}
-
-// Sesi dalam 7 hari berjalan — dihitung yang selesai ATAU masih berjalan (K3).
-export function sessionsInWindow(sessions: Session[], today: string): Session[] {
-  const start = addDays(today, -6)
-  return sessions.filter((s) => s.date >= start && s.date <= today && countsRealSession(s))
-}
-
-// Jumlah sesi (non-Easy) dalam 7 hari berjalan
-export function freq7(sessions: Session[], today: string): number {
-  return sessionsInWindow(sessions, today).length
-}
-
-// Frekuensi per kategori dalam 7 hari berjalan (untuk rincian per kategori)
-export function freqByCategory(sessions: Session[], today: string): { key: string; count: number }[] {
-  const map = new Map<string, number>()
-  for (const s of sessionsInWindow(sessions, today)) {
-    const k = presetByName(s.planName)?.key
-    map.set(k && k !== 'easy' && k !== 'rest' ? k : 'lainnya', (map.get(k && k !== 'easy' && k !== 'rest' ? k : 'lainnya') ?? 0) + 1)
-  }
-  return [...map.entries()].map(([key, count]) => ({ key, count }))
-}
-
 // Hari sejak sesi terakhir selesai (0 = hari ini, null = belum pernah)
 export function daysSinceLast(sessions: Session[], today: string): number | null {
   const last = lastFinishedSession(sessions)
@@ -65,7 +38,7 @@ export function daysSinceLast(sessions: Session[], today: string): number | null
 }
 
 // Key berikutnya dalam rotasi — setelah sesi terakhir yang selesai
-export function nextRotationKey(settings: Partial<UserSettings>, sessions: Session[]): string {
+function nextRotationKey(settings: Partial<UserSettings>, sessions: Session[]): string {
   const { rotation } = rotationOf(settings)
   if (rotation.length === 0) return DEFAULT_ROTATION[0]
   const last = lastFinishedSession(sessions)

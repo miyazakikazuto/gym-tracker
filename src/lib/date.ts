@@ -1,5 +1,5 @@
 // Semua operasi tanggal pakai WIB (UTC+7)
-export const WIB_OFFSET = 7 * 60 * 60 * 1000
+const WIB_OFFSET = 7 * 60 * 60 * 1000
 
 export function dateKey(ts: number | Date): string {
   const d = new Date(ts)
@@ -20,21 +20,12 @@ export function dayOfWeek(key: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
 }
 
-export function formatDMY(key: string): string {
-  const [y, m, d] = key.split('-')
-  return `${d}/${m}/${y}`
-}
-
 export function formatHM(ts: number | null): string {
   if (!ts) return '—'
   const d = new Date(ts + WIB_OFFSET)
   const hh = String(d.getUTCHours()).padStart(2, '0')
   const mm = String(d.getUTCMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
-}
-
-export function isoToKey(iso: string): string {
-  return iso.slice(0, 10)
 }
 
 export function addDays(key: string, n: number): string {

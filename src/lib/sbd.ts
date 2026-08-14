@@ -49,7 +49,3 @@ export function sbdBestLifts(sessions: Session[], exercises: Exercise[]): { key:
     return { key: lift.key, label: lift.label, best, date: bestDate }
   })
 }
-
-export function sbdBestTotal(sessions: Session[], exercises: Exercise[]): number {
-  return sbdBestLifts(sessions, exercises).reduce((sum, l) => sum + l.best, 0)
-}
