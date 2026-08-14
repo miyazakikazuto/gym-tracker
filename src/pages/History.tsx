@@ -6,6 +6,7 @@ import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import Modal from '../components/Modal'
 import { exerciseIsDuration } from '../lib/helpers'
 import { fmtNumber } from '../lib/helpers'
 import type { Session, WorkoutPlan } from '../types'
@@ -168,8 +169,7 @@ export default function History() {
       )}
 
       {selKey && (
-        <div className="modal-overlay" onClick={() => { if (!creating) setSelKey(null) }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => { if (!creating) setSelKey(null) }} label="Sesi">
             <h3>Sesi · {formatDMYWIB(selKey)}</h3>
 
             {daySessions.length > 0 && (
@@ -219,8 +219,7 @@ export default function History() {
             <div className="form-actions">
               <button className="btn ghost" disabled={creating} onClick={() => setSelKey(null)}>Tutup</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

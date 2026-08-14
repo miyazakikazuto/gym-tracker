@@ -263,7 +263,7 @@ export default function Session() {
             {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
         </div>
-        <button className="icon-btn" onClick={() => del()}>🗑</button>
+        <button className="icon-btn" aria-label="Hapus sesi" onClick={() => del()}>🗑</button>
       </div>
 
       <div className="row" style={{ margin: '12px 0' }}>
@@ -458,7 +458,7 @@ const SetRow = memo(function SetRow({
           <span className="int" />
         )
       )}
-      <button className="icon-btn danger" onClick={() => onRemove(s.id)}>✕</button>
+      <button className="icon-btn danger" aria-label={`Hapus set ${s.setNumber}`} onClick={() => onRemove(s.id)}>✕</button>
     </div>
   )
 })

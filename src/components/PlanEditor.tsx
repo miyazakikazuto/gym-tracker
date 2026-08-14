@@ -5,6 +5,7 @@ import { DAY_NAMES } from '../types'
 import { createPlan, updatePlan, deletePlan } from '../lib/gymstore'
 import { PLAN_PRESETS, presetByName, presetByKey } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
+import Modal from './Modal'
 
 interface Item {
   exerciseId: string
@@ -121,8 +122,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} label="Kelola jadwal mingguan">
         <h3>Kelola Jadwal Mingguan</h3>
 
         <div className="day-strip" style={{ marginBottom: 12 }}>
@@ -204,7 +204,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
                 onChange={(e) => updateItem(i, { reps: Number(e.target.value) })}
                 title={exerciseIsDuration(exercises, it.exerciseId) ? 'Durasi (dtk)' : 'Rep'}
               />
-              <button className="icon-btn danger" onClick={() => removeItem(i)}>✕</button>
+              <button className="icon-btn danger" aria-label="Hapus gerakan dari jadwal" onClick={() => removeItem(i)}>✕</button>
             </div>
           )
         })}
@@ -225,7 +225,6 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
           {plans.length > 0 && <button className="btn danger" onClick={() => void resetAll()}>Reset minggu</button>}
           <button className="btn ghost" onClick={onClose}>Tutup</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

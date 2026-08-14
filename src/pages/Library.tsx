@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext'
 import { createExercise, updateExercise, deleteExercise } from '../lib/gymstore'
 import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, EXERCISE_TYPES, type Exercise } from '../types'
 import { categoryOfExercise, categoryKeysOfExercise } from '../lib/helpers'
+import Modal from '../components/Modal'
 
 export default function Library() {
   const uid = useUid()
@@ -58,8 +59,8 @@ export default function Library() {
           </div>
           <div className="row">
             <span className="badge">{ex.equipment}</span>
-            <button className="icon-btn" onClick={() => { setEditing(ex); setShowForm(true) }}>✎</button>
-            <button className="icon-btn danger" onClick={() => { if (confirm(`Hapus "${ex.name}"?`)) void deleteExercise(uid, ex.id) }}>🗑</button>
+            <button className="icon-btn" aria-label={`Edit ${ex.name}`} onClick={() => { setEditing(ex); setShowForm(true) }}>✎</button>
+            <button className="icon-btn danger" aria-label={`Hapus ${ex.name}`} onClick={() => { if (confirm(`Hapus "${ex.name}"?`)) void deleteExercise(uid, ex.id) }}>🗑</button>
           </div>
         </div>
       ))}
@@ -128,8 +129,7 @@ function ExerciseForm({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} label={initial ? 'Edit gerakan' : 'Gerakan baru'}>
         <h3>{initial ? 'Edit gerakan' : 'Gerakan baru'}</h3>
 
         <div className="field">
@@ -193,7 +193,6 @@ function ExerciseForm({
           </button>
           <button className="btn ghost" onClick={onClose}>Batal</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

@@ -11,6 +11,7 @@ import { shortLabelFor, isRest } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
+import Modal from '../components/Modal'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -158,13 +159,13 @@ export default function Today() {
           {!isStandalone && (installEvt || isIos) && (
             <button className="btn sm primary" onClick={() => void installApp()}>Pasang</button>
           )}
-          <button className="icon-btn" title="Atur kata sandi" onClick={() => { setPwMsg(''); setShowPw(true) }}>
+          <button className="icon-btn" title="Atur kata sandi" aria-label="Atur kata sandi" onClick={() => { setPwMsg(''); setShowPw(true) }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </button>
-          <button className="icon-btn" title="Logout" onClick={() => getAuthInstance().signOut()}>
+          <button className="icon-btn" title="Logout" aria-label="Keluar" onClick={() => getAuthInstance().signOut()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -254,8 +255,7 @@ export default function Today() {
       {showPlan && <PlanEditor onClose={() => setShowPlan(false)} />}
 
       {showInstallGuide && (
-        <div className="modal-overlay" onClick={() => setShowInstallGuide(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setShowInstallGuide(false)} label="Cara pasang aplikasi di iPhone">
             <h3>Pasang aplikasi di iPhone</h3>
             <div className="small muted" style={{ marginBottom: 10 }}>
               Di iPhone tidak ada tombol instal dari dalam aplikasi. Ikuti 3 langkah ini sekali saja:
@@ -276,13 +276,11 @@ export default function Today() {
             <div className="form-actions">
               <button className="btn primary" onClick={() => setShowInstallGuide(false)}>Mengerti</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {showPw && (
-        <div className="modal-overlay" onClick={() => setShowPw(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setShowPw(false)} label="Atur kata sandi">
             <h3>Atur kata sandi</h3>
             <div className="small muted" style={{ marginBottom: 10 }}>
               Pakai email <b>{user?.email}</b> + sandi ini untuk login di semua perangkat (termasuk iPhone) — tanpa perlu Google.
@@ -298,8 +296,7 @@ export default function Today() {
                 {pwBusy ? 'Menyimpan…' : 'Simpan sandi'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

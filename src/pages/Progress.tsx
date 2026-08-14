@@ -264,7 +264,15 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, sbd: !o.sbd }))}>
+        <div
+          className="card-title toggle-head"
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpenCards((o) => ({ ...o, sbd: !o.sbd }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenCards((o) => ({ ...o, sbd: !o.sbd })) }
+          }}
+        >
           <span>Tren e1RM per lift (SBD)</span>
           <span>{openCards.sbd ? '▾' : '▸'}</span>
         </div>
@@ -332,7 +340,15 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, trend: !o.trend }))}>
+        <div
+          className="card-title toggle-head"
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpenCards((o) => ({ ...o, trend: !o.trend }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenCards((o) => ({ ...o, trend: !o.trend })) }
+          }}
+        >
           <span>Tren e1RM per gerakan (mingguan)</span>
           <span>{openCards.trend ? '▾' : '▸'}</span>
         </div>
@@ -374,7 +390,15 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, pr: !o.pr }))}>
+        <div
+          className="card-title toggle-head"
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpenCards((o) => ({ ...o, pr: !o.pr }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenCards((o) => ({ ...o, pr: !o.pr })) }
+          }}
+        >
           <span>PR terbaik</span>
           <span>{openCards.pr ? '▾' : '▸'}</span>
         </div>
@@ -428,7 +452,15 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, rpe: !o.rpe }))}>
+        <div
+          className="card-title toggle-head"
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpenCards((o) => ({ ...o, rpe: !o.rpe }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenCards((o) => ({ ...o, rpe: !o.rpe })) }
+          }}
+        >
           <span>RPE rata-rata per gerakan</span>
           <span>{openCards.rpe ? '▾' : '▸'}</span>
         </div>

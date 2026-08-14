@@ -184,7 +184,7 @@ export default function Weight() {
                 <div className="pr" key={b.id} style={{ padding: '8px 0' }}>
                   <div className="small muted">{b.date.slice(8, 10) + '/' + b.date.slice(5, 7) + '/' + b.date.slice(0, 4)}</div>
                   <div className="val" style={{ fontSize: 14 }}>{fmtNumber(b.kg)} kg</div>
-                  <button className="icon-btn danger" onClick={() => { if (confirm('Hapus penimbangan ' + b.date + '?')) removeBodyweight(b.date) }}>✕</button>
+                  <button className="icon-btn danger" aria-label={`Hapus penimbangan ${b.date}`} onClick={() => { if (confirm('Hapus penimbangan ' + b.date + '?')) removeBodyweight(b.date) }}>✕</button>
                 </div>
               ))}
             </div>
