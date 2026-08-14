@@ -35,6 +35,8 @@ export function sbdBestLifts(sessions: Session[], exercises: Exercise[]): { key:
     let best = 0
     let bestDate: string | null = null
     for (const s of sessions) {
+      // Hanya sesi yang sudah selesai — sesi berjalan bisa overcount PR sementara
+      if (s.endedAt == null) continue
       for (const set of s.sets) {
         if (set.weightKg <= best) continue
         const ex = exercises.find((e) => e.id === set.exerciseId)
