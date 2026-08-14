@@ -15,33 +15,54 @@ interface BackupPayload {
   bodyweights?: unknown[]
 }
 
+const DATA_TYPES = [
+  { key: 'exercises', label: 'Gerakan' },
+  { key: 'plans', label: 'Jadwal' },
+  { key: 'sessions', label: 'Sesi' },
+  { key: 'weights', label: 'Berat badan' },
+] as const
+
+type SelKey = (typeof DATA_TYPES)[number]['key']
+
 export default function Settings() {
   const uid = useUid()
   const { exercises, plans, sessions, bodyweights, ready } = useData()
   const [state, setState] = useState<'idle' | 'done' | 'error'>('idle')
   const [importState, setImportState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
   const [importMsg, setImportMsg] = useState('')
+  const [sel, setSel] = useState<Record<SelKey, boolean>>({
+    exercises: true,
+    plans: true,
+    sessions: true,
+    weights: true,
+  })
+  const [finishedOnly, setFinishedOnly] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
 
+  function toggle(key: SelKey) {
+    setSel((s) => ({ ...s, [key]: !s[key] }))
+  }
+
   function exportData() {
     try {
+      const outSessions = sel.sessions ? (finishedOnly ? sessions.filter((s) => s.endedAt !== null) : sessions) : []
       const payload = {
         app: 'gym-tracker',
         type: 'backup',
         version: 1,
         exportedAt: new Date().toISOString(),
         counts: {
-          exercises: exercises.length,
-          plans: plans.length,
-          sessions: sessions.length,
-          bodyweights: bodyweights.length,
+          exercises: sel.exercises ? exercises.length : 0,
+          plans: sel.plans ? plans.length : 0,
+          sessions: outSessions.length,
+          bodyweights: sel.weights ? bodyweights.length : 0,
         },
-        exercises,
-        plans,
-        sessions,
-        bodyweights,
+        exercises: sel.exercises ? exercises : [],
+        plans: sel.plans ? plans : [],
+        sessions: outSessions,
+        bodyweights: sel.weights ? bodyweights : [],
       }
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -65,22 +86,33 @@ export default function Settings() {
     try {
       const text = await file.text()
       const data = JSON.parse(text) as BackupPayload
-      if (
-        !data ||
-        typeof data !== 'object' ||
-        !Array.isArray(data.exercises) ||
-        !Array.isArray(data.plans) ||
-        !Array.isArray(data.sessions) ||
-        !Array.isArray(data.bodyweights)
-      ) {
+      if (!data || typeof data !== 'object') {
         throw new Error('File bukan backup Gym Tracker yang valid')
       }
-      const exs = data.exercises.filter((x) => x && typeof (x as { id?: unknown }).id === 'string') as Exercise[]
-      const pls = data.plans.filter((x) => x && typeof (x as { id?: unknown }).id === 'string') as WorkoutPlan[]
-      const ses = data.sessions.filter((x) => x && typeof (x as { id?: unknown }).id === 'string') as Session[]
-      const bws = data.bodyweights.filter(
+      const hasAny =
+        Array.isArray(data.exercises) ||
+        Array.isArray(data.plans) ||
+        Array.isArray(data.sessions) ||
+        Array.isArray(data.bodyweights)
+      if (!hasAny) {
+        throw new Error('File bukan backup Gym Tracker yang valid (tidak ada data yang dikenali)')
+      }
+      const exs = (Array.isArray(data.exercises) ? data.exercises : []).filter(
+        (x) => x && typeof (x as { id?: unknown }).id === 'string',
+      ) as Exercise[]
+      const pls = (Array.isArray(data.plans) ? data.plans : []).filter(
+        (x) => x && typeof (x as { id?: unknown }).id === 'string',
+      ) as WorkoutPlan[]
+      const ses = (Array.isArray(data.sessions) ? data.sessions : []).filter(
+        (x) => x && typeof (x as { id?: unknown }).id === 'string',
+      ) as Session[]
+      const bws = (Array.isArray(data.bodyweights) ? data.bodyweights : []).filter(
         (x) => x && typeof (x as { date?: unknown }).date === 'string' && typeof (x as { kg?: unknown }).kg === 'number',
       ) as Bodyweight[]
+
+      if (exs.length + pls.length + ses.length + bws.length === 0) {
+        throw new Error('Tidak ada data valid di file ini')
+      }
 
       if (!confirm('Import akan menimpa data yang ID-nya sama dengan backup. Lanjutkan?')) {
         setImportState('idle')
@@ -90,9 +122,7 @@ export default function Settings() {
       const total = await importBackup(uid, { exercises: exs, plans: pls, sessions: ses, bodyweights: bws })
       setImportState('done')
       setImportMsg(
-        total === 0
-          ? 'Tidak ada data valid di file ini'
-          : `✓ ${exs.length} gerakan, ${pls.length} jadwal, ${ses.length} sesi, ${bws.length} berat diimpor (${total} tulis)`,
+        `✓ ${exs.length} gerakan, ${pls.length} jadwal, ${ses.length} sesi, ${bws.length} berat diimpor (${total} tulis)`,
       )
     } catch (e) {
       setImportState('error')
@@ -108,16 +138,42 @@ export default function Settings() {
       <div className="card">
         <div className="card-title">Backup data</div>
         <p className="small muted" style={{ margin: '0 0 8px' }}>
-          Unduh semua data latihanmu ke satu file JSON — jadwal, sesi, gerakan, dan berat badan.
+          Pilih data yang mau diunduh, lalu ekspor ke file JSON. Sesi menyertakan catatan, set, dan RPE-nya.
         </p>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 8 }}>
+          {DATA_TYPES.map((t) => (
+            <button
+              key={t.key}
+              className={'rpe-chip' + (sel[t.key] ? ' active' : '')}
+              onClick={() => toggle(t.key)}
+            >
+              {sel[t.key] ? '☑ ' : '☐ '}{t.label}
+            </button>
+          ))}
+        </div>
+        {sel.sessions && (
+          <label className="row small" style={{ gap: 6, alignItems: 'center', marginBottom: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={finishedOnly} onChange={(e) => setFinishedOnly(e.target.checked)} />
+            Hanya sesi yang selesai ({finishedSessions} dari {sessions.length})
+          </label>
+        )}
         <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
-          <span className="badge">{exercises.length} gerakan</span>
-          <span className="badge">{plans.length} jadwal</span>
-          <span className="badge">{sessions.length} sesi ({finishedSessions} selesai)</span>
-          <span className="badge">{bodyweights.length} catatan berat</span>
+          {sel.exercises && <span className="badge">{exercises.length} gerakan</span>}
+          {sel.plans && <span className="badge">{plans.length} jadwal</span>}
+          {sel.sessions && (
+            <span className="badge">
+              {(finishedOnly ? finishedSessions : sessions.length)} sesi
+              {finishedOnly ? ' (selesai)' : ''}
+            </span>
+          )}
+          {sel.weights && <span className="badge">{bodyweights.length} catatan berat</span>}
         </div>
         <div className="row" style={{ alignItems: 'center', gap: 8 }}>
-          <button className="btn primary" disabled={!ready} onClick={exportData}>
+          <button
+            className="btn primary"
+            disabled={!ready || !(sel.exercises || sel.plans || sel.sessions || sel.weights)}
+            onClick={exportData}
+          >
             ⬇ Ekspor JSON
           </button>
           {state === 'done' && <span className="badge ok">✓ File tersimpan</span>}
@@ -131,7 +187,7 @@ export default function Settings() {
       <div className="card">
         <div className="card-title">Restore data</div>
         <p className="small muted" style={{ margin: '0 0 8px' }}>
-          Pulihkan dari file backup JSON yang pernah diunduh. Data dengan ID yang sama akan ditimpa.
+          Pulihkan dari file backup JSON (bisa backup parsial). Data dengan ID yang sama akan ditimpa.
         </p>
         <input
           ref={fileRef}
