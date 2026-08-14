@@ -305,7 +305,7 @@ export default function Today() {
               ))}
             </div>
             <div className="small muted" style={{ marginTop: 8 }}>
-              Urutan & target diatur di Pengaturan.
+              Urutan rotasi diatur di Pengaturan.
             </div>
           </div>
 
