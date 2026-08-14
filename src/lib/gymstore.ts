@@ -7,6 +7,8 @@ import {
   getDocs,
   onSnapshot,
   setDoc,
+  writeBatch,
+  type DocumentReference,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
 import { parseKey } from './date'
@@ -163,5 +165,55 @@ export function makeSessionSet(partial: Partial<SessionSet> & { exerciseId: stri
     weightKg: partial.weightKg ?? 0,
     reps: partial.reps ?? 0,
   }
+}
+
+// ===== IMPORT BACKUP (restore) =====
+// Tulis ulang data backup dengan ID asli (setDoc, bukan addDoc) supaya referensi
+// antar dokumen (session.planId, set.exerciseId, planItem.exerciseId) tetap utuh.
+// ID yang sudah ada akan ditimpa — perilaku restore. Bodyweight: id = tanggal.
+export async function importBackup(
+  uid: string,
+  data: {
+    exercises: Exercise[]
+    plans: WorkoutPlan[]
+    sessions: Session[]
+    bodyweights: Bodyweight[]
+  },
+): Promise<number> {
+  const db = getDb()
+  const writes: Array<{ ref: DocumentReference; value: object }> = []
+
+  for (const e of data.exercises) {
+    const { id, ...rest } = e
+    if (!id) continue
+    writes.push({ ref: doc(db, 'users', uid, 'exercises', id), value: rest })
+  }
+  for (const p of data.plans) {
+    const { id, ...rest } = p
+    if (!id) continue
+    writes.push({ ref: doc(db, 'users', uid, 'plans', id), value: rest })
+  }
+  for (const s of data.sessions) {
+    const { id, ...rest } = s
+    if (!id) continue
+    writes.push({ ref: doc(db, 'users', uid, 'sessions', id), value: rest })
+  }
+  for (const w of data.bodyweights) {
+    if (!w.date || typeof w.kg !== 'number') continue
+    writes.push({
+      ref: doc(db, 'users', uid, 'bodyweight', w.date),
+      value: { date: w.date, kg: w.kg },
+    })
+  }
+
+  const CHUNK = 400 // batas maksimal 500 tulis per batch Firestore
+  for (let i = 0; i < writes.length; i += CHUNK) {
+    const batch = writeBatch(db)
+    for (const { ref, value } of writes.slice(i, i + CHUNK)) {
+      batch.set(ref, value)
+    }
+    await batch.commit()
+  }
+  return writes.length
 }
 
