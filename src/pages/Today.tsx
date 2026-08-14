@@ -11,6 +11,7 @@ import {
   rotationOf,
   suggestKey,
   planForKey,
+  daysSinceLast,
   lastFinishedSession,
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
@@ -108,6 +109,7 @@ export default function Today() {
   const sug = suggestKey(settings, sessions, todayShift)
   const sugPlan = planForKey(plans, sug.key)
   const sugPreset = presetByKey(sug.key)
+  const dsl = daysSinceLast(sessions, base)
 
   const todaySessions = sessions.filter((s) => s.date === base)
   const todayDone = todaySessions.some((s) => s.endedAt !== null)
