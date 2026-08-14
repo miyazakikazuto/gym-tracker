@@ -11,27 +11,24 @@ export default function Weight() {
   const sortedBw = [...bodyweights].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const latestKg = sortedBw.length > 0 ? sortedBw[sortedBw.length - 1].kg : null
   const [dotsBw, setDotsBw] = useState<string>(latestKg ? String(latestKg) : '')
+  const [dotsDirty, setDotsDirty] = useState(false)
 
-  // Sinkron dari log (perangkat lain) tanpa menimpa ketikan
+  // Sinkron dari log (perangkat lain) — hanya saat user tidak sedang mengetik
   useEffect(() => {
-    if (latestKg == null) return
-    setDotsBw((cur) => {
-      const parsed = parseFloat(cur.replace(',', '.'))
-      if (Number.isFinite(parsed) && parsed === latestKg) return cur
-      if (cur === '') return String(latestKg)
-      return cur
-    })
-  }, [latestKg])
+    if (latestKg == null || dotsDirty) return
+    setDotsBw(String(latestKg))
+  }, [latestKg, dotsDirty])
 
-  // Autosave debounce (500ms) — mencatat entri berat hari ini ke log
+  // Autosave debounce (500ms) — mencatat entri berat hari ini, hanya setelah user mengetik
   useEffect(() => {
+    if (!dotsDirty) return
     const parsed = parseFloat(dotsBw.replace(',', '.'))
     if (!(Number.isFinite(parsed) && parsed > 0)) return
     const kg = Math.round(parsed * 100) / 100
     const t = setTimeout(() => saveBodyweight(todayKey(), kg), 500)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dotsBw])
+  }, [dotsBw, dotsDirty])
 
   const sbdLifts = sbdBestLifts(sessions, exercises)
   const dotsTotal = sbdLifts.reduce((sum, l) => sum + l.best, 0)
@@ -70,7 +67,7 @@ export default function Weight() {
             autoComplete="off"
             placeholder="Berat hari ini (kg)"
             value={dotsBw}
-            onChange={(e) => setDotsBw(e.target.value)}
+            onChange={(e) => { setDotsBw(e.target.value); setDotsDirty(true) }}
             style={{ flex: 1, border: 'none', background: 'transparent', padding: '8px 4px', fontSize: 18, fontWeight: 700 }}
           />
           <span style={{ fontWeight: 700, color: 'var(--muted)', fontSize: 15 }}>kg</span>
