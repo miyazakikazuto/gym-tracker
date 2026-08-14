@@ -3,7 +3,7 @@ import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays, weekStart } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { dotsScore, fmtDots } from '../lib/dots'
-import type { Exercise, Session, UserProfile } from '../types'
+import type { Exercise, Session } from '../types'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -29,7 +29,7 @@ const SBD_LIFTS = [
 ] as const
 
 export default function Progress() {
-  const { sessions, exercises, profile, updateProfile } = useData()
+  const { sessions, exercises, bodyweights, saveBodyweight, removeBodyweight } = useData()
 
   const today = todayKey()
   const [volPage, setVolPage] = useState(0)
@@ -155,40 +155,33 @@ export default function Progress() {
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
   const [volTab, setVolTab] = useState<'muscle' | 'cardio'>('muscle')
-  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false, dots: false })
+  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false, dots: false, bw: false })
 
-  // ===== DOTS Score =====
-  const [dotsBw, setDotsBw] = useState<string>(profile.bodyweightKg ? String(profile.bodyweightKg) : '')
-  const [dotsSex, setDotsSex] = useState<'male' | 'female'>(profile.sex)
+  // ===== DOTS Score + Log Berat Badan =====
+  const sortedBw = [...bodyweights].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  const latestKg = sortedBw.length > 0 ? sortedBw[sortedBw.length - 1].kg : null
+  const [dotsBw, setDotsBw] = useState<string>(latestKg ? String(latestKg) : '')
 
-  // Sinkron dari profile (load awal / perubahan dari perangkat lain) tanpa menimpa ketikan
+  // Sinkron dari log (perangkat lain) tanpa menimpa ketikan
   useEffect(() => {
-    setDotsSex(profile.sex)
-  }, [profile.sex])
-
-  useEffect(() => {
-    if (profile.bodyweightKg == null) return
+    if (latestKg == null) return
     setDotsBw((cur) => {
       const parsed = parseFloat(cur.replace(',', '.'))
-      if (Number.isFinite(parsed) && parsed === profile.bodyweightKg) return cur
-      if (cur === '') return String(profile.bodyweightKg)
+      if (Number.isFinite(parsed) && parsed === latestKg) return cur
+      if (cur === '') return String(latestKg)
       return cur
     })
-  }, [profile.bodyweightKg])
+  }, [latestKg])
 
-  // Autosave debounce (500ms) — hanya tulis saat nilai valid & berubah
+  // Autosave debounce (500ms) — mencatat entri berat hari ini ke log
   useEffect(() => {
     const parsed = parseFloat(dotsBw.replace(',', '.'))
-    const next: Partial<UserProfile> = {}
-    if (Number.isFinite(parsed) && parsed > 0) {
-      next.bodyweightKg = Math.round(parsed * 100) / 100
-    }
-    if (dotsSex !== profile.sex) next.sex = dotsSex
-    if (Object.keys(next).length === 0) return
-    const t = setTimeout(() => updateProfile(next), 500)
+    if (!(Number.isFinite(parsed) && parsed > 0)) return
+    const kg = Math.round(parsed * 100) / 100
+    const t = setTimeout(() => saveBodyweight(todayKey(), kg), 500)
     return () => clearTimeout(t)
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dotsBw, dotsSex])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dotsBw])
 
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
@@ -226,7 +219,7 @@ export default function Progress() {
   }, 0)
   const bwParsed = parseFloat(dotsBw.replace(',', '.'))
   const bwValid = Number.isFinite(bwParsed) && bwParsed > 0
-  const dotsVal = dotsTotal > 0 && bwValid ? dotsScore(dotsTotal, bwParsed, dotsSex) : null
+  const dotsVal = dotsTotal > 0 && bwValid ? dotsScore(dotsTotal, bwParsed) : null
   const prs: [string, PrBest][] = Array.from(prMap.entries())
     .map(([exId, v]) => [exId, v[prMode]] as [string, PrBest | undefined])
     .filter(([, v]) => !!v && (prMode === 'reps' ? v.reps > 0 : prMode === 'dur' ? v.durationSec > 0 : v.weight > 0)) as [string, PrBest][]
@@ -461,16 +454,12 @@ export default function Progress() {
         {openCards.dots && (
         <>
         <div className="row" style={{ gap: 8, marginBottom: 10 }}>
-          <div className="cal-toggle">
-            <button className={dotsSex === 'male' ? 'active' : ''} onClick={() => setDotsSex('male')}>Pria</button>
-            <button className={dotsSex === 'female' ? 'active' : ''} onClick={() => setDotsSex('female')}>Wanita</button>
-          </div>
           <input
             className="wt"
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            placeholder="Berat badan (kg)"
+            placeholder="Berat badan hari ini (kg)"
             value={dotsBw}
             onChange={(e) => setDotsBw(e.target.value)}
             style={{ flex: 1, minWidth: 140 }}
@@ -489,13 +478,65 @@ export default function Progress() {
               <div>
                 <div style={{ fontWeight: 800 }}>DOTS Score</div>
                 <div className="small muted">
-                  Total SBD ~{fmtNumber(dotsTotal)} kg @ {fmtNumber(bwParsed)} kg BW ({dotsSex === 'male' ? 'Pria' : 'Wanita'})
+                  Total SBD ~{fmtNumber(dotsTotal)} kg @ {fmtNumber(bwParsed)} kg BW
                 </div>
               </div>
               <div className="val" style={{ fontSize: 24 }}>{fmtDots(dotsVal ?? 0)}</div>
             </div>
             <div className="small muted" style={{ marginTop: 8 }}>
               Standar DOTS (Mike Tuchscherer) — skor yang menormalkan total angkatan terhadap berat badan.
+            </div>
+          </>
+        )}
+        </>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-title toggle-head" onClick={() => setOpenCards((o) => ({ ...o, bw: !o.bw }))}>
+          <span>Log Berat Badan</span>
+          <span>{openCards.bw ? '▾' : '▸'}</span>
+        </div>
+        {openCards.bw && (
+        <>
+        {sortedBw.length === 0 ? (
+          <div className="small muted">
+            Belum ada catatan berat badan. Isi kotak di kartu DOTS untuk mencatat berat hari ini.
+          </div>
+        ) : (
+          <>
+            <div className="pr trend">
+              <div style={{ flex: 1 }}>
+                <div className="trend-val">
+                  <span style={{ fontWeight: 700 }}>12 penimbangan terakhir</span>
+                  <span>
+                    <span className="val" style={{ fontSize: 14 }}>{fmtNumber(sortedBw[sortedBw.length - 1].kg)} kg</span>
+                  </span>
+                </div>
+                <div className="trend-bars">
+                  {(() => {
+                    const window = sortedBw.slice(-12)
+                    const max = Math.max(...window.map((b) => b.kg), 1)
+                    return window.map((b, i) => (
+                      <div
+                        key={b.id}
+                        className={'trend-bar' + (i === window.length - 1 ? ' now' : '')}
+                        style={{ height: Math.max(4, (b.kg / max) * 100) + '%' }}
+                        title={b.date + ' — ' + fmtNumber(b.kg) + ' kg'}
+                      />
+                    ))
+                  })()}
+                </div>
+              </div>
+            </div>
+            <div className="pr-list" style={{ marginTop: 8 }}>
+              {[...sortedBw].reverse().slice(0, 15).map((b) => (
+                <div className="pr" key={b.id} style={{ padding: '8px 0' }}>
+                  <div className="small muted">{b.date.slice(8, 10) + '/' + b.date.slice(5, 7) + '/' + b.date.slice(0, 4)}</div>
+                  <div className="val" style={{ fontSize: 14 }}>{fmtNumber(b.kg)} kg</div>
+                  <button className="icon-btn danger" onClick={() => { if (confirm('Hapus penimbangan ' + b.date + '?')) removeBodyweight(b.date) }}>✕</button>
+                </div>
+              ))}
             </div>
           </>
         )}

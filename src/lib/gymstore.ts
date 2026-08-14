@@ -15,27 +15,36 @@ import type {
   WorkoutPlan,
   Session,
   SessionSet,
-  UserProfile,
+  Bodyweight,
 } from '../types'
 
 export function userGymRef(uid: string, sub: string) {
   return collection(getDb(), 'users', uid, sub)
 }
 
-// ===== PROFILE =====
+// ===== BODYWEIGHT =====
+// profileRef hanya dipakai untuk migrasi sekali jalan dari doc profile versi lama
 export function profileRef(uid: string) {
   return doc(getDb(), 'users', uid, 'profile', 'main')
 }
 
-export function subscribeProfile(uid: string, cb: (profile: UserProfile) => void) {
-  return onSnapshot(profileRef(uid), (d) => {
-    const data = d.data() as UserProfile | undefined
-    cb(data ?? { bodyweightKg: null, sex: 'male' })
+export function bodyweightRef(uid: string) {
+  return collection(getDb(), 'users', uid, 'bodyweight')
+}
+
+export function subscribeBodyweights(uid: string, cb: (list: Bodyweight[]) => void) {
+  return onSnapshot(bodyweightRef(uid), (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Bodyweight, 'id'>) })))
   })
 }
 
-export function setProfile(uid: string, patch: Partial<UserProfile>) {
-  return setDoc(profileRef(uid), { ...patch, updatedAt: Date.now() }, { merge: true })
+// 1 doc per tanggal (id = YYYY-MM-DD) — upsert otomatis saat tanggal sama
+export function upsertBodyweight(uid: string, date: string, kg: number) {
+  return setDoc(doc(getDb(), 'users', uid, 'bodyweight', date), { date, kg })
+}
+
+export function deleteBodyweight(uid: string, date: string) {
+  return deleteDoc(doc(getDb(), 'users', uid, 'bodyweight', date))
 }
 
 // ===== EXERCISES =====

@@ -5,28 +5,33 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { getDoc } from 'firebase/firestore'
 import { useAuth } from './AuthContext'
 import {
   subscribeExercises,
   subscribePlans,
   subscribeSessions,
-  subscribeProfile,
-  setProfile,
+  subscribeBodyweights,
+  upsertBodyweight,
+  deleteBodyweight,
   patchExerciseCategory,
+  profileRef,
 } from '../lib/gymstore'
 import { categoryOfExercise } from '../lib/helpers'
-import type { Exercise, WorkoutPlan, Session, UserProfile } from '../types'
+import { todayKey } from '../lib/date'
+import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
 interface DataState {
   exercises: Exercise[]
   plans: WorkoutPlan[]
   sessions: Session[]
-  profile: UserProfile
+  bodyweights: Bodyweight[]
   ready: boolean
   setExercises: React.Dispatch<React.SetStateAction<Exercise[]>>
   setPlans: React.Dispatch<React.SetStateAction<WorkoutPlan[]>>
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
-  updateProfile: (patch: Partial<UserProfile>) => void
+  saveBodyweight: (date: string, kg: number) => void
+  removeBodyweight: (date: string) => void
 }
 
 const DataContext = createContext<DataState | null>(null)
@@ -37,7 +42,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [plans, setPlans] = useState<WorkoutPlan[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
-  const [profile, setProfileState] = useState<UserProfile>({ bodyweightKg: null, sex: 'male' })
+  const [bodyweights, setBodyweights] = useState<Bodyweight[]>([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -47,7 +52,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       subscribeExercises(uid, setExercises),
       subscribePlans(uid, setPlans),
       subscribeSessions(uid, setSessions),
-      subscribeProfile(uid, setProfileState),
+      subscribeBodyweights(uid, setBodyweights),
     ]
     const t = setTimeout(() => setReady(true), 800)
     return () => {
@@ -69,10 +74,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [uid, exercises])
 
-  const updateProfile = (patch: Partial<UserProfile>) => {
+  // Migrasi sekali jalan: profile.bodyweightKg (versi lama) → entri log hari ini
+  useEffect(() => {
+    if (!uid || bodyweights.length > 0) return
+    getDoc(profileRef(uid))
+      .then((d) => {
+        const kg = (d.data() as { bodyweightKg?: number } | undefined)?.bodyweightKg
+        if (kg && kg > 0) {
+          upsertBodyweight(uid, todayKey(), kg).catch(() => undefined)
+        }
+      })
+      .catch(() => undefined)
+  }, [uid, bodyweights.length])
+
+  const saveBodyweight = (date: string, kg: number) => {
     if (!uid) return
-    setProfileState((cur) => ({ ...cur, ...patch }))
-    setProfile(uid, patch).catch(() => undefined)
+    upsertBodyweight(uid, date, kg).catch(() => undefined)
+  }
+
+  const removeBodyweight = (date: string) => {
+    if (!uid) return
+    deleteBodyweight(uid, date).catch(() => undefined)
   }
 
   return (
@@ -81,12 +103,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         exercises,
         plans,
         sessions,
-        profile,
+        bodyweights,
         ready,
         setExercises,
         setPlans,
         setSessions,
-        updateProfile,
+        saveBodyweight,
+        removeBodyweight,
       }}
     >
       {children}
