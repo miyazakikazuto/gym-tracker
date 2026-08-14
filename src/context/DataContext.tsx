@@ -30,7 +30,7 @@ interface DataState {
   setExercises: React.Dispatch<React.SetStateAction<Exercise[]>>
   setPlans: React.Dispatch<React.SetStateAction<WorkoutPlan[]>>
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
-  saveBodyweight: (date: string, kg: number) => void
+  saveBodyweight: (date: string, kg: number) => Promise<void>
   removeBodyweight: (date: string) => void
 }
 
@@ -88,8 +88,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [uid, bodyweights.length])
 
   const saveBodyweight = (date: string, kg: number) => {
-    if (!uid) return
-    upsertBodyweight(uid, date, kg).catch(() => undefined)
+    if (!uid) return Promise.resolve()
+    return upsertBodyweight(uid, date, kg)
   }
 
   const removeBodyweight = (date: string) => {

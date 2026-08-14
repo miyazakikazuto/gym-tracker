@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useData } from '../context/DataContext'
 import { todayKey } from '../lib/date'
 import { fmtNumber } from '../lib/helpers'
@@ -12,6 +12,35 @@ export default function Weight() {
   const latestKg = sortedBw.length > 0 ? sortedBw[sortedBw.length - 1].kg : null
   const [dotsBw, setDotsBw] = useState<string>(latestKg ? String(latestKg) : '')
   const [dotsDirty, setDotsDirty] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle')
+  const saveTimer = useRef<number | undefined>(undefined)
+
+  const parseKg = (raw: string): number | null => {
+    const parsed = parseFloat(raw.replace(',', '.'))
+    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : null
+  }
+
+  const doSave = () => {
+    const kg = parseKg(dotsBw)
+    if (kg == null) {
+      setSaveState('err')
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = window.setTimeout(() => setSaveState('idle'), 2000)
+      return
+    }
+    setSaveState('saving')
+    saveBodyweight(todayKey(), kg)
+      .then(() => {
+        setSaveState('ok')
+        window.clearTimeout(saveTimer.current)
+        saveTimer.current = window.setTimeout(() => setSaveState('idle'), 2000)
+      })
+      .catch(() => {
+        setSaveState('err')
+        window.clearTimeout(saveTimer.current)
+        saveTimer.current = window.setTimeout(() => setSaveState('idle'), 4000)
+      })
+  }
 
   // Sinkron dari log (perangkat lain) — hanya saat user tidak sedang mengetik
   useEffect(() => {
@@ -22,10 +51,11 @@ export default function Weight() {
   // Autosave debounce (500ms) — mencatat entri berat hari ini, hanya setelah user mengetik
   useEffect(() => {
     if (!dotsDirty) return
-    const parsed = parseFloat(dotsBw.replace(',', '.'))
-    if (!(Number.isFinite(parsed) && parsed > 0)) return
-    const kg = Math.round(parsed * 100) / 100
-    const t = setTimeout(() => saveBodyweight(todayKey(), kg), 500)
+    const kg = parseKg(dotsBw)
+    if (kg == null) return
+    const t = setTimeout(() => {
+      saveBodyweight(todayKey(), kg).catch(() => undefined)
+    }, 500)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dotsBw, dotsDirty])
@@ -68,12 +98,22 @@ export default function Weight() {
             placeholder="Berat hari ini (kg)"
             value={dotsBw}
             onChange={(e) => { setDotsBw(e.target.value); setDotsDirty(true) }}
+            onBlur={() => { if (dotsDirty) doSave() }}
+            onKeyDown={(e) => { if (e.key === 'Enter') doSave() }}
             style={{ flex: 1, border: 'none', background: 'transparent', padding: '8px 4px', fontSize: 18, fontWeight: 700 }}
           />
           <span style={{ fontWeight: 700, color: 'var(--muted)', fontSize: 15 }}>kg</span>
         </div>
-        <div className="small muted" style={{ marginTop: 6, marginBottom: 10 }}>
-          Hari ini · {todayKey().slice(8, 10) + '/' + todayKey().slice(5, 7) + '/' + todayKey().slice(0, 4)} · tersimpan otomatis
+        <div className="row spread wrap" style={{ marginTop: 6, marginBottom: 10, gap: 8 }}>
+          <span className="small muted">
+            Hari ini · {todayKey().slice(8, 10) + '/' + todayKey().slice(5, 7) + '/' + todayKey().slice(0, 4)} · otomatis saat mengetik
+          </span>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn sm primary" onClick={doSave} disabled={saveState === 'saving'}>Simpan</button>
+            {saveState === 'saving' && <span className="small muted">Menyimpan…</span>}
+            {saveState === 'ok' && <span className="small" style={{ color: 'var(--ok)' }}>Tersimpan ✓</span>}
+            {saveState === 'err' && <span className="small" style={{ color: 'var(--danger)' }}>Gagal menyimpan</span>}
+          </div>
         </div>
 
         {dotsTotal <= 0 ? (
