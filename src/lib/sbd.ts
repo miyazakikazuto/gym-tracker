@@ -29,9 +29,9 @@ export function isSbdExercise(ex: Exercise, liftKey: string): boolean {
   return !lift.exclude.some((k) => n.includes(k))
 }
 
-// Total SBD dari beban terberat all-time per lift (Squat/Bench/Deadlift)
-export function sbdBestTotal(sessions: Session[], exercises: Exercise[]): number {
-  return SBD_LIFTS.reduce((sum, lift) => {
+// Beban terberat all-time per lift (Squat/Bench/Deadlift)
+export function sbdBestLifts(sessions: Session[], exercises: Exercise[]): { key: string; label: string; best: number }[] {
+  return SBD_LIFTS.map((lift) => {
     let best = 0
     for (const s of sessions) {
       for (const set of s.sets) {
@@ -40,6 +40,10 @@ export function sbdBestTotal(sessions: Session[], exercises: Exercise[]): number
         if (ex && isSbdExercise(ex, lift.key)) best = set.weightKg
       }
     }
-    return sum + best
-  }, 0)
+    return { key: lift.key, label: lift.label, best }
+  })
+}
+
+export function sbdBestTotal(sessions: Session[], exercises: Exercise[]): number {
+  return sbdBestLifts(sessions, exercises).reduce((sum, l) => sum + l.best, 0)
 }
