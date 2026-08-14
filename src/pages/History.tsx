@@ -6,7 +6,7 @@ import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
-import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
+import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import Modal from '../components/Modal'
 import { exerciseIsDuration } from '../lib/helpers'
 import { fmtNumber } from '../lib/helpers'
@@ -30,7 +30,7 @@ function monthGrid(year: number, month: number): (string | null)[] {
 }
 
 export default function History() {
-  const { sessions, plans, exercises, settings } = useData()
+  const { sessions, plans, exercises, settings, saveSettings } = useData()
   const uid = useUid()
   const navigate = useNavigate()
 
@@ -186,8 +186,40 @@ export default function History() {
             <h3>Sesi · {formatDMYWIB(selKey)}</h3>
 
             {selShift && (
-              <div className="small" style={{ marginBottom: 10 }}>
+              <div className="small" style={{ marginBottom: 8 }}>
                 Shift: <b style={{ color: SHIFT_COLORS[selShift] }}>{SHIFT_LABELS[selShift]}</b>
+              </div>
+            )}
+            <div className="small muted" style={{ marginBottom: 6 }}>
+              Timpa shift tanggal ini (opsional):
+            </div>
+            <div className="row wrap" style={{ gap: 6, marginBottom: settings.shiftOverride?.[selKey] ? 8 : 12 }}>
+              {SHIFT_TYPES.map((sh) => (
+                <button
+                  key={sh}
+                  className={'chipb' + (selShift === sh ? ' on' : '')}
+                  style={selShift === sh ? { background: SHIFT_COLORS[sh], borderColor: SHIFT_COLORS[sh], color: '#1a1230' } : undefined}
+                  onClick={() => saveSettings({ shiftOverride: { ...settings.shiftOverride, [selKey]: sh } })}
+                >
+                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
+                  {SHIFT_LABELS[sh]}
+                </button>
+              ))}
+            </div>
+            {settings.shiftOverride?.[selKey] && (
+              <div className="small muted" style={{ marginBottom: 12 }}>
+                Tanggal ini ditimpa manual.{' '}
+                <button
+                  className="btn sm ghost"
+                  style={{ marginLeft: 4 }}
+                  onClick={() => {
+                    const o = { ...settings.shiftOverride }
+                    delete o[selKey]
+                    saveSettings({ shiftOverride: o })
+                  }}
+                >
+                  Kembalikan ke siklus otomatis
+                </button>
               </div>
             )}
 
