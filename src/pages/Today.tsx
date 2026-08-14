@@ -195,9 +195,7 @@ export default function Today() {
         <>
           <div className="stat-row">
             <div className="stat">
-              <div className="v" style={{ color: f7 >= rot.weeklyTarget ? 'var(--ok)' : 'var(--warn)' }}>
-                {f7}<span className="small muted"> / {rot.weeklyTarget}</span>
-              </div>
+              <div className="v">{f7}</div>
               <div className="l">Sesi · 7 hari</div>
             </div>
             <div className="stat">

@@ -232,20 +232,6 @@ export default function Settings() {
             </div>
 
             <div className="divider" />
-            <div className="card-title" style={{ marginTop: 4 }}>Target frekuensi</div>
-            <div className="row">
-              <span className="grow small muted">Sesi per 7 hari (berjalan)</span>
-              <span className="stepper">
-                <button className="b" aria-label="Kurangi target" onClick={() => saveSettings({ weeklyTarget: Math.max(2, rot.weeklyTarget - 1) })}>−</button>
-                <span className="val">{rot.weeklyTarget}</span>
-                <button className="b" aria-label="Tambah target" onClick={() => saveSettings({ weeklyTarget: Math.min(7, rot.weeklyTarget + 1) })}>+</button>
-              </span>
-            </div>
-            <div className="small muted" style={{ marginTop: 8 }}>
-              Target sesi latihan sungguhan (Leg/Push/Pull) per 7 hari berjalan — Easy tidak dihitung.
-            </div>
-
-            <div className="divider" />
             <div className="card-title" style={{ marginTop: 4 }}>Shift kerja</div>
             <div className="small muted" style={{ marginBottom: 8 }}>
               Dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b> (Sore → Malam → Pagi), patokan <b>{rot.anchor}</b>.
