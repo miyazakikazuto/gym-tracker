@@ -13,6 +13,7 @@ export default function Library() {
   const [editing, setEditing] = useState<Exercise | null>(null)
   const [tab, setTab] = useState<string>('push')
   const [query, setQuery] = useState('')
+  const [confirmDel, setConfirmDel] = useState<Exercise | null>(null)
 
   const list = exercises.filter(
     (e) =>
@@ -78,7 +79,7 @@ export default function Library() {
           <div className="row">
             <span className="badge">{ex.equipment}</span>
             <button className="icon-btn" aria-label={`Edit ${ex.name}`} onClick={() => { setEditing(ex); setShowForm(true) }}>✎</button>
-            <button className="icon-btn danger" aria-label={`Hapus ${ex.name}`} onClick={() => { if (confirm(`Hapus "${ex.name}"?`)) void deleteExercise(uid, ex.id) }}>🗑</button>
+            <button className="icon-btn danger" aria-label={`Hapus ${ex.name}`} onClick={() => setConfirmDel(ex)}>🗑</button>
           </div>
         </div>
       ))}
@@ -90,6 +91,19 @@ export default function Library() {
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); setEditing(null) }}
         />
+      )}
+
+      {confirmDel && (
+        <Modal onClose={() => setConfirmDel(null)} label="Hapus gerakan">
+          <h3>Hapus gerakan?</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            "{confirmDel.name}" akan dihapus dari library. Sesi lama yang memakainya tetap tersimpan.
+          </div>
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setConfirmDel(null)}>Batal</button>
+            <button className="btn danger" onClick={() => { void deleteExercise(uid, confirmDel.id); setConfirmDel(null) }}>Hapus</button>
+          </div>
+        </Modal>
       )}
     </div>
   )

@@ -6,6 +6,7 @@ import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
 import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
 import { presetByName } from '../lib/templates'
+import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
 
 interface SetResult {
@@ -26,6 +27,7 @@ export default function Session() {
   const [localSets, setLocalSets] = useState<SessionSet[]>(session?.sets ?? [])
   const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
   const [syncPending, setSyncPending] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
   // Timer terpisah per jenis data — aksi satu jenis tidak membatalkan write jenis lain
   const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -280,7 +282,6 @@ export default function Session() {
   }
 
   async function del() {
-    if (!confirm('Hapus sesi ini?')) return
     await deleteSession(uid, sid)
     navigate('/')
   }
@@ -307,7 +308,7 @@ export default function Session() {
             {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
         </div>
-        <button className="icon-btn" aria-label="Hapus sesi" onClick={() => del()}>🗑</button>
+        <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
       </div>
 
       <div className="row" style={{ margin: '12px 0' }}>
@@ -423,6 +424,19 @@ export default function Session() {
         )}
         <button className="btn ghost" onClick={() => navigate(-1)}>Kembali</button>
       </div>
+
+      {confirmDel && (
+        <Modal onClose={() => setConfirmDel(false)} label="Hapus sesi">
+          <h3>Hapus sesi ini?</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            "{session.planName}" ({formatDMYWIB(session.date)}) akan dihapus permanen.
+          </div>
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setConfirmDel(false)}>Batal</button>
+            <button className="btn danger" onClick={() => { setConfirmDel(false); void del() }}>Hapus</button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

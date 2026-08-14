@@ -49,6 +49,12 @@ export default function Settings() {
   const [pwMsg, setPwMsg] = useState('')
   const [importState, setImportState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
   const [importMsg, setImportMsg] = useState('')
+  const [pendingImport, setPendingImport] = useState<{
+    exs: Exercise[]
+    pls: WorkoutPlan[]
+    ses: Session[]
+    bws: Bodyweight[]
+  } | null>(null)
   const [sel, setSel] = useState<Record<SelKey, boolean>>({
     exercises: true,
     plans: true,
@@ -134,7 +140,6 @@ export default function Settings() {
   }
 
   async function importFile(file: File) {
-    setImportState('busy')
     setImportMsg('')
     try {
       const text = await file.text()
@@ -167,11 +172,20 @@ export default function Settings() {
         throw new Error('Tidak ada data valid di file ini')
       }
 
-      if (!confirm('Import akan menimpa data yang ID-nya sama dengan backup. Lanjutkan?')) {
-        setImportState('idle')
-        return
-      }
+      setPendingImport({ exs, pls, ses, bws })
+    } catch (e) {
+      setImportState('error')
+      setImportMsg((e as Error).message)
+    }
+  }
 
+  async function confirmImport() {
+    if (!pendingImport) return
+    const { exs, pls, ses, bws } = pendingImport
+    setPendingImport(null)
+    setImportState('busy')
+    setImportMsg('')
+    try {
       const total = await importBackup(uid, { exercises: exs, plans: pls, sessions: ses, bodyweights: bws })
       setImportState('done')
       setImportMsg(
@@ -371,6 +385,23 @@ export default function Settings() {
             <button className="btn primary" onClick={() => void savePassword()} disabled={pwBusy}>
               {pwBusy ? 'Menyimpan…' : 'Simpan sandi'}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {pendingImport && (
+        <Modal onClose={() => setPendingImport(null)} label="Konfirmasi import backup">
+          <h3>Import backup?</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Import akan menimpa data yang ID-nya sama dengan backup. Lanjutkan?
+          </div>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            {pendingImport.exs.length} gerakan · {pendingImport.pls.length} jadwal · {pendingImport.ses.length} sesi ·{' '}
+            {pendingImport.bws.length} berat badan
+          </div>
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setPendingImport(null)}>Batal</button>
+            <button className="btn danger" onClick={() => void confirmImport()}>Import</button>
           </div>
         </Modal>
       )}

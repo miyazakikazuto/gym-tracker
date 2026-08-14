@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { DAY_NAMES } from '../types'
@@ -25,6 +25,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
   const [missingNames, setMissingNames] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [confirm, setConfirm] = useState<'remove' | 'resetAll' | null>(null)
 
   useEffect(() => {
     if (plan) {
@@ -102,16 +103,26 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
     }
   }
 
-  async function remove() {
+  function remove() {
     if (!plan) return
-    if (!confirm(`Hapus jadwal "${plan.name}"?`)) return
+    setConfirm('remove')
+  }
+
+  function resetAll() {
+    if (plans.length === 0) return
+    setConfirm('resetAll')
+  }
+
+  async function confirmRemove() {
+    if (!plan) return
+    setConfirm(null)
     await deletePlan(uid, plan.id)
     onClose()
   }
 
-  async function resetAll() {
+  async function confirmResetAll() {
     if (plans.length === 0) return
-    if (!confirm(`Hapus SEMUA jadwal mingguan (${plans.length} hari)? Sesi latihan tidak terpengaruh.`)) return
+    setConfirm(null)
     setError('')
     try {
       await Promise.all(plans.map((p) => deletePlan(uid, p.id)))
@@ -122,6 +133,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
   }
 
   return (
+    <Fragment>
     <Modal onClose={onClose} label="Kelola jadwal mingguan">
         <h3>Kelola Jadwal Mingguan</h3>
 
@@ -226,5 +238,22 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
           <button className="btn ghost" onClick={onClose}>Tutup</button>
         </div>
     </Modal>
+    {confirm && (
+      <Modal onClose={() => setConfirm(null)} label="Konfirmasi hapus jadwal">
+        <h3>Hapus jadwal?</h3>
+        <div className="small muted" style={{ marginBottom: 10 }}>
+          {confirm === 'remove'
+            ? `Jadwal "${plan?.name ?? ''}" (${DAY_NAMES[selDay]}) akan dihapus. Sesi latihan tidak terpengaruh.`
+            : `SEMUA jadwal mingguan (${plans.length} hari) akan dihapus. Sesi latihan tidak terpengaruh.`}
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={() => setConfirm(null)}>Batal</button>
+          <button className="btn danger" onClick={() => void (confirm === 'remove' ? confirmRemove() : confirmResetAll())}>
+            Hapus
+          </button>
+        </div>
+      </Modal>
+    )}
+    </Fragment>
   )
 }
