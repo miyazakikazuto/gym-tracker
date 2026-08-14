@@ -32,14 +32,16 @@ URL: `https://miyazakikazuto.github.io/gym-tracker/`
 
 ### Vercel (tempat uji coba branch)
 
-Project Vercel: `gym-tracker` (akun miyazakikazuto). Hanya dipakai untuk uji coba — branch selain `main` (mis. `freebuff`) otomatis di-deploy ke URL preview Vercel setiap push.
+Project Vercel: `gym-tracker` (akun miyazakikazuto, team `miyazakikazutos-projects`). Hanya dipakai untuk uji coba.
 
-- **`main`** → tidak di-deploy ke Vercel (`ignoreCommand` di `vercel.json` me-skip build, exit 0 = skip)
-- **branch lain** (mis. `freebuff`) → deploy preview otomatis, URL: `https://gym-tracker-git-<branch>-<team>.vercel.app` (cek di dashboard Vercel)
+- **Production branch Vercel = `freebuff`** → setiap push ke `freebuff` otomatis jadi Production deployment.
+- **URL tetap (selalu code terbaru): `https://gym-tracker-inky-rho.vercel.app`** — bookmark URL ini, jangan pakai URL deployment (immutable per deploy).
+- **`main`** → tidak di-deploy ke Vercel (`ignoreCommand` di `vercel.json` me-skip build, exit 0 = skip); production asli tetap GitHub Pages.
+- URL preview per deploy (berubah-ubah, hanya untuk debug): `https://gym-tracker-<hash>-<team>.vercel.app`
 
 Base path otomatis menyesuaikan platform: `/gym-tracker/` di GitHub Pages, `/` di Vercel (via env `VERCEL=1` saat build).
 
-Alur kerja: kerja & push di `freebuff` untuk uji fitur baru tanpa menyentuh website utama; setelah mantap, merge ke `main`.
+Alur kerja: kerja & push di `freebuff` untuk uji fitur baru (URL tetap langsung update); setelah mantap, merge ke `main` untuk GitHub Pages.
 
 ## Firestore Rules
 
