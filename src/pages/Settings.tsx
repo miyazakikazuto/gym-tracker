@@ -1,8 +1,11 @@
 import { useRef, useState } from 'react'
-import { useUid } from '../context/AuthContext'
+import { updatePassword } from 'firebase/auth'
+import { useAuth, useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { todayKey } from '../lib/date'
+import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
+import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
 interface BackupPayload {
@@ -26,8 +29,14 @@ type SelKey = (typeof DATA_TYPES)[number]['key']
 
 export default function Settings() {
   const uid = useUid()
+  const { user } = useAuth()
   const { exercises, plans, sessions, bodyweights, ready } = useData()
   const [state, setState] = useState<'idle' | 'done' | 'error'>('idle')
+  const [showPw, setShowPw] = useState(false)
+  const [pw1, setPw1] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [pwBusy, setPwBusy] = useState(false)
+  const [pwMsg, setPwMsg] = useState('')
   const [importState, setImportState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
   const [importMsg, setImportMsg] = useState('')
   const [sel, setSel] = useState<Record<SelKey, boolean>>({
@@ -40,6 +49,32 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
+
+  async function savePassword() {
+    setPwMsg('')
+    if (pw1.length < 6) {
+      setPwMsg('Sandi minimal 6 karakter.')
+      return
+    }
+    if (pw1 !== pw2) {
+      setPwMsg('Sandi tidak sama.')
+      return
+    }
+    setPwBusy(true)
+    try {
+      const cur = getAuthInstance().currentUser
+      if (!cur) throw new Error('Sesi berakhir. Login ulang dulu.')
+      await updatePassword(cur, pw1)
+      setShowPw(false)
+      setPw1('')
+      setPw2('')
+      setPwMsg('Sandi tersimpan. Sekarang bisa login dengan email + sandi di semua perangkat.')
+    } catch (e) {
+      setPwMsg(msgOf(e))
+    } finally {
+      setPwBusy(false)
+    }
+  }
 
   function toggle(key: SelKey) {
     setSel((s) => ({ ...s, [key]: !s[key] }))
@@ -133,7 +168,24 @@ export default function Settings() {
   return (
     <div className="page">
       <div className="page-title">Pengaturan</div>
-      <div className="subtitle">Backup & data</div>
+      <div className="subtitle">Akun, backup & data</div>
+
+      <div className="card">
+        <div className="card-title">Akun</div>
+        <div className="row" style={{ padding: '4px 0 8px' }}>
+          <div className="grow">
+            <div style={{ fontWeight: 700, wordBreak: 'break-all' }}>{user?.email}</div>
+            <div className="small muted">Login dengan email + sandi atau Google</div>
+          </div>
+        </div>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn sm primary" onClick={() => { setPwMsg(''); setShowPw(true) }}>Atur kata sandi</button>
+          <button className="btn sm ghost" onClick={() => getAuthInstance().signOut()}>Keluar</button>
+        </div>
+        {pwMsg && !showPw && (
+          <div className="small" style={{ color: 'var(--ok)', marginTop: 10 }}>{pwMsg}</div>
+        )}
+      </div>
 
       <div className="card">
         <div className="card-title">Backup data</div>
@@ -210,6 +262,32 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {showPw && (
+        <Modal onClose={() => setShowPw(false)} label="Atur kata sandi">
+          <h3>Atur kata sandi</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Pakai email <b>{user?.email}</b> + sandi ini untuk login di semua perangkat (termasuk iPhone) — tanpa perlu Google.
+          </div>
+          <input className="input" type="password" autoComplete="new-password" placeholder="Sandi baru (min. 6 karakter)"
+            value={pw1} onChange={(e) => setPw1(e.target.value)} disabled={pwBusy} />
+          <input className="input" type="password" autoComplete="new-password" placeholder="Ulangi sandi"
+            value={pw2} onChange={(e) => setPw2(e.target.value)} disabled={pwBusy} />
+          {pwMsg && <div className="auth-error" style={{ marginTop: 8 }}>{pwMsg}</div>}
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setShowPw(false)} disabled={pwBusy}>Batal</button>
+            <button className="btn primary" onClick={() => void savePassword()} disabled={pwBusy}>
+              {pwBusy ? 'Menyimpan…' : 'Simpan sandi'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
+}
+
+function msgOf(err: unknown): string {
+  const m = (err as { message?: string }).message
+  if (!m) return 'Terjadi kesalahan. Coba lagi.'
+  return m.replace(/^Firebase: /, '').replace(/ \(.*\)\.$/, '')
 }
