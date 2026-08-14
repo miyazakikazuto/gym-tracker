@@ -32,6 +32,7 @@ function navIcons(name: string) {
         </svg>
       )
     case 'berat':
+    case 'weight':
       return (
         <svg viewBox="0 0 24 24" {...common}>
           <path d="M12 3v5" />
