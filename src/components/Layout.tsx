@@ -31,6 +31,15 @@ function navIcons(name: string) {
           <path d="M7 13l4-4 3 3 5-6" />
         </svg>
       )
+    case 'berat':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <path d="M12 3v5" />
+          <circle cx="12" cy="11" r="3" />
+          <path d="M6.5 21L5 12.5a8.4 8.4 0 0 1 14 0L17.5 21" />
+          <path d="M4 21h16" />
+        </svg>
+      )
     case 'library':
       return (
         <svg viewBox="0 0 24 24" {...common}>
@@ -46,6 +55,7 @@ const TABS = [
   { path: '/today', label: 'Hari Ini', key: 'today' },
   { path: '/history', label: 'Riwayat', key: 'history' },
   { path: '/progress', label: 'Progress', key: 'progress' },
+  { path: '/weight', label: 'Berat', key: 'berat' },
   { path: '/library', label: 'Gerakan', key: 'library' },
 ]
 

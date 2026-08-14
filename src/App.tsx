@@ -6,6 +6,7 @@ import Today from './pages/Today'
 import Session from './pages/Session'
 import History from './pages/History'
 import Progress from './pages/Progress'
+import Weight from './pages/Weight'
 import Library from './pages/Library'
 import Layout from './components/Layout'
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="/session/:id" element={<Session />} />
           <Route path="/history" element={<History />} />
           <Route path="/progress" element={<Progress />} />
+          <Route path="/weight" element={<Weight />} />
           <Route path="/library" element={<Library />} />
           <Route path="*" element={<Today />} />
         </Route>
