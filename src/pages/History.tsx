@@ -60,12 +60,15 @@ export default function History() {
     .sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
   const usedPlanNames = daySessions.map((s) => s.planName)
+  const presetNames = PLAN_PRESETS.map((p) => p.name)
   const addOptions = PLAN_PRESETS
     .map((preset) => ({
       preset,
       plan: plans.find((p) => p.name === preset.name),
     }))
     .filter(({ preset }) => !usedPlanNames.includes(preset.name))
+  // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual
+  const customPlans = plans.filter((p) => !presetNames.includes(p.name) && !usedPlanNames.includes(p.name))
 
   async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
     if (!selKey) return
@@ -198,20 +201,38 @@ export default function History() {
               Tambah sesi untuk tanggal ini:
             </div>
 
-            {addOptions.length === 0 ? (
-              <div className="small muted">Semua jenis jadwal sudah punya sesi di tanggal ini.</div>
+            {addOptions.length === 0 && customPlans.length === 0 ? (
+              <div className="small muted">Semua jadwal sudah punya sesi di tanggal ini.</div>
             ) : (
-              addOptions.map(({ preset, plan }) => (
-                <button
-                  key={preset.name}
-                  className="btn ghost wide"
-                  style={{ justifyContent: 'flex-start', marginBottom: 8 }}
-                  disabled={creating}
-                  onClick={() => void handleCreate(plan, preset.name)}
-                >
-                  + {preset.name}
-                </button>
-              ))
+              <>
+                {addOptions.map(({ preset, plan }) => (
+                  <button
+                    key={preset.name}
+                    className="btn ghost wide"
+                    style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+                    disabled={creating}
+                    onClick={() => void handleCreate(plan, preset.name)}
+                  >
+                    + {preset.name}
+                  </button>
+                ))}
+                {customPlans.length > 0 && (
+                  <>
+                    <div className="small muted" style={{ margin: '8px 0 6px' }}>Jadwal kustom:</div>
+                    {customPlans.map((plan) => (
+                      <button
+                        key={plan.id}
+                        className="btn ghost wide"
+                        style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+                        disabled={creating}
+                        onClick={() => void handleCreate(plan, plan.name)}
+                      >
+                        + {plan.name}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </>
             )}
 
             {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}

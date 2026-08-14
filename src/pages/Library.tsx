@@ -12,8 +12,13 @@ export default function Library() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Exercise | null>(null)
   const [tab, setTab] = useState<string>('push')
+  const [query, setQuery] = useState('')
 
-  const list = exercises.filter((e) => categoryKeysOfExercise(e).includes(tab))
+  const list = exercises.filter(
+    (e) =>
+      categoryKeysOfExercise(e).includes(tab) &&
+      (query.trim() === '' || e.name.toLowerCase().includes(query.trim().toLowerCase())),
+  )
 
   return (
     <div className="page">
@@ -42,8 +47,21 @@ export default function Library() {
         })}
       </div>
 
+      <input
+        className="input"
+        type="search"
+        placeholder="Cari gerakan…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ marginBottom: 10 }}
+      />
+
       {list.length === 0 && (
-        <div className="card empty">Belum ada gerakan di kategori ini. Ketuk + Baru.</div>
+        <div className="card empty">
+          {query.trim()
+            ? 'Tidak ada gerakan yang cocok dengan pencarian.'
+            : 'Belum ada gerakan di kategori ini. Ketuk + Baru.'}
+        </div>
       )}
 
       {list.map((ex) => (
