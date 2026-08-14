@@ -207,13 +207,13 @@ export default function Progress() {
     }
   }
 
-  // Total SBD untuk DOTS: best e1RM all-time per lift (Squat/Bench/Deadlift)
+  // Total SBD untuk DOTS: beban terberat all-time per lift (Squat/Bench/Deadlift)
   const dotsTotal = SBD_LIFTS.reduce((sum, lift) => {
     let best = 0
     for (const ex of exercises) {
       if (!isSbdExercise(ex, lift.key)) continue
-      const e = prMap.get(ex.id)?.e1rm?.e1rm ?? 0
-      if (e > best) best = e
+      const w = prMap.get(ex.id)?.weight?.weight ?? 0
+      if (w > best) best = w
     }
     return sum + best
   }, 0)
@@ -478,7 +478,7 @@ export default function Progress() {
               <div>
                 <div style={{ fontWeight: 800 }}>DOTS Score</div>
                 <div className="small muted">
-                  Total SBD ~{fmtNumber(dotsTotal)} kg @ {fmtNumber(bwParsed)} kg BW
+                  Total SBD ~{fmtNumber(dotsTotal)} kg (beban terberat per lift) @ {fmtNumber(bwParsed)} kg BW
                 </div>
               </div>
               <div className="val" style={{ fontSize: 24 }}>{fmtDots(dotsVal ?? 0)}</div>

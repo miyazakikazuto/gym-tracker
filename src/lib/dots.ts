@@ -1,7 +1,7 @@
-// DOTS asli (Mike Tuchscherer) — koefisien polinomial derajat 4, versi pria.
+// DOTS asli (Mike Tuchscherer) — versi 2022, koefisien polinomial derajat 4, pria.
 // DOTS = total (kg) × koefisien(bodyweight)
 
-const DOTS_MALE = { a: -0.000001093, b: 0.0007391293, c: -0.1918759221, d: 24.0900756, e: -307.75076 }
+const DOTS_MALE = { a: -0.000001022984, b: 0.0006963339, c: -0.1782608423, d: 22.4434844, e: -281.97485 }
 
 export function dotsCoefficient(bw: number): number {
   const c = DOTS_MALE
