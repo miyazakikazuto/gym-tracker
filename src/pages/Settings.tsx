@@ -248,38 +248,29 @@ export default function Settings() {
             <div className="divider" />
             <div className="card-title" style={{ marginTop: 4 }}>Shift kerja</div>
             <div className="small muted" style={{ marginBottom: 8 }}>
-              Shift dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b>, bergilir Sore → Malam → Pagi (rotasi maju).
+              Dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b> (Sore → Malam → Pagi), patokan <b>{rot.anchor}</b>.
             </div>
-            <div className="small muted" style={{ marginBottom: 10 }}>
-              Patokan siklus otomatis: <b>{rot.anchor}</b> (hari ke-1 Sore) — sudah benar, tidak perlu diubah.
-            </div>
-            <div className="row wrap" style={{ gap: 6, marginBottom: 8 }}>
+            <div className="shift-cycle">
               {nextShifts.map(({ date, sh }) => (
-                <span
-                  key={date}
-                  className={'chipb' + (sh === 'libur' ? ' rest' : '')}
-                  style={sh !== 'libur' ? { color: SHIFT_COLORS[sh] } : undefined}
-                >
-                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
-                  {date.slice(8, 10)}/{date.slice(5, 7)} {SHIFT_LABELS[sh]}
-                </span>
+                <div key={date} className="shift-cycle-cell" title={date}>
+                  <div className="sc-date">{date.slice(8, 10)}/{date.slice(5, 7)}</div>
+                  <span className="sw-shift" style={{ background: SHIFT_COLORS[sh] }}>{SHIFT_LABELS[sh][0]}</span>
+                </div>
               ))}
             </div>
-            <div className="row wrap" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
               {overrideCount > 0 && (
                 <>
-                  <span className="small muted grow">{overrideCount} tanggal ditimpa manual</span>
-                  <button className="btn sm ghost" onClick={() => saveSettings({ shiftOverride: {} })}>
-                    Hapus penimpaan
-                  </button>
+                  <span className="small muted grow">{overrideCount} tanggal ditimpa</span>
+                  <button className="btn sm ghost" onClick={() => saveSettings({ shiftOverride: {} })}>Hapus penimpaan</button>
                 </>
               )}
               <button className="btn sm ghost" onClick={() => saveSettings({ shiftAnchor: DEFAULT_SHIFT_ANCHOR })}>
                 Reset patokan ke 12 Ags 2026
               </button>
             </div>
-            <div className="small muted">
-              Saat shift <b>Malam</b>, saran otomatis ringan (Easy). Timpa shift hari ini di halaman Hari Ini.
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Saat shift <b>Malam</b>, saran otomatis ringan (Easy). Timpa shift per tanggal di kalender Riwayat.
             </div>
           </>
         )}
