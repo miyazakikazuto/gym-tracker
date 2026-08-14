@@ -1,6 +1,6 @@
 import { addDays, parseKey } from './date'
 import { presetByName, presetByKey } from './templates'
-import { DEFAULT_SHIFT_ANCHOR, type ShiftType } from './shift'
+import { resolveShiftAnchor, type ShiftType } from './shift'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
 
 // Urutan default: mulai dari Leg, lalu Easy (recovery), Push, Pull.
@@ -19,7 +19,7 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
     rotation: settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION,
     weeklyTarget: settings.weeklyTarget ?? 4,
     shift: settings.shift ?? null,
-    anchor: settings.shiftAnchor || DEFAULT_SHIFT_ANCHOR,
+    anchor: resolveShiftAnchor(settings.shiftAnchor),
   }
 }
 

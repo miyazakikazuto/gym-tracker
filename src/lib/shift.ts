@@ -16,6 +16,15 @@ export const SHIFT_CYCLE_PATTERN: ShiftType[] = [
 // cocok 17/17 hari pada 15–31 Agustus).
 export const DEFAULT_SHIFT_ANCHOR = '2026-08-15'
 
+// Nilai patokan basi dari versi lama (default sebelum pola dikoreksi dari jadwal resmi,
+// 12 Ags 2026 = hari ke-1 blok Pagi). Kalau masih tersimpan di akun, anggap kosong
+// agar otomatis kembali ke default resmi — tanpa perlu user reset manual.
+const STALE_ANCHORS = new Set(['2026-08-12'])
+
+export function resolveShiftAnchor(stored?: string): string {
+  return stored && !STALE_ANCHORS.has(stored) ? stored : DEFAULT_SHIFT_ANCHOR
+}
+
 export const SHIFT_LABELS: Record<ShiftType, string> = {
   pagi: 'Pagi',
   sore: 'Sore',
@@ -45,7 +54,7 @@ export function shiftForDate(date: string, settings: Partial<UserSettings>): Shi
   if (ov === 'pagi' || ov === 'siang' || ov === 'sore' || ov === 'malam' || ov === 'libur') {
     return ov === 'siang' ? 'sore' : ov
   }
-  return cycleShiftAt(settings.shiftAnchor || DEFAULT_SHIFT_ANCHOR, date)
+  return cycleShiftAt(resolveShiftAnchor(settings.shiftAnchor), date)
 }
 
 // Hitung patokan mundur: geser anchor seminimal mungkin agar shift(today) = shift yang dipilih.

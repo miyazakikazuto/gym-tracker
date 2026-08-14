@@ -263,20 +263,9 @@ export default function Settings() {
                 </button>
               ))}
             </div>
-            <div className="small muted" style={{ marginBottom: 8 }}>
-              Patokan terhitung otomatis mundur dari pilihan Anda — saat ini <b>{rot.anchor}</b> (hari ke-1 Sore).
-              Sudah terisi otomatis, tidak perlu diubah kecuali pola berubah.
+            <div className="small muted" style={{ marginBottom: 10 }}>
+              Patokan dihitung otomatis mundur dari pilihan Anda — saat ini <b>{rot.anchor}</b> (hari ke-1 Sore).
             </div>
-            <label className="row small" style={{ gap: 8, alignItems: 'center', marginBottom: 10 }}>
-              <span className="grow">Tanggal patokan (hari ke-1 Sore)</span>
-              <input
-                type="date"
-                className="input"
-                style={{ width: 'auto', padding: '6px 8px' }}
-                value={rot.anchor}
-                onChange={(e) => e.target.value && saveSettings({ shiftAnchor: e.target.value })}
-              />
-            </label>
             <div className="row wrap" style={{ gap: 6, marginBottom: 8 }}>
               {nextShifts.map(({ date, sh }) => (
                 <span
