@@ -90,6 +90,7 @@ export default function Weight() {
   const [dotsDirty, setDotsDirty] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle')
   const saveTimer = useRef<number | undefined>(undefined)
+  const autoSaveTimer = useRef<number | undefined>(undefined)
 
   const today = todayKey()
 
@@ -118,6 +119,8 @@ export default function Weight() {
   }
 
   const doSave = () => {
+    // Batalkan autosave yang tertunda — mencegah double-write
+    window.clearTimeout(autoSaveTimer.current)
     const kg = parseKg(dotsBw)
     if (kg == null) {
       setSaveState('err')
@@ -128,6 +131,7 @@ export default function Weight() {
     setSaveState('saving')
     saveBodyweight(todayKey(), kg)
       .then(() => {
+        setDotsDirty(false)
         setSaveState('ok')
         window.clearTimeout(saveTimer.current)
         saveTimer.current = window.setTimeout(() => setSaveState('idle'), 2000)
@@ -145,15 +149,18 @@ export default function Weight() {
     setDotsBw(String(latestKg))
   }, [latestKg, dotsDirty])
 
-  // Autosave debounce (500ms) — mencatat entri berat hari ini, hanya setelah user mengetik
+  // Autosave debounce (500ms) — bisa dibatalkan dari doSave (mencegah double-write)
   useEffect(() => {
     if (!dotsDirty) return
     const kg = parseKg(dotsBw)
     if (kg == null) return
-    const t = setTimeout(() => {
-      saveBodyweight(todayKey(), kg).catch(() => undefined)
+    window.clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = window.setTimeout(() => {
+      saveBodyweight(todayKey(), kg)
+        .then(() => setDotsDirty(false))
+        .catch(() => undefined)
     }, 500)
-    return () => clearTimeout(t)
+    return () => window.clearTimeout(autoSaveTimer.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dotsBw, dotsDirty])
 
