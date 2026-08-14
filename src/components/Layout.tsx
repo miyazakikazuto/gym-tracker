@@ -59,7 +59,7 @@ function navIcons(name: string) {
 }
 
 const TABS = [
-  { path: '/today', label: 'Hari Ini', key: 'today' },
+  { path: '/today', label: 'Home', key: 'today' },
   { path: '/history', label: 'Riwayat', key: 'history' },
   { path: '/progress', label: 'Progress', key: 'progress' },
   { path: '/weight', label: 'Berat', key: 'berat' },
