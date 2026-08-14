@@ -5,6 +5,8 @@ import { useData } from '../context/DataContext'
 import { todayKey } from '../lib/date'
 import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
+import { rotationOf } from '../lib/rotation'
+import { presetByKey, dotColorFor } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
@@ -27,10 +29,18 @@ const DATA_TYPES = [
 
 type SelKey = (typeof DATA_TYPES)[number]['key']
 
+const SHIFT_OPTIONS = [
+  { key: 'pagi', label: 'Pagi' },
+  { key: 'siang', label: 'Siang' },
+  { key: 'malam', label: 'Malam' },
+] as const
+
 export default function Settings() {
   const uid = useUid()
   const { user } = useAuth()
-  const { exercises, plans, sessions, bodyweights, ready } = useData()
+  const { exercises, plans, sessions, bodyweights, settings, ready, saveSettings } = useData()
+  const rot = rotationOf(settings)
+  const rotationMode = settings.rotationMode !== false // default: aktif
   const [state, setState] = useState<'idle' | 'done' | 'error'>('idle')
   const [showPw, setShowPw] = useState(false)
   const [pw1, setPw1] = useState('')
@@ -49,6 +59,14 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
+
+  function moveRotation(idx: number, dir: -1 | 1) {
+    const arr = [...rot.rotation]
+    const j = idx + dir
+    if (j < 0 || j >= arr.length) return
+    ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
+    saveSettings({ rotation: arr })
+  }
 
   async function savePassword() {
     setPwMsg('')
@@ -168,7 +186,81 @@ export default function Settings() {
   return (
     <div className="page">
       <div className="page-title">Pengaturan</div>
-      <div className="subtitle">Akun, backup & data</div>
+      <div className="subtitle">Jadwal, akun, backup & data</div>
+
+      <div className="card">
+        <div className="card-title">Mode jadwal</div>
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            className={'btn sm ' + (rotationMode ? 'primary' : 'ghost')}
+            style={{ flex: 1 }}
+            onClick={() => saveSettings({ rotationMode: true })}
+          >
+            Rotasi
+          </button>
+          <button
+            className={'btn sm ' + (!rotationMode ? 'primary' : 'ghost')}
+            style={{ flex: 1 }}
+            onClick={() => saveSettings({ rotationMode: false })}
+          >
+            Mingguan
+          </button>
+        </div>
+        <div className="small muted" style={{ marginTop: 8 }}>
+          {rotationMode
+            ? 'Saran harian mengikuti urutan rotasi & sesi terakhir — cocok untuk jadwal kerja shift.'
+            : 'Jadwal tetap per hari (mis. Senin Push) — ditampilkan di halaman Hari Ini.'}
+        </div>
+
+        {rotationMode && (
+          <>
+            <div className="divider" />
+            <div className="card-title" style={{ marginTop: 4 }}>Urutan rotasi</div>
+            {rot.rotation.map((k, i) => {
+              const name = presetByKey(k)?.name ?? k
+              return (
+                <div className="rotate-item" key={k}>
+                  <span className="dot" style={{ background: dotColorFor(name) ?? 'var(--accent)' }} />
+                  <span className="name">{name}</span>
+                  <button className="mv" aria-label={`Naikkan ${name}`} disabled={i === 0} onClick={() => moveRotation(i, -1)}>↑</button>
+                  <button className="mv" aria-label={`Turunkan ${name}`} disabled={i === rot.rotation.length - 1} onClick={() => moveRotation(i, 1)}>↓</button>
+                </div>
+              )
+            })}
+            <div className="small muted" style={{ marginTop: 4 }}>
+              Saran = item setelah sesi terakhir yang selesai. Urutan bisa diubah bebas.
+            </div>
+
+            <div className="divider" />
+            <div className="card-title" style={{ marginTop: 4 }}>Target frekuensi</div>
+            <div className="row">
+              <span className="grow small muted">Sesi per 7 hari (berjalan)</span>
+              <span className="stepper">
+                <button className="b" aria-label="Kurangi target" onClick={() => saveSettings({ weeklyTarget: Math.max(2, rot.weeklyTarget - 1) })}>−</button>
+                <span className="val">{rot.weeklyTarget}</span>
+                <button className="b" aria-label="Tambah target" onClick={() => saveSettings({ weeklyTarget: Math.min(7, rot.weeklyTarget + 1) })}>+</button>
+              </span>
+            </div>
+
+            <div className="divider" />
+            <div className="card-title" style={{ marginTop: 4 }}>Shift kerja <span className="badge warn">opsional</span></div>
+            <div className="row wrap" style={{ gap: 6 }}>
+              {SHIFT_OPTIONS.map((s) => (
+                <button
+                  key={s.key}
+                  className={'chipb' + (rot.shift === s.key ? ' on' : '')}
+                  onClick={() => saveSettings({ shift: rot.shift === s.key ? null : s.key })}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Saat memilih <b>Malam</b>, saran otomatis ringan (Easy). Bisa ditimpa manual di halaman Hari Ini.
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="card">
         <div className="card-title">Akun</div>

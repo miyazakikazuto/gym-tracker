@@ -18,6 +18,7 @@ import type {
   Session,
   SessionSet,
   Bodyweight,
+  UserSettings,
 } from '../types'
 
 export function userGymRef(uid: string, sub: string) {
@@ -165,6 +166,21 @@ export function makeSessionSet(partial: Partial<SessionSet> & { exerciseId: stri
     weightKg: partial.weightKg ?? 0,
     reps: partial.reps ?? 0,
   }
+}
+
+// ===== USER SETTINGS =====
+export function settingsRef(uid: string) {
+  return doc(getDb(), 'users', uid, 'settings', 'prefs')
+}
+
+export function subscribeSettings(uid: string, cb: (s: Partial<UserSettings>) => void) {
+  return onSnapshot(settingsRef(uid), (snap) => {
+    cb((snap.data() ?? {}) as Partial<UserSettings>)
+  })
+}
+
+export function updateSettings(uid: string, patch: Partial<UserSettings>) {
+  return setDoc(settingsRef(uid), patch, { merge: true })
 }
 
 // ===== IMPORT BACKUP (restore) =====

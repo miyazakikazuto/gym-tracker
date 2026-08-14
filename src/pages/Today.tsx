@@ -1,12 +1,20 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { shortLabelFor, isRest } from '../lib/templates'
+import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
+import {
+  rotationOf,
+  suggestKey,
+  planForKey,
+  freq7,
+  daysSinceLast,
+  lastFinishedSession,
+} from '../lib/rotation'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -54,10 +62,12 @@ export default function Today() {
   const { user } = useAuth()
   const uid = useUid()
   const navigate = useNavigate()
-  const { plans, exercises, sessions, ready } = useData()
+  const { plans, exercises, sessions, settings, ready } = useData()
   const [showPlan, setShowPlan] = useState(false)
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
+  const [showPick, setShowPick] = useState(false)
+  const [restToday, setRestToday] = useState(false)
 
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -90,22 +100,68 @@ export default function Today() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const nowDow = dayOfWeek(base)
 
-  const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
-  const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
+  // ===== Mode Rotasi =====
+  const rotationMode = settings.rotationMode !== false // default: aktif
+  const rot = rotationOf(settings)
+  const last = lastFinishedSession(sessions)
+  const lastKey = last ? presetByName(last.planName)?.key : undefined
+  const sug = suggestKey(settings, sessions)
+  const sugPlan = planForKey(plans, sug.key)
+  const sugPreset = presetByKey(sug.key)
+  const f7 = freq7(sessions, base)
+  const dsl = daysSinceLast(sessions, base)
+
   const todaySessions = sessions.filter((s) => s.date === base)
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
 
-  async function createAndOpen(plan: WorkoutPlan | undefined | null) {
-    const ref = await createSession(
-      uid,
-      buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now()),
+  const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
+  const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
+
+  const pickOptions = rot.rotation
+    .map((k) => ({ key: k, plan: planForKey(plans, k) }))
+    .filter((o): o is { key: string; plan: WorkoutPlan } => !!o.plan)
+    .map((o) => ({
+      key: o.key,
+      name: o.plan.name,
+      plan: o.plan,
+      suggested: o.key === sug.key,
+      sub: `${o.plan.items.length} gerakan`,
+    }))
+
+  const showStart = rotationMode ? !restToday : !todayIsRest
+  const startLabel = activeSession
+    ? 'Lanjutkan sesi hari ini'
+    : rotationMode
+      ? sugPlan
+        ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}`
+        : 'Buat plan saran dulu'
+      : todayPlan
+        ? 'Mulai sesi hari ini'
+        : 'Atur jadwal & mulai'
+
+  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string) {
+    const payload = buildSession(
+      plan,
+      base,
+      (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+      Date.now(),
     )
+    if (name) payload.planName = name
+    const ref = await createSession(uid, payload)
     navigate(`/session/${ref.id}`)
   }
 
   function handleStart() {
     if (activeSession) {
       navigate(`/session/${activeSession.id}`)
+      return
+    }
+    if (rotationMode) {
+      if (!sugPlan) {
+        setShowPlan(true)
+        return
+      }
+      void createAndOpen(sugPlan)
       return
     }
     if (todayPlan && !todayIsRest) {
@@ -129,17 +185,103 @@ export default function Today() {
         </div>
       </div>
 
-      <DayStrip days={days} base={base} sessions={sessions} plans={plans} />
+      {rotationMode ? (
+        <>
+          <div className="stat-row">
+            <div className="stat">
+              <div className="v">{f7}<span className="small muted"> / {rot.weeklyTarget}</span></div>
+              <div className="l">Sesi · 7 hari</div>
+            </div>
+            <div className="stat">
+              <div className="v">{dsl == null ? '—' : dsl === 0 ? 'Hari ini' : dsl === 1 ? 'Kemarin' : dsl + ' hari'}</div>
+              <div className="l">Sejak latihan</div>
+            </div>
+            <div className="stat">
+              <div className="v">{rot.shift === 'malam' ? '☾' : '✓'}</div>
+              <div className="l">{rot.shift === 'malam' ? 'Shift malam' : 'Recovery ok'}</div>
+            </div>
+          </div>
 
-      <div className="row spread">
-        <div className="card-title" style={{ marginTop: 6 }}>Sesi</div>
-        <button className="btn sm ghost" onClick={() => setShowPlan(true)}>Kelola jadwal</button>
-      </div>
+          <div className="card suggest">
+            <div className="card-title">
+              <span>Saran Hari Ini</span>
+              {rot.shift && <span className="badge warn">shift: {rot.shift}</span>}
+            </div>
+            <div className="suggest-big">
+              <span className="dot" style={{ background: sugPlan ? dotColorFor(sugPlan.name) : 'var(--accent)' }} />
+              <span className="name">{sugPreset?.shortLabel ?? sug.key.toUpperCase()}</span>
+            </div>
+            <div className="suggest-meta">
+              {last
+                ? `Latihan terakhir: ${shortLabelFor(last.planName) || last.planName} · ${dsl === 0 ? 'hari ini' : dsl === 1 ? 'kemarin' : dsl + ' hari lalu'}`
+                : 'Belum ada sesi — rotasi mulai dari Leg'}
+              {sug.isNightLight && ' · disarankan ringan (shift malam)'}
+            </div>
+            {!sugPlan ? (
+              <div className="small muted" style={{ marginBottom: 10 }}>
+                Plan {sugPreset?.name ?? sug.key} belum dibuat — atur lewat "Kelola jadwal" dulu.
+              </div>
+            ) : (
+              sugPlan.items.map((it, i) => {
+                const ex = exercises.find((e) => e.id === it.exerciseId)
+                return (
+                  <div className="row" key={i} style={{ padding: '5px 0' }}>
+                    <span className="num">{i + 1}.</span>
+                    <span className="grow">{ex?.name ?? 'Gerakan'}</span>
+                    <span className="badge">
+                      {it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+            <div style={{ height: 10 }} />
+            {restToday ? (
+              <button className="btn sm ghost wide" onClick={() => setRestToday(false)}>Batalkan istirahat</button>
+            ) : (
+              <div className="action-row">
+                <button className="btn primary" onClick={handleStart}>
+                  {sugPlan ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}` : 'Buat plan dulu'}
+                </button>
+                <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
+                <button className="btn ghost" onClick={() => setRestToday(true)}>Istirahat hari ini</button>
+              </div>
+            )}
+          </div>
 
-      {!ready ? (
-        <div className="empty">Memuat…</div>
+          <div className="card">
+            <div className="card-title">Rotasi <span className="badge accent">auto</span></div>
+            <div className="flow">
+              {rot.rotation.map((k, i) => (
+                <Fragment key={k}>
+                  {i > 0 && <span className="arr">→</span>}
+                  <span className={'chip' + (k === sug.key ? ' next' : '') + (lastKey === k ? ' done' : '')}>
+                    {presetByKey(k)?.shortLabel ?? k.toUpperCase()}
+                  </span>
+                </Fragment>
+              ))}
+            </div>
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Urutan & target diatur di Pengaturan.
+            </div>
+          </div>
+
+          {restToday && (
+            <div className="card">
+              <div className="card-title">
+                <span>Hari ini istirahat</span>
+                <span className="badge" style={{ background: 'rgba(248,113,113,0.15)', color: 'var(--danger)' }}>REST</span>
+              </div>
+              <div className="small muted">
+                Pulihkan otot, tidur cukup. Saran berikutnya tetap dihitung otomatis.
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <>
+          <DayStrip days={days} base={base} sessions={sessions} plans={plans} />
+
           {todayPlan && !todayIsRest && todaySessions.length === 0 && (
             <div className="card">
               <div className="card-title">
@@ -170,7 +312,18 @@ export default function Today() {
               </div>
             </div>
           )}
+        </>
+      )}
 
+      <div className="row spread">
+        <div className="card-title" style={{ marginTop: 6 }}>Sesi</div>
+        <button className="btn sm ghost" onClick={() => setShowPlan(true)}>Kelola jadwal</button>
+      </div>
+
+      {!ready ? (
+        <div className="empty">Memuat…</div>
+      ) : (
+        <>
           {todaySessions.length > 0 && (
             <div className="card">
               <div className="card-title">Sesi hari ini</div>
@@ -190,19 +343,39 @@ export default function Today() {
             </div>
           )}
 
-          {!todayIsRest && (
+          {showStart && (
             <button className="btn primary wide" onClick={handleStart}>
-              {activeSession
-                ? 'Lanjutkan sesi hari ini'
-                : todayPlan
-                  ? 'Mulai sesi hari ini'
-                  : 'Atur jadwal & mulai'}
+              {startLabel}
             </button>
           )}
         </>
       )}
 
       {showPlan && <PlanEditor onClose={() => setShowPlan(false)} />}
+
+      {showPick && (
+        <Modal onClose={() => setShowPick(false)} label="Pilih plan">
+          <h3>Pilih plan untuk hari ini</h3>
+          {pickOptions.length === 0 ? (
+            <div className="small muted">Belum ada plan. Atur lewat "Kelola jadwal" dulu.</div>
+          ) : (
+            pickOptions.map((o) => (
+              <button
+                key={o.key}
+                className={'opt' + (o.suggested ? ' suggested' : '')}
+                onClick={() => { setShowPick(false); void createAndOpen(o.plan, o.name) }}
+              >
+                {o.name}{o.suggested && <span className="tag">saran</span>}
+                <span className="sub">{o.sub}</span>
+              </button>
+            ))
+          )}
+          <div className="divider" />
+          <button className="opt" onClick={() => { setShowPick(false); void createAndOpen(undefined, 'Sesi bebas') }}>
+            Sesi bebas<span className="sub">Tanpa plan — isi manual</span>
+          </button>
+        </Modal>
+      )}
 
       {showInstallGuide && (
         <Modal onClose={() => setShowInstallGuide(false)} label="Cara pasang aplikasi di iPhone">
@@ -232,4 +405,3 @@ export default function Today() {
     </div>
   )
 }
-

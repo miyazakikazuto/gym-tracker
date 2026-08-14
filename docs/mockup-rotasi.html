@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — Mode Rotasi · Gym Tracker</title>
+<style>
+  :root {
+    --bg: #0f0f14; --bg2: #17171f; --card: #1d1d27; --card2: #252533;
+    --border: #2e2e3d; --text: #f2f2f7; --muted: #9a9ab0;
+    --accent: #a78bfa; --accent2: #6366f1; --ok: #34d399;
+    --warn: #fbbf24; --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 36px 16px 60px;
+  }
+  .head-title { font-size: 24px; font-weight: 900; margin: 0 0 6px; }
+  .head-sub { color: var(--muted); font-size: 14px; max-width: 640px; margin: 0 0 28px; line-height: 1.5; }
+  .section { margin-bottom: 56px; }
+  .section-title { font-size: 18px; font-weight: 900; color: var(--accent); margin: 0 0 4px; letter-spacing: .4px; }
+  .section-note { color: var(--muted); font-size: 13px; max-width: 620px; margin: 0 0 18px; line-height: 1.55; }
+  .phones { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .phone {
+    width: 345px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 30px; padding: 14px 12px 12px;
+    box-shadow: 0 14px 44px rgba(0,0,0,.55);
+  }
+  .phone-label { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; letter-spacing: .3px; }
+  .screen { background: var(--bg); border-radius: 20px; overflow: hidden; border: 1px solid #23232f; }
+
+  /* ===== app styles (mirror index.css) ===== */
+  .app { padding: 14px 12px 20px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .spread { justify-content: space-between; }
+  .wrap { flex-wrap: wrap; }
+  .grow { flex: 1; }
+  .page-title { font-size: 19px; font-weight: 800; margin: 0; }
+  .subtitle { color: var(--muted); font-size: 11.5px; margin: 2px 0 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 13px; margin-bottom: 11px; }
+  .card-title { font-weight: 700; font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; justify-content: space-between; }
+  .muted { color: var(--muted); }
+  .small { font-size: 11.5px; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700; background: var(--card2); color: var(--muted);
+  }
+  .badge.accent { background: rgba(167,139,250,.15); color: var(--accent); }
+  .badge.ok { background: rgba(52,211,153,.15); color: var(--ok); }
+  .badge.warn { background: rgba(251,191,36,.15); color: var(--warn); }
+  .btn {
+    border: none; border-radius: 12px; padding: 11px 14px; font-size: 14px;
+    font-weight: 700; cursor: pointer; color: var(--text); background: var(--card2);
+  }
+  .btn.primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); width: 100%; }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); }
+  .btn.sm { padding: 7px 11px; font-size: 12.5px; }
+  .btn.wide { width: 100%; display: block; text-align: center; }
+  .suggest { background: linear-gradient(160deg, rgba(99,102,241,.16), rgba(167,139,250,.10)), var(--card); border: 1px solid rgba(167,139,250,.45); }
+  .suggest-big { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .suggest-big .dot { width: 14px; height: 14px; border-radius: 50%; background: #6699ff; flex: none; }
+  .suggest-big .name { font-size: 22px; font-weight: 900; }
+  .suggest-meta { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .ex-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; }
+  .ex-row .num { color: var(--muted); font-size: 12px; font-weight: 700; width: 20px; }
+  .ex-row .sets { color: var(--muted); font-size: 12px; }
+  .flow { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 2px 0; }
+  .flow .chip {
+    flex: 0 0 auto; background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 800; color: var(--muted);
+  }
+  .flow .chip.done { opacity: .5; text-decoration: line-through; }
+  .flow .chip.next { background: var(--accent); border-color: var(--accent); color: #1a1230; }
+  .flow .arr { color: var(--muted); font-size: 12px; flex: none; }
+  .stat-row { display: flex; gap: 8px; margin-bottom: 11px; }
+  .stat { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px; text-align: center; }
+  .stat .v { font-size: 18px; font-weight: 900; }
+  .stat .l { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .action-row { display: grid; gap: 8px; }
+  .day-chip {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 8px 10px; text-align: center; cursor: pointer; flex: 1 1 0; min-width: 0;
+  }
+  .day-chip .dow { font-size: 10px; font-weight: 700; }
+  .day-chip .dnum { font-size: 15px; font-weight: 800; }
+  .day-chip.active { background: var(--accent); border-color: var(--accent); color: #1a1230; }
+  .day-strip { display: flex; gap: 6px; margin-bottom: 12px; }
+  .divider { height: 1px; background: var(--border); margin: 12px 0; }
+  .bottom-nav {
+    background: var(--bg2); border-top: 1px solid var(--border);
+    display: flex; justify-content: space-around; padding: 7px 4px 10px;
+  }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; color: var(--muted); }
+  .nav-item.active { color: var(--accent); background: rgba(167,139,250,.12); }
+  .nav-item .ic { width: 18px; height: 18px; border-radius: 5px; background: currentColor; opacity: .35; }
+
+  /* modal sheet */
+  .overlay { background: rgba(0,0,0,.55); border-radius: 20px; position: relative; }
+  .sheet {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px 16px 0 0;
+    padding: 16px 14px 18px;
+  }
+  .sheet h3 { margin: 0 0 12px; font-size: 16px; }
+  .opt {
+    display: block; width: 100%; text-align: left; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+    padding: 11px 13px; font-size: 13.5px; font-weight: 700; margin-bottom: 8px; cursor: pointer;
+  }
+  .opt.suggested { border-color: var(--accent); background: rgba(167,139,250,.12); }
+  .opt .tag { float: right; font-size: 10.5px; color: var(--accent); font-weight: 800; }
+  .opt .sub { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  .opt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .opt-row .lbl { font-size: 13.5px; font-weight: 700; flex: 1; }
+  .opt-row .ctrl { display: flex; gap: 6px; align-items: center; }
+  .ctrl .chipb {
+    border: 1px solid var(--border); background: var(--card2); color: var(--muted);
+    border-radius: 9px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .ctrl .chipb.on { background: var(--accent); border-color: var(--accent); color: #1a1230; }
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .stepper .b { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-weight: 800; cursor: pointer; }
+  .stepper .val { font-size: 15px; font-weight: 800; min-width: 22px; text-align: center; }
+  .rotate-item {
+    display: flex; align-items: center; gap: 8px; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .rotate-item .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .rotate-item .name { font-weight: 700; font-size: 13.5px; flex: 1; }
+  .rotate-item .mv { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--card2); color: var(--muted); font-weight: 800; cursor: pointer; }
+  .annot {
+    border: 1px dashed var(--warn); background: rgba(251,191,36,.06);
+    border-radius: 10px; padding: 9px 11px; font-size: 12px; color: var(--warn);
+    margin-top: 10px; line-height: 1.5;
+  }
+  .annot b { color: var(--text); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; font-size: 12.5px; color: var(--muted); }
+  .legend .k { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: -1px; margin-right: 5px; }
+</style>
+</head>
+<body>
+
+<div class="head-title">Mockup — Mode Rotasi Split (Saran Harian)</div>
+<div class="head-sub">
+  Usulan fitur untuk kamu yang kerja <b>3 shift</b>: jadwal tidak lagi terikat hari kalender,
+  tapi mengikuti <b>urutan rotasi</b> (Leg → Push → Pull → …) dan <b>sesi terakhir yang selesai</b>.
+  Halaman Hari Ini menyarankan latihan berikutnya + frekuensi 7 hari berjalan.
+</div>
+
+<div class="legend">
+  <span><span class="k" style="background:#a78bfa"></span>Elemen baru / diubah</span>
+  <span><span class="k" style="background:#fbbf24"></span>Catatan desain</span>
+</div>
+
+<!-- ============ VIEW 1 ============ -->
+<div class="section">
+  <div class="section-title">1 · Halaman "Hari Ini" — Mode Rotasi</div>
+  <div class="section-note">
+    DayStrip mingguan diganti <b>strip rotasi</b>. Kartu <b>"Saran Hari Ini"</b> dihitung dari sesi
+    selesai terakhir (bukan hari kalender). Statistik frekuensi 7 hari berjalan menggantikan konsep "minggu kalender".
+  </div>
+  <div class="phones">
+    <div class="phone">
+      <div class="phone-label">HARI INI · MODE ROTASI</div>
+      <div class="screen">
+        <div class="app">
+          <div class="row spread">
+            <div>
+              <div class="page-title">Gym Tracker</div>
+              <div class="subtitle" style="margin-bottom:0">Hari ini · username</div>
+            </div>
+            <button class="btn sm ghost">Pasang</button>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="stat-row">
+            <div class="stat"><div class="v">2<span style="font-size:12px;color:var(--muted)">/4</span></div><div class="l">Sesi · 7 hari</div></div>
+            <div class="stat"><div class="v">2<span style="font-size:12px;color:var(--muted)"> hr</span></div><div class="l">Sejak latihan</div></div>
+            <div class="stat"><div class="v">✓</div><div class="l">Rest ok</div></div>
+          </div>
+
+          <div class="card suggest">
+            <div class="card-title">
+              <span style="color:var(--accent)">Saran Hari Ini</span>
+              <span class="badge warn">shift: siang</span>
+            </div>
+            <div class="suggest-big">
+              <span class="dot"></span>
+              <span class="name">PUSH</span>
+            </div>
+            <div class="suggest-meta">Latihan terakhir: <b style="color:var(--text)">LEG</b> · 2 hari lalu · urutan berikutnya dalam rotasi</div>
+            <div class="ex-row"><span class="num">1.</span><span class="grow">Bench Press</span><span class="sets">3 × 5</span></div>
+            <div class="ex-row"><span class="num">2.</span><span class="grow">Incline Dumbbell Press</span><span class="sets">3 × 8</span></div>
+            <div class="ex-row"><span class="num">3.</span><span class="grow">Overhead Press</span><span class="sets">3 × 8</span></div>
+            <div class="ex-row"><span class="num">4.</span><span class="grow">Triceps Pushdown</span><span class="sets">3 × 10</span></div>
+            <div style="height:8px"></div>
+            <div class="action-row">
+              <button class="btn primary">Mulai PUSH</button>
+              <button class="btn ghost">Pilih plan lain</button>
+              <button class="btn ghost">Istirahat hari ini</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Rotasi <span class="badge accent">auto</span></div>
+            <div class="flow">
+              <span class="chip done">LEG</span><span class="arr">→</span>
+              <span class="chip next">PUSH</span><span class="arr">→</span>
+              <span class="chip">PULL</span><span class="arr">→</span>
+              <span class="chip">EASY</span>
+            </div>
+            <div class="small muted" style="margin-top:8px">Urutan & target bisa diubah di Pengaturan.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Sesi hari ini</div>
+            <div class="small muted">Belum ada sesi hari ini.</div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><span class="ic"></span>Hari Ini</div>
+          <div class="nav-item"><span class="ic"></span>Riwayat</div>
+          <div class="nav-item"><span class="ic"></span>Progress</div>
+          <div class="nav-item"><span class="ic"></span>Berat</div>
+          <div class="nav-item"><span class="ic"></span>Gerakan</div>
+          <div class="nav-item"><span class="ic"></span>Pengaturan</div>
+        </div>
+      </div>
+      <div class="annot">
+        <b>Saran dihitung:</b> cari sesi <u>selesai terakhir</u> → key plan-nya → ambil item berikutnya
+        dalam urutan rotasi. Bukan dari hari Senin/Selasa.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VIEW 2 ============ -->
+<div class="section">
+  <div class="section-title">2 · Modal "Pilih plan lain"</div>
+  <div class="section-note">
+    Tetap fleksibel saat shift berubah: saran bisa ditimpa untuk hari ini tanpa mengubah urutan rotasi.
+    "Sesi bebas" tetap tersedia.
+  </div>
+  <div class="phones">
+    <div class="phone">
+      <div class="phone-label">MODAL · PILIH PLAN</div>
+      <div class="screen">
+        <div class="app" style="padding-bottom:0">
+          <div class="overlay" style="min-height:150px">
+            <div style="padding:10px 8px">
+              <div class="small muted center" style="padding:18px 0;font-size:11.5px">(layar belakang meredup)</div>
+            </div>
+            <div class="sheet">
+              <h3>Pilih plan untuk hari ini</h3>
+              <button class="opt suggested">PUSH <span class="tag">saran</span><span class="sub">Urutan rotasi · 3 × 5–10</span></button>
+              <button class="opt">LEG <span class="sub">Kaki — kalau shift besok ringan</span></button>
+              <button class="opt">PULL <span class="sub">Punggung & bisep</span></button>
+              <button class="opt">EASY <span class="sub">Ringan — recovery</span></button>
+              <div class="divider"></div>
+              <button class="opt">Sesi bebas <span class="sub">Tanpa plan — isi manual</span></button>
+              <div class="small muted" style="font-size:11px;margin-top:4px">
+                Pilihan ini hanya berlaku hari ini — urutan rotasi tidak berubah.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">
+        <b>Kenapa penting:</b> malam → latihan bisa digeser ke <b>EASY</b> atau <b>LEG</b> ringan tanpa
+        merusak ritme rotasi. Tidak ada konsep "tertinggal" seperti jadwal mingguan.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VIEW 3 ============ -->
+<div class="section">
+  <div class="section-title">3 · Pengaturan — Mode &amp; Rotasi</div>
+  <div class="section-note">
+    Mode "Mingguan" (lama) tetap tersedia — data tidak dihapus. Di mode Rotasi: atur urutan,
+    target frekuensi 7 hari, dan opsional mode shift (malam → saran lebih ringan).
+  </div>
+  <div class="phones">
+    <div class="phone">
+      <div class="phone-label">PENGATURAN · MODE ROTASI</div>
+      <div class="screen">
+        <div class="app">
+          <div class="page-title" style="font-size:17px">Pengaturan</div>
+          <div class="subtitle">Akun, backup &amp; data</div>
+
+          <div class="card">
+            <div class="card-title">Mode jadwal</div>
+            <div class="row" style="gap:6px">
+              <button class="btn sm ghost" style="flex:1">Mingguan</button>
+              <button class="btn sm primary" style="flex:1">Rotasi</button>
+            </div>
+            <div class="small muted" style="margin-top:8px">
+              Mingguan = jadwal tetap per hari (Senin Push, dst). Rotasi = saran mengikuti urutan &amp; sesi terakhir.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Urutan rotasi <span class="badge accent">auto</span></div>
+            <div class="rotate-item"><span class="dot" style="background:#44cc88"></span><span class="name">LEG</span><button class="mv">↑</button><button class="mv">↓</button></div>
+            <div class="rotate-item"><span class="dot" style="background:#6699ff"></span><span class="name">PUSH</span><button class="mv">↑</button><button class="mv">↓</button></div>
+            <div class="rotate-item"><span class="dot" style="background:#aa77ff"></span><span class="name">PULL</span><button class="mv">↑</button><button class="mv">↓</button></div>
+            <div class="rotate-item"><span class="dot" style="background:#7ee787"></span><span class="name">EASY</span><button class="mv">↑</button><button class="mv">↓</button></div>
+            <div class="small muted" style="margin-top:6px">Saran = item setelah sesi terakhir yang selesai.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Target frekuensi</div>
+            <div class="opt-row">
+              <span class="lbl">Sesi per 7 hari</span>
+              <span class="stepper"><button class="b">−</button><span class="val">4</span><button class="b">+</button></span>
+            </div>
+            <div class="small muted">Dihitung berjalan (rolling), bukan minggu kalender — cocok untuk jadwal shift.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Shift kerja <span class="badge warn">opsional</span></div>
+            <div class="row" style="gap:6px;margin-bottom:8px">
+              <button class="chipb on">Pagi</button>
+              <button class="chipb">Siang</button>
+              <button class="chipb">Malam</button>
+            </div>
+            <div class="small muted">
+              Saat memilih <b>Malam</b>: saran otomatis <b>EASY</b> (ringan) karena recovery menurun.
+              Tetap bisa ditimpa manual.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">
+        <b>Catatan:</b> mode Mingguan &amp; Rotasi bisa dipakai bergantian. Data jadwal mingguan lama
+        tetap tersimpan — tidak ada yang dihapus.
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

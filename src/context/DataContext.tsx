@@ -11,24 +11,28 @@ import {
   subscribePlans,
   subscribeSessions,
   subscribeBodyweights,
+  subscribeSettings,
+  updateSettings,
   upsertBodyweight,
   deleteBodyweight,
   patchExerciseCategory,
 } from '../lib/gymstore'
 import { categoryOfExercise } from '../lib/helpers'
-import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
+import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
 
 interface DataState {
   exercises: Exercise[]
   plans: WorkoutPlan[]
   sessions: Session[]
   bodyweights: Bodyweight[]
+  settings: Partial<UserSettings>
   ready: boolean
   setExercises: React.Dispatch<React.SetStateAction<Exercise[]>>
   setPlans: React.Dispatch<React.SetStateAction<WorkoutPlan[]>>
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
   saveBodyweight: (date: string, kg: number) => Promise<void>
   removeBodyweight: (date: string) => void
+  saveSettings: (patch: Partial<UserSettings>) => void
 }
 
 const DataContext = createContext<DataState | null>(null)
@@ -40,6 +44,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [plans, setPlans] = useState<WorkoutPlan[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
   const [bodyweights, setBodyweights] = useState<Bodyweight[]>([])
+  const [settings, setSettings] = useState<Partial<UserSettings>>({})
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -50,6 +55,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       subscribePlans(uid, setPlans),
       subscribeSessions(uid, setSessions),
       subscribeBodyweights(uid, setBodyweights),
+      subscribeSettings(uid, setSettings),
     ]
     const t = setTimeout(() => setReady(true), 800)
     return () => {
@@ -81,6 +87,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     deleteBodyweight(uid, date).catch(() => undefined)
   }
 
+  const saveSettings = (patch: Partial<UserSettings>) => {
+    if (!uid) return
+    updateSettings(uid, patch).catch(() => undefined)
+  }
+
   return (
     <DataContext.Provider
       value={{
@@ -88,12 +99,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         plans,
         sessions,
         bodyweights,
+        settings,
         ready,
         setExercises,
         setPlans,
         setSessions,
         saveBodyweight,
         removeBodyweight,
+        saveSettings,
       }}
     >
       {children}

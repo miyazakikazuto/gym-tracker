@@ -64,6 +64,14 @@ export interface Bodyweight {
   kg: number
 }
 
+// Pengaturan user — disimpan di users/{uid}/settings/prefs
+export interface UserSettings {
+  rotationMode: boolean // true = saran rotasi (default), false = jadwal mingguan
+  rotation: string[] // urutan rotasi — key preset (default: leg → easy → push → pull)
+  weeklyTarget: number // target sesi per 7 hari berjalan
+  shift: 'pagi' | 'siang' | 'malam' | null
+}
+
 export const MUSCLE_GROUPS = [
   'Dada',
   'Punggung',
