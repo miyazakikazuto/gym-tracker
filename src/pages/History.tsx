@@ -38,6 +38,7 @@ export default function History() {
   const [viewYear, setViewYear] = useState(t.getUTCFullYear())
   const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
   const [expanded, setExpanded] = useState(true)
+  const [showShift, setShowShift] = useState(true)
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
@@ -99,9 +100,19 @@ export default function History() {
           <b>{MONTHS[viewMonth]} {viewYear}</b>
           <button onClick={() => shift(1)}>›</button>
         </div>
-        <div className="cal-toggle">
-          <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Ringkas</button>
-          <button className={expanded ? 'active' : ''} onClick={() => setExpanded(true)}>Detail</button>
+        <div className="cal-tools">
+          <button
+            className={'cal-shift-toggle' + (showShift ? ' on' : '')}
+            onClick={() => setShowShift((v) => !v)}
+            aria-pressed={showShift}
+          >
+            <span className="chip-dot" style={{ background: showShift ? 'var(--accent)' : 'var(--muted)' }} />
+            Shift {showShift ? 'On' : 'Off'}
+          </button>
+          <div className="cal-toggle">
+            <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Ringkas</button>
+            <button className={expanded ? 'active' : ''} onClick={() => setExpanded(true)}>Detail</button>
+          </div>
         </div>
         <div className={'cal-grid' + (expanded ? ' detail' : '')}>
           {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((d, i) => (
@@ -135,7 +146,7 @@ export default function History() {
                 }}
               >
                 <span className="cal-day">{Number(key.slice(8, 10))}</span>
-                <span className="cal-shift" style={{ color: SHIFT_COLORS[sh] }}>{SHIFT_LABELS[sh][0]}</span>
+                {showShift && <span className="cal-shift" style={{ color: SHIFT_COLORS[sh] }}>{SHIFT_LABELS[sh][0]}</span>}
                 {expanded && has && (
                   <>
                     {labels.slice(0, 3).map((l, j) => (
@@ -155,23 +166,27 @@ export default function History() {
             )
           })}
         </div>
-        <div className="cal-legend">
-          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.pagi }} />Pagi</span>
-          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.sore }} />Sore</span>
-          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.malam }} />Malam</span>
-          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.libur }} />Libur</span>
-        </div>
-        <div className="small muted" style={{ margin: '10px 0 4px' }}>Rekap {MONTHS[viewMonth]} {viewYear}:</div>
-        <div className="row wrap" style={{ gap: 6, marginBottom: 4 }}>
-          {SHIFT_TYPES.map((sh) => {
-            const n = cells.filter((k) => k && shiftForDate(k, settings) === sh).length
-            return (
-              <span key={sh} className="badge" style={{ color: SHIFT_COLORS[sh], background: 'rgba(255,255,255,.07)' }}>
-                <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} /> {SHIFT_LABELS[sh]} {n}
-              </span>
-            )
-          })}
-        </div>
+        {showShift && (
+          <>
+            <div className="cal-legend">
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.pagi }} />Pagi</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.sore }} />Sore</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.malam }} />Malam</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.libur }} />Libur</span>
+            </div>
+            <div className="small muted" style={{ margin: '10px 0 4px' }}>Rekap {MONTHS[viewMonth]} {viewYear}:</div>
+            <div className="row wrap" style={{ gap: 6, marginBottom: 4 }}>
+              {SHIFT_TYPES.map((sh) => {
+                const n = cells.filter((k) => k && shiftForDate(k, settings) === sh).length
+                return (
+                  <span key={sh} className="badge" style={{ color: SHIFT_COLORS[sh], background: 'rgba(255,255,255,.07)' }}>
+                    <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} /> {SHIFT_LABELS[sh]} {n}
+                  </span>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="row spread">

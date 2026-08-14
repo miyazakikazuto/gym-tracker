@@ -298,6 +298,16 @@ body {
 /* calendar */
 .cal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .cal-head button { background: var(--card2); border:none; color: var(--text); border-radius:10px; padding:8px 12px; font-weight:700; cursor:pointer; }
+.cal-tools { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:10px; }
+.cal-tools .cal-toggle { margin:0; }
+.cal-shift-toggle {
+  display:inline-flex; align-items:center; gap:6px;
+  border:1px solid var(--border); background:var(--card2); color:var(--muted);
+  padding:6px 12px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.cal-shift-toggle:hover { border-color: var(--accent); }
+.cal-shift-toggle.on { color: var(--text); border-color: var(--accent); background: rgba(167,139,250,.12); }
 .cal-toggle { display:flex; gap:2px; background:var(--card2); border-radius:10px; padding:3px; margin:0 0 10px auto; width:max-content; }
 .cal-toggle button { border:none; background:transparent; color:var(--muted); padding:6px 12px; border-radius:8px; font-weight:700; cursor:pointer; }
 .cal-toggle button.active { background:var(--accent); color:#1b1230; }
