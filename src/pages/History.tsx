@@ -155,7 +155,7 @@ export default function History() {
                     {labels.length > 3 && <span className="cal-tag extra">+{labels.length - 3}</span>}
                   </>
                 )}
-                {!expanded && has && !isToday && dotColors.length > 0 && (
+                {!expanded && has && dotColors.length > 0 && (
                   <span className="dot">
                     {dotColors.slice(0, 3).map((c, j) => (
                       <span key={j} style={{ background: c }} />
