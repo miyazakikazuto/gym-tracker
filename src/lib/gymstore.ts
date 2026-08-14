@@ -23,11 +23,6 @@ export function userGymRef(uid: string, sub: string) {
 }
 
 // ===== BODYWEIGHT =====
-// profileRef hanya dipakai untuk migrasi sekali jalan dari doc profile versi lama
-export function profileRef(uid: string) {
-  return doc(getDb(), 'users', uid, 'profile', 'main')
-}
-
 export function bodyweightRef(uid: string) {
   return collection(getDb(), 'users', uid, 'bodyweight')
 }

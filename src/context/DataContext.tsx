@@ -5,7 +5,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { getDoc } from 'firebase/firestore'
 import { useAuth } from './AuthContext'
 import {
   subscribeExercises,
@@ -15,10 +14,8 @@ import {
   upsertBodyweight,
   deleteBodyweight,
   patchExerciseCategory,
-  profileRef,
 } from '../lib/gymstore'
 import { categoryOfExercise } from '../lib/helpers'
-import { todayKey } from '../lib/date'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
 interface DataState {
@@ -73,19 +70,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [uid, exercises])
-
-  // Migrasi sekali jalan: profile.bodyweightKg (versi lama) → entri log hari ini
-  useEffect(() => {
-    if (!uid || bodyweights.length > 0) return
-    getDoc(profileRef(uid))
-      .then((d) => {
-        const kg = (d.data() as { bodyweightKg?: number } | undefined)?.bodyweightKg
-        if (kg && kg > 0) {
-          upsertBodyweight(uid, todayKey(), kg).catch(() => undefined)
-        }
-      })
-      .catch(() => undefined)
-  }, [uid, bodyweights.length])
 
   const saveBodyweight = (date: string, kg: number) => {
     if (!uid) return Promise.resolve()
