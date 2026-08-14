@@ -8,6 +8,7 @@ import History from './pages/History'
 import Progress from './pages/Progress'
 import Weight from './pages/Weight'
 import Library from './pages/Library'
+import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/weight" element={<Weight />} />
           <Route path="/library" element={<Library />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Today />} />
         </Route>
       </Routes>
