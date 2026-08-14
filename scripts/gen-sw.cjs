@@ -4,7 +4,8 @@ const fs = require('fs')
 const path = require('path')
 
 const dist = path.join(__dirname, '..', 'dist')
-const base = '/gym-tracker/'
+// Sama dengan vite.config.ts: root di Vercel, sub-path di GitHub Pages.
+const base = process.env.VERCEL ? '/' : '/gym-tracker/'
 
 const files = []
 const scan = (dir, prefix) => {
