@@ -25,6 +25,13 @@ export const SHIFT_LABELS: Record<ShiftType, string> = {
 
 export const SHIFT_TYPES: ShiftType[] = ['pagi', 'sore', 'malam', 'libur']
 
+export const SHIFT_COLORS: Record<ShiftType, string> = {
+  pagi: '#fbbf24', // kuning — pagi
+  sore: '#60a5fa', // biru — sore
+  malam: '#a78bfa', // ungu — malam
+  libur: '#6b7280', // abu — libur
+}
+
 // Shift pada tanggal tertentu menurut siklus (tanpa override)
 export function cycleShiftAt(anchor: string, date: string): ShiftType {
   const diff = Math.round((parseKey(date).getTime() - parseKey(anchor).getTime()) / 86400000)

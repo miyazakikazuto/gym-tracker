@@ -6,6 +6,7 @@ import { parseKey, todayKey, formatDMYWIB } from '../lib/date'
 import { volumeOf } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import Modal from '../components/Modal'
 import { exerciseIsDuration } from '../lib/helpers'
 import { fmtNumber } from '../lib/helpers'
@@ -29,7 +30,7 @@ function monthGrid(year: number, month: number): (string | null)[] {
 }
 
 export default function History() {
-  const { sessions, plans, exercises } = useData()
+  const { sessions, plans, exercises, settings } = useData()
   const uid = useUid()
   const navigate = useNavigate()
 
@@ -43,6 +44,7 @@ export default function History() {
   const [visibleCount, setVisibleCount] = useState(30)
 
   const cells = monthGrid(viewYear, viewMonth)
+  const selShift = selKey ? shiftForDate(selKey, settings) : null
 
   function shift(delta: number) {
     let m = viewMonth + delta
@@ -117,6 +119,7 @@ export default function History() {
               text: shortLabelFor(name) || name.toUpperCase().slice(0, 4),
               color: dotColorFor(name) ?? (isRest(name) ? '#ff5c5c' : 'var(--muted)'),
             }))
+            const sh = shiftForDate(key, settings)
             return (
               <div
                 key={i}
@@ -132,6 +135,7 @@ export default function History() {
                 }}
               >
                 <span className="cal-day">{Number(key.slice(8, 10))}</span>
+                <span className="cal-shift" style={{ color: SHIFT_COLORS[sh] }}>{SHIFT_LABELS[sh][0]}</span>
                 {expanded && has && (
                   <>
                     {labels.slice(0, 3).map((l, j) => (
@@ -150,6 +154,12 @@ export default function History() {
               </div>
             )
           })}
+        </div>
+        <div className="cal-legend">
+          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.pagi }} />Pagi</span>
+          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.sore }} />Sore</span>
+          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.malam }} />Malam</span>
+          <span><span className="legend-dot" style={{ background: SHIFT_COLORS.libur }} />Libur</span>
         </div>
       </div>
 
@@ -174,6 +184,12 @@ export default function History() {
       {selKey && (
         <Modal onClose={() => { if (!creating) setSelKey(null) }} label="Sesi">
             <h3>Sesi · {formatDMYWIB(selKey)}</h3>
+
+            {selShift && (
+              <div className="small" style={{ marginBottom: 10 }}>
+                Shift: <b style={{ color: SHIFT_COLORS[selShift] }}>{SHIFT_LABELS[selShift]}</b>
+              </div>
+            )}
 
             {daySessions.length > 0 && (
               <>
