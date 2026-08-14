@@ -30,6 +30,17 @@ Push ke `main` memicu GitHub Actions → build → publish ke GitHub Pages. Past
 
 URL: `https://miyazakikazuto.github.io/gym-tracker/`
 
+### Vercel (tempat uji coba branch)
+
+Project Vercel: `gym-tracker` (akun miyazakikazuto). Hanya dipakai untuk uji coba — branch selain `main` (mis. `freebuff`) otomatis di-deploy ke URL preview Vercel setiap push.
+
+- **`main`** → tidak di-deploy ke Vercel (`ignoreCommand` di `vercel.json` me-skip build, exit 0 = skip)
+- **branch lain** (mis. `freebuff`) → deploy preview otomatis, URL: `https://gym-tracker-git-<branch>-<team>.vercel.app` (cek di dashboard Vercel)
+
+Base path otomatis menyesuaikan platform: `/gym-tracker/` di GitHub Pages, `/` di Vercel (via env `VERCEL=1` saat build).
+
+Alur kerja: kerja & push di `freebuff` untuk uji fitur baru tanpa menyentuh website utama; setelah mantap, merge ke `main`.
+
 ## Firestore Rules
 
 Rules source of truth: `firestore.rules` (di repo ini).
