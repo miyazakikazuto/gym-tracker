@@ -69,7 +69,9 @@ export interface UserSettings {
   rotationMode: boolean // true = saran rotasi (default), false = jadwal mingguan
   rotation: string[] // urutan rotasi — key preset (default: leg → easy → push → pull)
   weeklyTarget: number // target sesi per 7 hari berjalan
-  shift: 'pagi' | 'siang' | 'malam' | null
+  shift: 'pagi' | 'siang' | 'malam' | null // legacy: pilihan shift tetap (dipakai saat siklus belum diatur)
+  shiftAnchor: string // tanggal patokan siklus shift — hari ke-1 blok Pagi (default '2026-08-12')
+  shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur' (timpa manual per hari)
 }
 
 export const MUSCLE_GROUPS = [

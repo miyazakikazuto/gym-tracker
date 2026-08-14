@@ -12,9 +12,11 @@ import {
   suggestKey,
   planForKey,
   freq7,
+  freqByCategory,
   daysSinceLast,
   lastFinishedSession,
 } from '../lib/rotation'
+import { shiftForDate, SHIFT_LABELS, SHIFT_TYPES, shiftAdvice, type ShiftType } from '../lib/shift'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -62,7 +64,7 @@ export default function Today() {
   const { user } = useAuth()
   const uid = useUid()
   const navigate = useNavigate()
-  const { plans, exercises, sessions, settings, ready } = useData()
+  const { plans, exercises, sessions, settings, ready, saveSettings } = useData()
   const [showPlan, setShowPlan] = useState(false)
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
@@ -105,10 +107,12 @@ export default function Today() {
   const rot = rotationOf(settings)
   const last = lastFinishedSession(sessions)
   const lastKey = last ? presetByName(last.planName)?.key : undefined
-  const sug = suggestKey(settings, sessions)
+  const todayShift = shiftForDate(base, settings)
+  const sug = suggestKey(settings, sessions, todayShift)
   const sugPlan = planForKey(plans, sug.key)
   const sugPreset = presetByKey(sug.key)
   const f7 = freq7(sessions, base)
+  const catFreq = freqByCategory(sessions, base)
   const dsl = daysSinceLast(sessions, base)
 
   const todaySessions = sessions.filter((s) => s.date === base)
@@ -130,6 +134,17 @@ export default function Today() {
     }))
 
   const showStart = rotationMode ? !restToday && !todayDone : !todayIsRest
+
+  function setTodayShift(sh: ShiftType) {
+    const cur = settings.shiftOverride?.[base]
+    const next = { ...(settings.shiftOverride ?? {}) }
+    if (cur === sh) {
+      delete next[base]
+    } else {
+      next[base] = sh
+    }
+    saveSettings({ shiftOverride: next })
+  }
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
     : rotationMode
@@ -198,8 +213,42 @@ export default function Today() {
               <div className="l">Sejak latihan</div>
             </div>
             <div className="stat">
-              <div className="v">{rot.shift === 'malam' ? '☾' : '✓'}</div>
-              <div className="l">{rot.shift === 'malam' ? 'Shift malam' : 'Recovery ok'}</div>
+              <div className="v">{SHIFT_LABELS[todayShift]}</div>
+              <div className="l">Shift hari ini</div>
+            </div>
+          </div>
+
+          <div className="row wrap" style={{ gap: 6 }}>
+            {catFreq.length === 0 ? (
+              <span className="small muted">Belum ada sesi minggu ini (Easy tidak dihitung)</span>
+            ) : (
+              catFreq.map((f) => (
+                <span key={f.key} className="badge">
+                  {presetByKey(f.key)?.shortLabel ?? f.key.toUpperCase()} {f.count}×
+                </span>
+              ))
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-title">
+              <span>Shift hari ini</span>
+              <span className="badge warn">{SHIFT_LABELS[todayShift]}</span>
+            </div>
+            <div className="small muted">{shiftAdvice(todayShift)}</div>
+            <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
+              {SHIFT_TYPES.map((sh) => (
+                <button
+                  key={sh}
+                  className={'chipb' + (todayShift === sh ? ' on' : '')}
+                  onClick={() => setTodayShift(sh)}
+                >
+                  {SHIFT_LABELS[sh]}
+                </button>
+              ))}
+            </div>
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Dihitung otomatis dari siklus 3 kerja + 1 libur (Pagi → Siang → Malam). Ketuk untuk menimpa hari ini.
             </div>
           </div>
 
@@ -208,9 +257,9 @@ export default function Today() {
               <span>Saran Hari Ini</span>
               {todayDone ? (
                 <span className="badge" style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>SELESAI ✓</span>
-              ) : rot.shift ? (
-                <span className="badge warn">shift: {rot.shift}</span>
-              ) : null}
+              ) : (
+                <span className="badge warn">shift: {SHIFT_LABELS[todayShift]}</span>
+              )}
             </div>
             {todayDone ? (
               <>

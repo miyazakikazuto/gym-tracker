@@ -2,10 +2,11 @@ import { useRef, useState } from 'react'
 import { updatePassword } from 'firebase/auth'
 import { useAuth, useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { todayKey } from '../lib/date'
+import { todayKey, addDays } from '../lib/date'
 import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
+import { shiftForDate, SHIFT_LABELS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
@@ -29,18 +30,16 @@ const DATA_TYPES = [
 
 type SelKey = (typeof DATA_TYPES)[number]['key']
 
-const SHIFT_OPTIONS = [
-  { key: 'pagi', label: 'Pagi' },
-  { key: 'siang', label: 'Siang' },
-  { key: 'malam', label: 'Malam' },
-] as const
-
 export default function Settings() {
   const uid = useUid()
   const { user } = useAuth()
   const { exercises, plans, sessions, bodyweights, settings, ready, saveSettings } = useData()
   const rot = rotationOf(settings)
   const rotationMode = settings.rotationMode !== false // default: aktif
+  const nextShifts = Array.from({ length: 12 }, (_, i) => {
+    const date = addDays(rot.anchor, i)
+    return { date, sh: shiftForDate(date, settings) }
+  })
   const [state, setState] = useState<'idle' | 'done' | 'error'>('idle')
   const [showPw, setShowPw] = useState(false)
   const [pw1, setPw1] = useState('')
@@ -241,22 +240,34 @@ export default function Settings() {
                 <button className="b" aria-label="Tambah target" onClick={() => saveSettings({ weeklyTarget: Math.min(7, rot.weeklyTarget + 1) })}>+</button>
               </span>
             </div>
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Target sesi latihan sungguhan (Leg/Push/Pull) per 7 hari berjalan — Easy tidak dihitung.
+            </div>
 
             <div className="divider" />
-            <div className="card-title" style={{ marginTop: 4 }}>Shift kerja <span className="badge warn">opsional</span></div>
-            <div className="row wrap" style={{ gap: 6 }}>
-              {SHIFT_OPTIONS.map((s) => (
-                <button
-                  key={s.key}
-                  className={'chipb' + (rot.shift === s.key ? ' on' : '')}
-                  onClick={() => saveSettings({ shift: rot.shift === s.key ? null : s.key })}
-                >
-                  {s.label}
-                </button>
+            <div className="card-title" style={{ marginTop: 4 }}>Shift kerja</div>
+            <div className="small muted" style={{ marginBottom: 8 }}>
+              Shift dihitung otomatis dari siklus <b>3 hari kerja → 1 hari libur</b>, bergilir Pagi → Siang → Malam.
+            </div>
+            <label className="row small" style={{ gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <span className="grow">Tanggal patokan (hari ke-1 Pagi)</span>
+              <input
+                type="date"
+                className="input"
+                style={{ width: 'auto', padding: '6px 8px' }}
+                value={rot.anchor}
+                onChange={(e) => e.target.value && saveSettings({ shiftAnchor: e.target.value })}
+              />
+            </label>
+            <div className="row wrap" style={{ gap: 6, marginBottom: 8 }}>
+              {nextShifts.map(({ date, sh }) => (
+                <span key={date} className={'chipb' + (sh === 'libur' ? ' rest' : '')}>
+                  {date.slice(8, 10)}/{date.slice(5, 7)} {SHIFT_LABELS[sh]}
+                </span>
               ))}
             </div>
-            <div className="small muted" style={{ marginTop: 8 }}>
-              Saat memilih <b>Malam</b>, saran otomatis ringan (Easy). Bisa ditimpa manual di halaman Hari Ini.
+            <div className="small muted">
+              Saat shift <b>Malam</b>, saran otomatis ringan (Easy). Timpa shift hari ini di halaman Hari Ini.
             </div>
           </>
         )}
