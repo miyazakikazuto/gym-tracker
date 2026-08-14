@@ -6,7 +6,7 @@ import { todayKey, addDays } from '../lib/date'
 import { getAuthInstance } from '../lib/firebase'
 import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
-import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_TYPES, alignAnchor } from '../lib/shift'
+import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_TYPES, SHIFT_COLORS, alignAnchor } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
@@ -258,6 +258,7 @@ export default function Settings() {
                   className="chipb"
                   onClick={() => saveSettings({ shiftAnchor: alignAnchor(rot.anchor, todayKey(), sh) })}
                 >
+                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
                   {SHIFT_LABELS[sh]}
                 </button>
               ))}
@@ -278,7 +279,12 @@ export default function Settings() {
             </label>
             <div className="row wrap" style={{ gap: 6, marginBottom: 8 }}>
               {nextShifts.map(({ date, sh }) => (
-                <span key={date} className={'chipb' + (sh === 'libur' ? ' rest' : '')}>
+                <span
+                  key={date}
+                  className={'chipb' + (sh === 'libur' ? ' rest' : '')}
+                  style={sh !== 'libur' ? { color: SHIFT_COLORS[sh] } : undefined}
+                >
+                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
                   {date.slice(8, 10)}/{date.slice(5, 7)} {SHIFT_LABELS[sh]}
                 </span>
               ))}

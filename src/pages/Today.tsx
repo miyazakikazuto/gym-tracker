@@ -16,7 +16,7 @@ import {
   daysSinceLast,
   lastFinishedSession,
 } from '../lib/rotation'
-import { shiftForDate, SHIFT_LABELS, SHIFT_TYPES, shiftAdvice, type ShiftType } from '../lib/shift'
+import { shiftForDate, SHIFT_LABELS, SHIFT_TYPES, SHIFT_COLORS, shiftAdvice, type ShiftType } from '../lib/shift'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -205,7 +205,9 @@ export default function Today() {
         <>
           <div className="stat-row">
             <div className="stat">
-              <div className="v">{f7}<span className="small muted"> / {rot.weeklyTarget}</span></div>
+              <div className="v" style={{ color: f7 >= rot.weeklyTarget ? 'var(--ok)' : 'var(--warn)' }}>
+                {f7}<span className="small muted"> / {rot.weeklyTarget}</span>
+              </div>
               <div className="l">Sesi · 7 hari</div>
             </div>
             <div className="stat">
@@ -213,7 +215,7 @@ export default function Today() {
               <div className="l">Sejak latihan</div>
             </div>
             <div className="stat">
-              <div className="v">{SHIFT_LABELS[todayShift]}</div>
+              <div className="v" style={{ color: SHIFT_COLORS[todayShift] }}>{SHIFT_LABELS[todayShift]}</div>
               <div className="l">Shift hari ini</div>
             </div>
           </div>
@@ -230,11 +232,20 @@ export default function Today() {
             )}
           </div>
 
-          <div className="card">
+          <div className="card shift-card">
             <div className="card-title">
-              <span>Shift hari ini</span>
-              <span className="badge warn">{SHIFT_LABELS[todayShift]}</span>
-              <span className="badge">{settings.shiftOverride?.[base] ? 'ditimpa' : 'otomatis'}</span>
+              <span className="row" style={{ gap: 8 }}>
+                <span className="shift-dot" style={{ background: SHIFT_COLORS[todayShift] }} />
+                <span>Shift hari ini</span>
+              </span>
+              <span className="row" style={{ gap: 6 }}>
+                <span className="badge" style={{ color: SHIFT_COLORS[todayShift], background: 'rgba(255,255,255,.07)' }}>
+                  {SHIFT_LABELS[todayShift]}
+                </span>
+                <span className={'badge ' + (settings.shiftOverride?.[base] ? 'warn' : 'ok')}>
+                  {settings.shiftOverride?.[base] ? 'ditimpa' : 'otomatis'}
+                </span>
+              </span>
             </div>
             <div className="small muted">{shiftAdvice(todayShift)}</div>
             <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
@@ -242,8 +253,10 @@ export default function Today() {
                 <button
                   key={sh}
                   className={'chipb' + (todayShift === sh ? ' on' : '')}
+                  style={todayShift === sh ? { background: SHIFT_COLORS[sh], borderColor: SHIFT_COLORS[sh], color: '#1a1230' } : undefined}
                   onClick={() => setTodayShift(sh)}
                 >
+                  <span className="chip-dot" style={{ background: SHIFT_COLORS[sh] }} />
                   {SHIFT_LABELS[sh]}
                 </button>
               ))}
