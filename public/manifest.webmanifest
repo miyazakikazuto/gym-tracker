@@ -3,15 +3,15 @@
   "short_name": "Gym",
   "description": "Tracker latihan gym — sesi, rencana mingguan, PR, dan progres",
   "lang": "id",
-  "start_url": "/gym-tracker/",
-  "scope": "/gym-tracker/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#0f0f14",
   "background_color": "#0f0f14",
   "icons": [
-    { "src": "/gym-tracker/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/gym-tracker/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/gym-tracker/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
