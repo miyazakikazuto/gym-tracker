@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession } from '../lib/gymstore'
-import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS } from '../lib/templates'
+import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -120,19 +120,21 @@ export default function Today() {
   const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
   const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
 
-  // Semua preset yang sudah dibuat plan-nya (bukan hanya yang ada di rotasi) —
-  // supaya Cardio dll. juga bisa dipilih. Rest Day dikecualikan (ada tombol
-  // "Istirahat hari ini").
+  // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Pull/Push/
+  // Easy/Cardio selalu bisa dipilih walau belum diatur di "Kelola jadwal".
+  // Rest Day dikecualikan (ada tombol "Istirahat hari ini").
+  // Kalau plan belum dibuat, sesi tetap bisa dimulai dari template preset
+  // (gerakan dicocokkan dengan library lewat templatePlan).
   const pickOptions = PLAN_PRESETS
     .filter((p) => p.key !== 'rest')
-    .map((p) => ({ key: p.key, plan: planForKey(plans, p.key) }))
-    .filter((o): o is { key: string; plan: WorkoutPlan } => !!o.plan)
-    .map((o) => ({
-      key: o.key,
-      name: o.plan.name,
-      plan: o.plan,
-      suggested: o.key === sug.key,
-      sub: `${o.plan.items.length} gerakan`,
+    .map((p) => ({
+      key: p.key,
+      name: p.name,
+      plan: planForKey(plans, p.key),
+      suggested: p.key === sug.key,
+      sub: planForKey(plans, p.key)
+        ? `${planForKey(plans, p.key)!.items.length} gerakan`
+        : `${p.exercises.length} gerakan (template)`,
     }))
 
   const showStart = rotationMode ? !restToday && !todayDone : !todayIsRest
@@ -146,6 +148,20 @@ export default function Today() {
       : todayPlan
         ? 'Mulai sesi hari ini'
         : 'Atur jadwal & mulai'
+
+  // Plan virtual dari preset — dipakai saat plan belum dibuat di Kelola jadwal.
+  // Gerakan preset dicocokkan dengan library; yang tidak ada dilewati.
+  function templatePlan(preset: PlanPreset): WorkoutPlan {
+    const items = preset.exercises
+      .map((pe, i) => {
+        const ex = exercises.find((e) => e.name.trim().toLowerCase() === pe.name.trim().toLowerCase())
+        return ex
+          ? { exerciseId: ex.id, order: i, targetSets: 3, reps: 10, restSec: 60 }
+          : null
+      })
+      .filter((it): it is NonNullable<typeof it> => it !== null)
+    return { id: '', name: preset.name, dayOfWeek: -1, items }
+  }
 
   async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string) {
     const payload = buildSession(
@@ -420,7 +436,10 @@ export default function Today() {
               <button
                 key={o.key}
                 className={'opt' + (o.suggested ? ' suggested' : '')}
-                onClick={() => { setShowPick(false); void createAndOpen(o.plan, o.name) }}
+                onClick={() => {
+                  setShowPick(false)
+                  void createAndOpen(o.plan ?? templatePlan(PLAN_PRESETS.find((p) => p.key === o.key)!), o.name)
+                }}
               >
                 {o.name}{o.suggested && <span className="tag">saran</span>}
                 <span className="sub">{o.sub}</span>

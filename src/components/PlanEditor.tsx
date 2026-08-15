@@ -142,21 +142,36 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         <h3>Kelola Jadwal Mingguan</h3>
 
         <div className="day-strip" style={{ marginBottom: 12 }}>
-          {Array.from({ length: 7 }, (_, d) => (
-            <button
-              key={d}
-              className={'day-chip' + (d === selDay ? ' active' : '')}
-              onClick={() => setSelDay(d)}
-              style={{ border: 'none', color: d === selDay ? '#1a1230' : 'inherit' }}
-            >
-              <div className="dow">{DAY_NAMES[d].slice(0, 3)}</div>
-            </button>
-          ))}
+          {Array.from({ length: 7 }, (_, d) => {
+            const hasPlan = plans.some((p) => p.dayOfWeek === d)
+            return (
+              <button
+                key={d}
+                className={'day-chip' + (d === selDay ? ' active' : '')}
+                onClick={() => setSelDay(d)}
+                style={{ border: 'none', color: d === selDay ? '#1a1230' : 'inherit' }}
+              >
+                <div className="dow">{DAY_NAMES[d].slice(0, 3)}</div>
+                {hasPlan ? <div className="plan-label" style={{ color: d === selDay ? '#1a1230' : 'var(--accent)' }}>●</div> : <div className="plan-label" style={{ color: 'transparent' }}>·</div>}
+              </button>
+            )
+          })}
         </div>
 
         <div className="small muted" style={{ marginBottom: 12 }}>
           {plan ? `${DAY_NAMES[selDay]} — jadwal: ${plan.name}` : `${DAY_NAMES[selDay]} — belum ada jadwal (hari istirahat)`}
         </div>
+
+        {plans.length > 0 && (
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Jadwal tersimpan ({plans.length}):{' '}
+            {plans
+              .slice()
+              .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+              .map((p) => DAY_NAMES[p.dayOfWeek])
+              .join(', ')}
+          </div>
+        )}
 
         <div className="field">
           <label>Jenis jadwal</label>
