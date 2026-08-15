@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession } from '../lib/gymstore'
-import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor } from '../lib/templates'
+import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -120,8 +120,12 @@ export default function Today() {
   const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
   const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
 
-  const pickOptions = rot.rotation
-    .map((k) => ({ key: k, plan: planForKey(plans, k) }))
+  // Semua preset yang sudah dibuat plan-nya (bukan hanya yang ada di rotasi) —
+  // supaya Cardio dll. juga bisa dipilih. Rest Day dikecualikan (ada tombol
+  // "Istirahat hari ini").
+  const pickOptions = PLAN_PRESETS
+    .filter((p) => p.key !== 'rest')
+    .map((p) => ({ key: p.key, plan: planForKey(plans, p.key) }))
     .filter((o): o is { key: string; plan: WorkoutPlan } => !!o.plan)
     .map((o) => ({
       key: o.key,
@@ -423,10 +427,6 @@ export default function Today() {
               </button>
             ))
           )}
-          <div className="divider" />
-          <button className="opt" onClick={() => { setShowPick(false); void createAndOpen(undefined, 'Sesi bebas') }}>
-            Sesi bebas<span className="sub">Tanpa plan — isi manual</span>
-          </button>
         </Modal>
       )}
 
