@@ -4,7 +4,7 @@ import { useAuth, useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
-import { buildSession, createSession } from '../lib/gymstore'
+import { buildSession, createSession, deleteSession } from '../lib/gymstore'
 import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
@@ -67,7 +67,6 @@ export default function Today() {
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [showPick, setShowPick] = useState(false)
-  const [restToday, setRestToday] = useState(false)
 
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -112,8 +111,11 @@ export default function Today() {
   const dsl = daysSinceLast(sessions, base)
 
   const todaySessions = sessions.filter((s) => s.date === base)
-  const todayDone = todaySessions.some((s) => s.endedAt !== null)
-  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null)
+  // Istirahat hari ini = ada sesi Rest Day tersimpan (bukan state lokal) —
+  // sehingga muncul juga di kalender Riwayat & bertahan setelah reload.
+  const restToday = todaySessions.some((s) => isRest(s.planName))
+  const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRest(s.planName))
+  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRest(s.planName))
 
   const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
   const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
@@ -174,6 +176,34 @@ export default function Today() {
       void createAndOpen(todayPlan)
     } else {
       setShowPlan(true)
+    }
+  }
+
+  // Simpan sesi Rest Day — tersimpan di Firestore, muncul di kalender Riwayat
+  async function markRestToday() {
+    try {
+      await createSession(uid, {
+        date: base,
+        planId: null,
+        planName: 'Rest Day',
+        note: '',
+        startedAt: Date.now(),
+        endedAt: Date.now(),
+        sets: [],
+      })
+    } catch {
+      showToast('Gagal menyimpan istirahat — cek koneksi internet')
+    }
+  }
+
+  // Batalkan istirahat — hapus sesi Rest Day hari ini
+  async function cancelRestToday() {
+    const rest = todaySessions.find((s) => isRest(s.planName))
+    if (!rest) return
+    try {
+      await deleteSession(uid, rest.id)
+    } catch {
+      showToast('Gagal membatalkan istirahat — cek koneksi internet')
     }
   }
 
@@ -282,14 +312,14 @@ export default function Today() {
                 )}
                 <div style={{ height: 10 }} />
                 {restToday ? (
-                  <button className="btn sm ghost wide" onClick={() => setRestToday(false)}>Batalkan istirahat</button>
+                  <button className="btn sm ghost wide" onClick={() => void cancelRestToday()}>Batalkan istirahat</button>
                 ) : (
                   <div className="action-row">
                     <button className="btn primary" onClick={handleStart}>
                       {sugPlan ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}` : 'Buat plan dulu'}
                     </button>
                     <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
-                    <button className="btn ghost" onClick={() => setRestToday(true)}>Istirahat hari ini</button>
+                    <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat hari ini</button>
                   </div>
                 )}
               </>

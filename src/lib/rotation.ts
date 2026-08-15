@@ -1,5 +1,5 @@
 import { parseKey } from './date'
-import { presetByName, presetByKey } from './templates'
+import { isRest, presetByName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
 
@@ -19,11 +19,17 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
   }
 }
 
-// Sesi yang selesai paling terakhir (tanggal + waktu mulai)
+// Sesi yang selesai paling terakhir (tanggal + waktu mulai).
+// Sesi Rest Day dikecualikan — istirahat bukan latihan, jadi tidak boleh
+// menggeser rotasi atau menghitung ulang "hari sejak latihan".
+function isRestSession(s: Session): boolean {
+  return isRest(s.planName)
+}
+
 export function lastFinishedSession(sessions: Session[]): Session | null {
   let best: Session | null = null
   for (const s of sessions) {
-    if (s.endedAt === null) continue
+    if (s.endedAt === null || isRestSession(s)) continue
     if (!best || s.date > best.date || (s.date === best.date && s.startedAt > best.startedAt)) best = s
   }
   return best
