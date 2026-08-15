@@ -62,7 +62,7 @@ export default function Today() {
   const { user } = useAuth()
   const uid = useUid()
   const navigate = useNavigate()
-  const { plans, exercises, sessions, settings, ready } = useData()
+  const { plans, exercises, sessions, settings, ready, showToast } = useData()
   const [showPlan, setShowPlan] = useState(false)
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
@@ -149,8 +149,12 @@ export default function Today() {
       Date.now(),
     )
     if (name) payload.planName = name
-    const ref = await createSession(uid, payload)
-    navigate(`/session/${ref.id}`)
+    try {
+      const ref = await createSession(uid, payload)
+      navigate(`/session/${ref.id}`)
+    } catch {
+      showToast('Gagal membuat sesi — cek koneksi internet')
+    }
   }
 
   function handleStart() {

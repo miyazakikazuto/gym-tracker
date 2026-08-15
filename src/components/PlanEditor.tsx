@@ -15,7 +15,7 @@ interface Item {
 
 export default function PlanEditor({ onClose }: { onClose: () => void }) {
   const uid = useUid()
-  const { plans, exercises } = useData()
+  const { plans, exercises, showToast } = useData()
 
   const [selDay, setSelDay] = useState<number>(new Date().getDay())
   const plan = plans.find((p) => p.dayOfWeek === selDay)
@@ -116,8 +116,12 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
   async function confirmRemove() {
     if (!plan) return
     setConfirm(null)
-    await deletePlan(uid, plan.id)
-    onClose()
+    try {
+      await deletePlan(uid, plan.id)
+      onClose()
+    } catch {
+      showToast('Gagal menghapus jadwal — cek koneksi internet')
+    }
   }
 
   async function confirmResetAll() {

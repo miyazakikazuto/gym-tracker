@@ -8,7 +8,7 @@ import Modal from '../components/Modal'
 
 export default function Library() {
   const uid = useUid()
-  const { exercises } = useData()
+  const { exercises, showToast } = useData()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Exercise | null>(null)
   const [tab, setTab] = useState<string>('push')
@@ -101,7 +101,16 @@ export default function Library() {
           </div>
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setConfirmDel(null)}>Batal</button>
-            <button className="btn danger" onClick={() => { void deleteExercise(uid, confirmDel.id); setConfirmDel(null) }}>Hapus</button>
+            <button
+              className="btn danger"
+              onClick={() => {
+                const id = confirmDel.id
+                setConfirmDel(null)
+                void deleteExercise(uid, id).catch(() => showToast('Gagal menghapus gerakan — cek koneksi internet'))
+              }}
+            >
+              Hapus
+            </button>
           </div>
         </Modal>
       )}

@@ -20,7 +20,7 @@ export default function Session() {
   const { id } = useParams<{ id: string }>()
   const uid = useUid()
   const navigate = useNavigate()
-  const { sessions, exercises, ready } = useData()
+  const { sessions, exercises, ready, showToast } = useData()
 
   const session = sessions.find((s) => s.id === id)
   const [note, setNote] = useState(session?.note ?? '')
@@ -267,14 +267,24 @@ export default function Session() {
   }
 
   async function finish() {
-    await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
+    try {
+      await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
+    } catch {
+      showToast('Gagal menyelesaikan sesi — cek koneksi internet')
+      return
+    }
     dirtyRef.current = {}
     ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
     navigate('/history')
   }
 
   async function saveDone() {
-    await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
+    try {
+      await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
+    } catch {
+      showToast('Gagal menyimpan — cek koneksi internet')
+      return
+    }
     dirtyRef.current = {}
     ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
     setSyncPending(false)
@@ -282,7 +292,12 @@ export default function Session() {
   }
 
   async function del() {
-    await deleteSession(uid, sid)
+    try {
+      await deleteSession(uid, sid)
+    } catch {
+      showToast('Gagal menghapus sesi — cek koneksi internet')
+      return
+    }
     navigate('/')
   }
 

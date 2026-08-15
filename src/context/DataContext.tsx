@@ -34,6 +34,7 @@ interface DataState {
   saveBodyweight: (date: string, kg: number) => Promise<void>
   removeBodyweight: (date: string) => void
   saveSettings: (patch: Partial<UserSettings>) => void
+  showToast: (msg: string) => void
 }
 
 const DataContext = createContext<DataState | null>(null)
@@ -118,6 +119,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         saveBodyweight,
         removeBodyweight,
         saveSettings,
+        showToast,
       }}
     >
       {children}
