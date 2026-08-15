@@ -1,15 +1,20 @@
+import { Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
+// Halaman pertama (Login & Today) dimuat statis supaya app langsung muncul.
+// Halaman sekunder di-lazy: chunk-nya diunduh hanya saat dibuka (code-splitting),
+// lalu di-cache service worker — initial load lebih ringan.
 import Login from './pages/Login'
 import Today from './pages/Today'
-import Session from './pages/Session'
-import History from './pages/History'
-import Progress from './pages/Progress'
-import Weight from './pages/Weight'
-import Library from './pages/Library'
-import Settings from './pages/Settings'
 import Layout from './components/Layout'
+
+const Session = lazy(() => import('./pages/Session'))
+const History = lazy(() => import('./pages/History'))
+const Progress = lazy(() => import('./pages/Progress'))
+const Weight = lazy(() => import('./pages/Weight'))
+const Library = lazy(() => import('./pages/Library'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function App() {
   const { user, loading } = useAuth()
@@ -28,19 +33,21 @@ function App() {
 
   return (
     <DataProvider>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Today />} />
-          <Route path="/today" element={<Today />} />
-          <Route path="/session/:id" element={<Session />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/progress" element={<Progress />} />
-          <Route path="/weight" element={<Weight />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Today />} />
-        </Route>
-      </Routes>
+      <Suspense fallback={<div className="empty">Memuat…</div>}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Today />} />
+            <Route path="/today" element={<Today />} />
+            <Route path="/session/:id" element={<Session />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/progress" element={<Progress />} />
+            <Route path="/weight" element={<Weight />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Today />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </DataProvider>
   )
 }
