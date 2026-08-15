@@ -1,14 +1,14 @@
 import { Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
-import { DataProvider } from './context/DataContext'
-// Halaman pertama (Login & Today) dimuat statis supaya app langsung muncul.
-// Halaman sekunder di-lazy: chunk-nya diunduh hanya saat dibuka (code-splitting),
-// lalu di-cache service worker — initial load lebih ringan.
+// Login & Layout statis supaya halaman login langsung muncul tanpa firestore.
+// DataProvider di-lazy: firestore SDK hanya diunduh SETELAH login sukses
+// (Login tidak butuh data). Halaman lain juga lazy per-halaman.
 import Login from './pages/Login'
-import Today from './pages/Today'
 import Layout from './components/Layout'
 
+const DataProvider = lazy(() => import('./context/DataContext').then((m) => ({ default: m.DataProvider })))
+const Today = lazy(() => import('./pages/Today'))
 const Session = lazy(() => import('./pages/Session'))
 const History = lazy(() => import('./pages/History'))
 const Progress = lazy(() => import('./pages/Progress'))
@@ -32,8 +32,8 @@ function App() {
   }
 
   return (
-    <DataProvider>
-      <Suspense fallback={<div className="empty">Memuat…</div>}>
+    <Suspense fallback={<div className="empty">Memuat…</div>}>
+      <DataProvider>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Today />} />
@@ -47,8 +47,8 @@ function App() {
             <Route path="*" element={<Today />} />
           </Route>
         </Routes>
-      </Suspense>
-    </DataProvider>
+      </DataProvider>
+    </Suspense>
   )
 }
 

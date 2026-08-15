@@ -1,6 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
 
 export const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyAQk8zcp5pZFGwRXJO7ysjGu1hQL0CziRw',
@@ -13,7 +12,6 @@ export const FIREBASE_CONFIG = {
 
 let app: FirebaseApp | null = null
 let authInstance: Auth | null = null
-let dbInstance: Firestore | null = null
 
 export function getFirebaseApp(): FirebaseApp {
   if (!app) {
@@ -33,7 +31,3 @@ export function getAuthInstance(): Auth {
   return authInstance
 }
 
-export function getDb(): Firestore {
-  if (!dbInstance) dbInstance = getFirestore(getFirebaseApp())
-  return dbInstance
-}

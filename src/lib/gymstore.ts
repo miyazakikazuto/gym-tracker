@@ -10,7 +10,7 @@ import {
   writeBatch,
   type DocumentReference,
 } from 'firebase/firestore'
-import { getDb } from './firebase'
+import { getDb } from './db'
 import { parseKey } from './date'
 import type {
   Exercise,
