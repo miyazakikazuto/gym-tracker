@@ -81,7 +81,7 @@ export default function Layout() {
   const isActive = (t: (typeof TABS)[number]) =>
     location.pathname === t.path ||
     (t.key === 'today' && (location.pathname === '/' || location.pathname.startsWith('/session'))) ||
-    (!('/' === t.path) && location.pathname.startsWith(t.path) && t.path !== '/today')
+    (t.path !== '/today' && location.pathname.startsWith(t.path))
 
   return (
     <>
