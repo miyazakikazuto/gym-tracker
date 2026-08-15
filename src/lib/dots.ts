@@ -1,11 +1,18 @@
-// DOTS asli (Mike Tuchscherer) — versi 2022, koefisien polinomial derajat 4, pria.
-// DOTS = total (kg) × koefisien(bodyweight)
+// DOTS (Mike Tuchscherer / OpenPowerlifting) — koefisien polinomial derajat 4, pria.
+// DOTS = total (kg) × koefisien(bodyweight), koefisien = 500 / D(BW)
+// Koefisien disesuaikan dengan standar publikasi resmi (verifikasi lintas sumber).
+// Catatan: app hanya mendukung koefisien pria — belum ada setting jenis kelamin.
 
-const DOTS_MALE = { a: -0.000001022984, b: 0.0006963339, c: -0.1782608423, d: 22.4434844, e: -281.97485 }
+const DOTS_MALE = { a: -0.000001093, b: 0.0007391293, c: -0.1918759221, d: 24.0900756, e: -307.75076 }
+
+// Rentang valid bodyweight pria — di luar ini dijepret ke batas (polinomial tidak di-fit untuk BW ekstrem)
+const BW_MIN = 40
+const BW_MAX = 210
 
 function dotsCoefficient(bw: number): number {
   const c = DOTS_MALE
-  const denom = c.a * bw ** 4 + c.b * bw ** 3 + c.c * bw ** 2 + c.d * bw + c.e
+  const x = Math.min(BW_MAX, Math.max(BW_MIN, bw))
+  const denom = c.a * x ** 4 + c.b * x ** 3 + c.c * x ** 2 + c.d * x + c.e
   return 500 / denom
 }
 
