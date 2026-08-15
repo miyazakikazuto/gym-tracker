@@ -11,7 +11,7 @@ export const SBD_LIFTS = [
     key: 'bench',
     label: 'Bench Press',
     keyword: 'bench',
-    exclude: ['incline', 'decline', 'dumbbell', 'machine', 'smith', 'floor', 'grip', 'reverse'],
+    exclude: ['incline', 'decline', 'dumbbell', 'machine', 'smith', 'floor', 'grip', 'reverse', 'row'],
   },
   {
     key: 'deadlift',
