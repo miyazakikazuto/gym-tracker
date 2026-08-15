@@ -18,6 +18,7 @@ export default function Progress() {
     const end = addDays(start, 6)
     let vol = 0
     for (const s of sessions) {
+      if (s.endedAt === null) continue
       if (s.date >= start && s.date <= end) vol += volumeOf(s.sets)
     }
     return { start, end, vol }
@@ -28,7 +29,7 @@ export default function Progress() {
     (s) => s.endedAt !== null && weeks.some((w) => s.date >= w.start && s.date <= w.end),
   ).length
   const pageSets = sessions
-    .filter((s) => weeks.some((w) => s.date >= w.start && s.date <= w.end))
+    .filter((s) => s.endedAt !== null && weeks.some((w) => s.date >= w.start && s.date <= w.end))
     .reduce((acc, s) => acc + s.sets.length, 0)
   const pageLabel = (() => {
     const [y1, m1] = weeks[0].start.split('-')
@@ -46,6 +47,7 @@ export default function Progress() {
   const muscleVol = new Map<string, number>()
   for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
   for (const s of sessions) {
+    if (s.endedAt === null) continue
     if (!weeks.some((w) => s.date >= w.start && s.date <= w.end)) continue
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
@@ -59,6 +61,7 @@ export default function Progress() {
   // Ringkasan cardio (semua sesi)
   const cardioMap = new Map<string, { dist: number; dur: number; sesi: Set<string> }>()
   for (const s of sessions) {
+    if (s.endedAt === null) continue
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
       if (!ex || ex.muscleGroup !== 'Cardio') continue
@@ -139,6 +142,7 @@ export default function Progress() {
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
   for (const s of sessions) {
+    if (s.endedAt === null) continue
     for (const set of s.sets) {
       const cur = prMap.get(set.exerciseId) ?? {}
       const durEx = exerciseIsDuration(exercises, set.exerciseId)
@@ -175,6 +179,7 @@ export default function Progress() {
   // Avg RPE per exercise (from sessions with rpes)
   const rpeMap = new Map<string, { sum: number; count: number }>()
   for (const s of sessions) {
+    if (s.endedAt === null) continue
     for (const [exId, rpe] of Object.entries(s.rpes ?? {})) {
       const cur = rpeMap.get(exId) ?? { sum: 0, count: 0 }
       cur.sum += rpe
@@ -516,6 +521,7 @@ function buildTrendMap(
 ): Map<string, number[]> {
   const map = new Map<string, number[]>()
   for (const s of sessions) {
+    if (s.endedAt === null) continue
     const winIdx = weeks.findIndex((win) => s.date >= win.start && s.date <= win.end)
     if (winIdx < 0) continue
     for (const set of s.sets) {

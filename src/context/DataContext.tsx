@@ -14,6 +14,7 @@ import {
   subscribeBodyweights,
   subscribeSettings,
   updateSettings,
+  updateSession,
   upsertBodyweight,
   deleteBodyweight,
   patchExerciseCategory,
@@ -88,6 +89,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [uid, exercises])
+
+  // Auto-close: sesi berjalan yang ditinggalkan (>48 jam) ditandai selesai.
+  // Idempoten & best-effort (sama seperti migrasi kategori): kalau gagal,
+  // ditulis ulang saat load berikutnya. endedAt = startedAt + 90 menit (estimasi
+  // durasi latihan) supaya data yang sudah dikerjakan tetap terhitung di statistik
+  // (DOTS, Progress) — konsisten dengan aturan "hitung sesi selesai saja".
+  useEffect(() => {
+    if (!uid || sessions.length === 0) return
+    const stale = sessions.filter((s) => s.endedAt === null && Date.now() - s.startedAt > 48 * 60 * 60 * 1000)
+    if (stale.length === 0) return
+    for (const s of stale) {
+      updateSession(uid, s.id, { endedAt: s.startedAt + 90 * 60 * 1000 }).catch(() => undefined)
+    }
+  }, [uid, sessions])
 
   const saveBodyweight = (date: string, kg: number) => {
     if (!uid) return Promise.resolve()
