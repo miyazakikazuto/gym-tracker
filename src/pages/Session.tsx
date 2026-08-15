@@ -5,6 +5,8 @@ import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
 import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
+import { e1rm } from '../lib/e1rm'
+import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
@@ -44,7 +46,7 @@ export default function Session() {
       if (s.id === id || s.endedAt === null) continue
       for (const set of s.sets) {
         if (set.weightKg <= 0) continue
-        const e = set.weightKg * (1 + set.reps / 30)
+        const e = e1rm(set.weightKg, set.reps)
         if (e > (map.get(set.exerciseId) ?? 0)) map.set(set.exerciseId, e)
       }
     }
@@ -475,11 +477,6 @@ const SetRow = memo(function SetRow({
   onPatch: (id: string, patch: Partial<SessionSet>) => void
   onRemove: (id: string) => void
 }) {
-  function parseDec(raw: string): number | null {
-    const n = Number(raw.trim().replace(',', '.'))
-    return Number.isFinite(n) ? n : null
-  }
-
   return (
     <div className="set-row">
       <span className="num">{s.setNumber}</span>
@@ -494,7 +491,7 @@ const SetRow = memo(function SetRow({
         value={s.weightKg ? fmtNumber(s.weightKg) : ''}
         placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
         onChange={(e) => {
-          const n = parseDec(e.target.value)
+          const n = parseDecimal(e.target.value)
           if (n !== null) onPatch(s.id, { weightKg: n })
         }}
       />
@@ -519,7 +516,7 @@ const SetRow = memo(function SetRow({
           value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
           placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
           onChange={(e) => {
-            const n = parseDec(e.target.value)
+            const n = parseDecimal(e.target.value)
             if (n !== null) onPatch(s.id, { distanceKm: n })
           }}
         />

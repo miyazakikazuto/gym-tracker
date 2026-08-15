@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useData } from '../context/DataContext'
-import { volumeOf, todayKey, addDays, weekStart } from '../lib/date'
+import { volumeOf, todayKey, addDays, weekStart, MONTHS } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
+import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
+import StatCard from '../components/StatCard'
 import type { Exercise, Session } from '../types'
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
 export default function Progress() {
   const { sessions, exercises } = useData()
@@ -296,7 +296,7 @@ export default function Progress() {
                   : 'Squat + Bench Press + Deadlift'}
               </div>
             </div>
-            <div className="val">~{e1RmStr(sbdTotal)} kg</div>
+            <div className="val">~{e1rmStr(sbdTotal)} kg</div>
           </div>
           {sbdLifts.map((lift) => (
             <div key={lift.key} style={{ marginTop: 8 }}>
@@ -314,10 +314,10 @@ export default function Progress() {
                         <div className="trend-val">
                           <span style={{ fontWeight: 700 }}>{getExerciseName(exercises, t.exId)}</span>
                           <span>
-                            <span className="val" style={{ fontSize: 14 }}>~{e1RmStr(t.lastVal)} kg</span>
+                            <span className="val" style={{ fontSize: 14 }}>~{e1rmStr(t.lastVal)} kg</span>
                             {t.delta !== null && (
                               <span className={'delta ' + (t.delta > 0 ? 'up' : t.delta < 0 ? 'down' : 'flat')}>
-                                {' '}{t.delta > 0 ? '▲ +' + e1RmStr(t.delta) : t.delta < 0 ? '▼ −' + e1RmStr(-t.delta) : '• 0'}
+                                {' '}{t.delta > 0 ? '▲ +' + e1rmStr(t.delta) : t.delta < 0 ? '▼ −' + e1rmStr(-t.delta) : '• 0'}
                               </span>
                             )}
                           </span>
@@ -371,10 +371,10 @@ export default function Progress() {
                     <div className="trend-val">
                       <span style={{ fontWeight: 700 }}>{getExerciseName(exercises, t.exId)}</span>
                       <span>
-                        <span className="val" style={{ fontSize: 14 }}>{t.lastVal > 0 ? '~' + e1RmStr(t.lastVal) + ' kg' : '—'}</span>
+                        <span className="val" style={{ fontSize: 14 }}>{t.lastVal > 0 ? '~' + e1rmStr(t.lastVal) + ' kg' : '—'}</span>
                         {t.delta !== null && (
                           <span className={'delta ' + (t.delta > 0 ? 'up' : t.delta < 0 ? 'down' : 'flat')}>
-                            {' '}{t.delta > 0 ? '▲ +' + e1RmStr(t.delta) : t.delta < 0 ? '▼ −' + e1RmStr(-t.delta) : '• 0'}
+                            {' '}{t.delta > 0 ? '▲ +' + e1rmStr(t.delta) : t.delta < 0 ? '▼ −' + e1rmStr(-t.delta) : '• 0'}
                           </span>
                         )}
                       </span>
@@ -445,7 +445,7 @@ export default function Progress() {
                     {prMode === 'weight' ? fmtNumber(pr.weight) + ' kg'
                       : prMode === 'reps' ? pr.reps + ' rep'
                       : prMode === 'dur' ? pr.durationSec + ' dtk'
-                      : '~' + e1RmKg(pr.weight, pr.reps) + ' kg e1RM'}
+                      : '~' + e1rmKg(pr.weight, pr.reps) + ' kg e1RM'}
                   </div>
                 </div>
               )
@@ -493,18 +493,7 @@ export default function Progress() {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card stat" style={{ flex: 1, minWidth: 100, textAlign: 'center' }}>
-      <div style={{ fontSize: 24, fontWeight: 900 }}>{value}</div>
-      <div className="small muted">{label}</div>
-    </div>
-  )
-}
 
-function e1rmNum(weight: number, reps: number): number {
-  return weight * (1 + reps / 30)
-}
 
 function buildTrendWeeks(today: string): { start: string; end: string }[] {
   return [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
@@ -526,7 +515,7 @@ function buildTrendMap(
     if (winIdx < 0) continue
     for (const set of s.sets) {
       if (set.weightKg > 0 && !exerciseIsDuration(exercises, set.exerciseId)) {
-        const e = e1rmNum(set.weightKg, set.reps)
+        const e = e1rm(set.weightKg, set.reps)
         const arr = map.get(set.exerciseId) ?? new Array(weeks.length).fill(0)
         if (e > arr[winIdx]) arr[winIdx] = e
         map.set(set.exerciseId, arr)
@@ -536,14 +525,6 @@ function buildTrendMap(
   return map
 }
 
-function e1RmStr(val: number): string {
-  const r = Math.round(val * 2) / 2
-  return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1)
-}
-
-function e1RmKg(weight: number, reps: number): string {
-  return e1RmStr(e1rmNum(weight, reps))
-}
 
 function fmtMinutes(sec: number): string {
   const m = Math.round(sec / 60)

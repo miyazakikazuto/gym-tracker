@@ -2,18 +2,14 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
-import { parseKey, todayKey, formatDMYWIB, volumeOf } from '../lib/date'
+import { parseKey, todayKey, formatDMYWIB, MONTHS } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import Modal from '../components/Modal'
-import { exerciseIsDuration, fmtNumber } from '../lib/helpers'
-import type { Session, WorkoutPlan } from '../types'
-
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-]
+import SessionRow from '../components/SessionRow'
+import { exerciseIsDuration } from '../lib/helpers'
+import type { WorkoutPlan } from '../types'
 
 function monthGrid(year: number, month: number): (string | null)[] {
   const first = new Date(Date.UTC(year, month, 1))
@@ -353,24 +349,4 @@ export default function History() {
   )
 }
 
-function SessionRow({ s, onOpen }: { s: Session; onOpen: () => void }) {
-  const vol = volumeOf(s.sets)
-  const topKg = s.sets.reduce((m, x) => Math.max(m, x.weightKg), 0)
-  const km = s.sets.reduce((m, x) => m + (x.distanceKm ?? 0), 0)
-  const name = s.planName || 'Sesi bebas'
-  return (
-    <div className="card" onClick={onOpen} style={{ cursor: 'pointer' }}>
-      <div className="row spread">
-        <b>{name}</b>
-        <span className="small muted">{s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
-      </div>
-      <div className="row" style={{ marginTop: 8, gap: 6 }}>
-        <span className="badge">{s.sets.length} set</span>
-        <span className="badge">{fmtNumber(vol)} kg volume</span>
-        {topKg > 0 && <span className="badge accent">Top {fmtNumber(topKg)} kg</span>}
-        {km > 0 && <span className="badge accent">{fmtNumber(km)} km</span>}
-        {s.note && <span className="small muted">“{s.note.length > 40 ? s.note.slice(0, 40) + '…' : s.note}”</span>}
-      </div>
-    </div>
-  )
-}
+

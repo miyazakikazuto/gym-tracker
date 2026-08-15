@@ -38,10 +38,11 @@ export function weekStart(key: string): string {
   return addDays(key, -dow)
 }
 
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
 export function formatDMYWIB(key: string): string {
   const [y, m, d] = key.split('-')
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-  return `${d} ${months[Number(m) - 1]} ${y}`
+  return `${d} ${MONTHS[Number(m) - 1]} ${y}`
 }
 
 // volume helpers
