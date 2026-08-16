@@ -2,9 +2,9 @@ import { Fragment, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { DAY_NAMES, type WorkoutPlan } from '../types'
+import { DAY_NAMES, type WorkoutPlan, type PlanItem } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
-import { buildSession, createSession, deleteSession } from '../lib/gymstore'
+import { buildSession, createSession, deleteSession, createExercise } from '../lib/gymstore'
 import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
@@ -150,16 +150,28 @@ export default function Today() {
         : 'Atur jadwal & mulai'
 
   // Plan virtual dari preset — dipakai saat plan belum dibuat di Kelola jadwal.
-  // Gerakan preset dicocokkan dengan library; yang tidak ada dilewati.
-  function templatePlan(preset: PlanPreset): WorkoutPlan {
-    const items = preset.exercises
-      .map((pe, i) => {
-        const ex = exercises.find((e) => e.name.trim().toLowerCase() === pe.name.trim().toLowerCase())
-        return ex
-          ? { exerciseId: ex.id, order: i, targetSets: 3, reps: 10, restSec: 60 }
-          : null
-      })
-      .filter((it): it is NonNullable<typeof it> => it !== null)
+  // Gerakan preset dicocokkan dengan library; yang belum ada otomatis dibuat ke
+  // library (supaya nama gerakan selalu bisa di-resolve untuk volume otot & riwayat).
+  async function templatePlan(preset: PlanPreset): Promise<WorkoutPlan> {
+    const items: PlanItem[] = []
+    for (let i = 0; i < preset.exercises.length; i++) {
+      const pe = preset.exercises[i]
+      let ex = exercises.find((e) => e.name.trim().toLowerCase() === pe.name.trim().toLowerCase())
+      if (!ex) {
+        try {
+          const ref = await createExercise(uid, {
+            name: pe.name,
+            muscleGroup: pe.muscleGroup,
+            equipment: pe.equipment,
+            category: preset.key,
+          })
+          ex = { id: ref.id, name: pe.name, muscleGroup: pe.muscleGroup, equipment: pe.equipment, category: preset.key }
+        } catch {
+          continue // gagal offline — lewati gerakan ini (best-effort)
+        }
+      }
+      items.push({ exerciseId: ex.id, order: i, targetSets: 3, reps: 10, restSec: 60 })
+    }
     return { id: '', name: preset.name, dayOfWeek: -1, items }
   }
 
@@ -436,9 +448,11 @@ export default function Today() {
               <button
                 key={o.key}
                 className={'opt' + (o.suggested ? ' suggested' : '')}
-                onClick={() => {
+                onClick={async () => {
                   setShowPick(false)
-                  void createAndOpen(o.plan ?? templatePlan(PLAN_PRESETS.find((p) => p.key === o.key)!), o.name)
+                  const preset = PLAN_PRESETS.find((p) => p.key === o.key)!
+                  const plan = o.plan ?? (await templatePlan(preset))
+                  void createAndOpen(plan, o.name)
                 }}
               >
                 {o.name}{o.suggested && <span className="tag">saran</span>}

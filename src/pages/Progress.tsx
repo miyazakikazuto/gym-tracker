@@ -4,6 +4,7 @@ import { volumeOf, todayKey, addDays, weekStart, MONTHS } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
+import { secondaryFactorsFor } from '../lib/muscles'
 import StatCard from '../components/StatCard'
 import type { Exercise, Session } from '../types'
 
@@ -12,6 +13,8 @@ export default function Progress() {
 
   const today = todayKey()
   const [volPage, setVolPage] = useState(0)
+  // true = volume otot termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3)
+  const [inclSecondary, setInclSecondary] = useState(true)
   const weeks = [3, 2, 1, 0].map((w) => {
     const k = w + volPage * 4
     const start = addDays(weekStart(today), -k * 7)
@@ -52,7 +55,14 @@ export default function Progress() {
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
       if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) continue
-      muscleVol.set(ex.muscleGroup, (muscleVol.get(ex.muscleGroup) ?? 0) + volumeOf([set]))
+      const vol = volumeOf([set])
+      muscleVol.set(ex.muscleGroup, (muscleVol.get(ex.muscleGroup) ?? 0) + vol)
+      if (inclSecondary) {
+        for (const f of secondaryFactorsFor(ex.name)) {
+          if (!MUSCLE_TRACKED.includes(f.group)) continue
+          muscleVol.set(f.group, (muscleVol.get(f.group) ?? 0) + vol * f.factor)
+        }
+      }
     }
   }
   const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
@@ -230,6 +240,12 @@ export default function Progress() {
             <button className={volTab === 'cardio' ? 'active' : ''} onClick={() => setVolTab('cardio')}>Cardio</button>
           </div>
         </div>
+        {volTab === 'muscle' && (
+          <div className="cal-toggle" style={{ marginBottom: 10 }}>
+            <button className={!inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(false)}>Primary only</button>
+            <button className={inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(true)}>Include secondary</button>
+          </div>
+        )}
         {volTab === 'muscle' ? (
         <>
         {muscleList.map(([m, v]) => (
@@ -241,6 +257,11 @@ export default function Progress() {
             <span className="small" style={{ width: 60, textAlign: 'right' }}>{fmtNumber(v)}</span>
           </div>
         ))}
+        {inclSecondary && (
+          <div className="small muted" style={{ marginTop: 8 }}>
+            Termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3 · Squat → Punggung 0.3, Core 0.4).
+          </div>
+        )}
         </>
         ) : (
         <>
