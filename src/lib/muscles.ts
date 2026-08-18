@@ -30,7 +30,7 @@ const TABLE: MuscleMapEntry[] = [
   { patterns: ['chin up', 'chinup', 'chin-up'], secondary: [{ group: 'Bisep', factor: 0.7 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['pull up', 'pullup', 'pull-up'], secondary: [{ group: 'Bisep', factor: 0.5 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['lat pulldown', 'lat pull down', 'lat pull'], secondary: [{ group: 'Bisep', factor: 0.5 }, { group: 'Forearm', factor: 0.2 }] },
-  { patterns: ['hammer curl'], secondary: [{ group: 'Bisep', factor: 0.7 }, { group: 'Forearm', factor: 0.5 }] },
+  { patterns: ['hammer curl'], secondary: [{ group: 'Forearm', factor: 0.5 }] },
   { patterns: ['leg curl'], secondary: [] },
   { patterns: ['bicep curl', 'biceps curl', 'preacher curl', 'curl'], secondary: [{ group: 'Forearm', factor: 0.3 }] },
   { patterns: ['face pull'], secondary: [{ group: 'Punggung', factor: 0.3 }, { group: 'Bisep', factor: 0.1 }] },
