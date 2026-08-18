@@ -18,8 +18,10 @@ import {
   upsertBodyweight,
   deleteBodyweight,
   patchExerciseCategory,
+  createExercise,
 } from '../lib/gymstore'
 import { categoryOfExercise } from '../lib/helpers'
+import { DEFAULT_EXERCISES } from '../lib/defaults'
 import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
 
 interface DataState {
@@ -89,6 +91,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [uid, exercises])
+
+  // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
+  // Idempoten: hanya jalan sekali saat data pertama kali dimuat.
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || seededRef.current) return
+    if (exercises.length > 0 || sessions.length > 0) return
+    seededRef.current = true
+    for (const ex of DEFAULT_EXERCISES) {
+      createExercise(uid, ex).catch(() => undefined)
+    }
+  }, [uid, ready, exercises.length, sessions.length])
 
   // Auto-close: sesi berjalan yang ditinggalkan (>48 jam) ditandai selesai.
   // Idempoten & best-effort (sama seperti migrasi kategori): kalau gagal,
