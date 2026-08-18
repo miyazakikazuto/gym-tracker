@@ -1,7 +1,7 @@
 // Faktor kontribusi otot sekunder per gerakan (berdasarkan pola nama).
 // Volume satu set dibagi ke otot sekunder: volume × faktor (0..1).
 // Pencocokan: nama lowercase, first-match-wins — entri spesifik diletakkan
-// sebelum yang generik (mis. 'hack squat' sebelum 'squat', 'incline' sebelum 'bench press').
+// sebelum yang generik (mis. 'hack squat' sebelum 'squat', 'incline bench' sebelum 'bench press').
 // Otot primer tetap dari muscleGroup gerakan di Library — tabel ini hanya menambah otot sekunder.
 
 export interface SecondaryFactor {
@@ -16,8 +16,11 @@ interface MuscleMapEntry {
 
 const TABLE: MuscleMapEntry[] = [
   // ===== PUSH =====
-  { patterns: ['incline'], secondary: [{ group: 'Bahu', factor: 0.4 }, { group: 'Trisep', factor: 0.4 }] },
+  // Incline spesifik → push exercises (Incline Row/Curl match pattern row/curl di bawah)
+  { patterns: ['incline bench', 'incline dumbbell press', 'incline press'], secondary: [{ group: 'Bahu', factor: 0.4 }, { group: 'Trisep', factor: 0.4 }] },
+  { patterns: ['chest press', 'machine press'], secondary: [{ group: 'Trisep', factor: 0.5 }, { group: 'Bahu', factor: 0.3 }] },
   { patterns: ['bench press', 'flat bench'], secondary: [{ group: 'Trisep', factor: 0.5 }, { group: 'Bahu', factor: 0.3 }] },
+  { patterns: ['cable crossover', 'cable fly'], secondary: [{ group: 'Bahu', factor: 0.1 }, { group: 'Trisep', factor: 0.1 }] },
   { patterns: ['overhead press', 'shoulder press', 'military press', 'ohp'], secondary: [{ group: 'Trisep', factor: 0.5 }, { group: 'Dada', factor: 0.2 }] },
   { patterns: ['front raise'], secondary: [{ group: 'Dada', factor: 0.2 }] },
   { patterns: ['rear delt', 'reverse fly', 'reverse pec'], secondary: [] },
@@ -34,9 +37,9 @@ const TABLE: MuscleMapEntry[] = [
   { patterns: ['leg curl'], secondary: [] },
   { patterns: ['bicep curl', 'biceps curl', 'preacher curl', 'curl'], secondary: [{ group: 'Forearm', factor: 0.3 }] },
   { patterns: ['face pull'], secondary: [{ group: 'Punggung', factor: 0.3 }, { group: 'Bisep', factor: 0.1 }] },
-  { patterns: ['single db row', 'single arm row', 'one arm row', 'db row', 'dumbbell row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
+  { patterns: ['incline dumbbell row', 'incline db row', 'single db row', 'single arm row', 'one arm row', 'db row', 'dumbbell row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['cable row', 'seated row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.1 }] },
-  { patterns: ['barbell row', 'bent over row', 'pendlay row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
+  { patterns: ['barbell row', 'bent over row', 'pendlay row', 't-bar row', 'tbar row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
 
   // ===== LEG =====
   { patterns: ['hack squat'], secondary: [{ group: 'Punggung', factor: 0.1 }, { group: 'Core', factor: 0.2 }] },
