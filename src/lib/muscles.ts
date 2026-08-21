@@ -36,12 +36,14 @@ const TABLE: MuscleMapEntry[] = [
   { patterns: ['hammer curl'], secondary: [{ group: 'Forearm', factor: 0.5 }] },
   { patterns: ['leg curl'], secondary: [] },
   { patterns: ['bicep curl', 'biceps curl', 'preacher curl', 'curl'], secondary: [{ group: 'Forearm', factor: 0.3 }] },
+  { patterns: ['shrugs', 'shrug'], secondary: [{ group: 'Bahu', factor: 0.3 }] },
   { patterns: ['face pull'], secondary: [{ group: 'Punggung', factor: 0.3 }, { group: 'Bisep', factor: 0.1 }] },
-  { patterns: ['incline dumbbell row', 'incline db row', 'single db row', 'single arm row', 'one arm row', 'db row', 'dumbbell row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
+  { patterns: ['incline dumbbell row', 'incline db row', 'incline row', 'single db row', 'single arm row', 'one arm row', 'db row', 'dumbbell row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['cable row', 'seated row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.1 }] },
   { patterns: ['barbell row', 'bent over row', 'pendlay row', 't-bar row', 'tbar row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
 
   // ===== LEG =====
+  { patterns: ['reverse hack squat'], secondary: [{ group: 'Punggung', factor: 0.2 }, { group: 'Core', factor: 0.3 }] },
   { patterns: ['hack squat'], secondary: [{ group: 'Punggung', factor: 0.1 }, { group: 'Core', factor: 0.2 }] },
   { patterns: ['sumo deadlift'], secondary: [{ group: 'Punggung', factor: 0.4 }, { group: 'Core', factor: 0.3 }] },
   { patterns: ['romanian deadlift', 'rdl', 'stiff leg deadlift', 'stiff-legged deadlift'], secondary: [{ group: 'Punggung', factor: 0.4 }, { group: 'Core', factor: 0.3 }] },
