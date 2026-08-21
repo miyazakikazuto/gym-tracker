@@ -8,6 +8,7 @@ import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetRes
 import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
+import { getPrescribedWeights, getScheme } from '../lib/progression'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
 
@@ -22,7 +23,7 @@ export default function Session() {
   const { id } = useParams<{ id: string }>()
   const uid = useUid()
   const navigate = useNavigate()
-  const { sessions, exercises, ready, showToast } = useData()
+  const { sessions, exercises, settings, ready, showToast } = useData()
 
   const session = sessions.find((s) => s.id === id)
   const [note, setNote] = useState(session?.note ?? '')
@@ -188,6 +189,12 @@ export default function Session() {
   const isActive = session.endedAt === null
   const sid = session.id
 
+  // Parse 5/3/1 context dari planName — mis. "[C1-S05] Leg Day — 3×3"
+  const cycleMatch = session.planName.match(/\[C(\d+)-S(\d+)\]/)
+  const planSessionIdx = cycleMatch ? Number(cycleMatch[2]) - 1 : -1
+  const planScheme = planSessionIdx >= 0 ? getScheme(planSessionIdx) : null
+  const planTM = settings.trainingMax
+
   function addSet(exerciseId: string) {
     const dur = exerciseIsDuration(exercises, exerciseId)
     const prev = localSets
@@ -207,6 +214,26 @@ export default function Session() {
       r = dur ? 0 : prev.reps
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
+    } else if (planScheme && planTM) {
+      // 5/3/1: pre-fill dari TM berdasarkan set number
+      const ex = exercises.find((e) => e.id === exerciseId)
+      if (ex) {
+        const liftKey = planSessionIdx === 8 ? 'squat' : planSessionIdx === 9 ? 'bench' : undefined
+        if (liftKey && planTM[liftKey] > 0) {
+          const weights = getPrescribedWeights(planScheme, planTM[liftKey])
+          const prescribed = weights[setNo - 1] ?? weights[weights.length - 1]
+          if (prescribed) { w = prescribed.weight; r = typeof prescribed.reps === 'number' ? prescribed.reps : 0 }
+        }
+      }
+      if (w === 0) {
+        const best = bestSetResult(sessions, sid, exerciseId)
+        if (best) {
+          w = best.weightKg
+          r = dur ? 0 : best.reps
+          d = dur ? best.durationSec ?? 0 : undefined
+          d2 = best.distanceKm
+        }
+      }
     } else {
       const best = bestSetResult(sessions, sid, exerciseId)
       if (best) {

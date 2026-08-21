@@ -8,6 +8,7 @@ import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
 import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
+import { computePosition, getFullLabel, CYCLE_LENGTH } from '../lib/progression'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
@@ -55,6 +56,9 @@ export default function Settings() {
     ses: Session[]
     bws: Bodyweight[]
   } | null>(null)
+  const [tmSquat, setTmSquat] = useState(String(settings.trainingMax?.squat ?? ''))
+  const [tmBench, setTmBench] = useState(String(settings.trainingMax?.bench ?? ''))
+  const [tmDeadlift, setTmDeadlift] = useState(String(settings.trainingMax?.deadlift ?? ''))
   const [sel, setSel] = useState<Record<SelKey, boolean>>({
     exercises: true,
     plans: true,
@@ -62,7 +66,9 @@ export default function Settings() {
     weights: true,
   })
   const [finishedOnly, setFinishedOnly] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const cyclePos = computePosition(sessions)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
 
@@ -276,6 +282,44 @@ export default function Settings() {
         )}
       </div>
 
+      {/* ===== 5/3/1 Training Max ===== */}
+      <div className="card">
+        <div className="card-title">5/3/1 Training Max</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)} — Sesi {cyclePos.sessionIndex + 1}/{CYCLE_LENGTH}
+        </div>
+        <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Squat (kg)</label>
+            <input className="input" type="number" inputMode="decimal" value={tmSquat}
+              onChange={(e) => setTmSquat(e.target.value)}
+              onBlur={() => saveSettings({ trainingMax: { ...(settings.trainingMax ?? { squat: 0, bench: 0, deadlift: 0 }), squat: parseFloat(tmSquat) || 0 } })}
+              placeholder="0"
+            />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Bench (kg)</label>
+            <input className="input" type="number" inputMode="decimal" value={tmBench}
+              onChange={(e) => setTmBench(e.target.value)}
+              onBlur={() => saveSettings({ trainingMax: { ...(settings.trainingMax ?? { squat: 0, bench: 0, deadlift: 0 }), bench: parseFloat(tmBench) || 0 } })}
+              placeholder="0"
+            />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Deadlift (kg)</label>
+            <input className="input" type="number" inputMode="decimal" value={tmDeadlift}
+              onChange={(e) => setTmDeadlift(e.target.value)}
+              onBlur={() => saveSettings({ trainingMax: { ...(settings.trainingMax ?? { squat: 0, bench: 0, deadlift: 0 }), deadlift: parseFloat(tmDeadlift) || 0 } })}
+              placeholder="0"
+            />
+          </div>
+        </div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Training Max = 90% dari 1RM. Weight di sesi 5/3/1 dihitung dari TM ini.
+        </div>
+        <button className="btn sm danger" onClick={() => setConfirmReset(true)}>Reset Cycle</button>
+      </div>
+
       <div className="card">
         <div className="card-title">Akun</div>
         <div className="row" style={{ padding: '4px 0 8px' }}>
@@ -402,6 +446,24 @@ export default function Settings() {
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setPendingImport(null)}>Batal</button>
             <button className="btn danger" onClick={() => void confirmImport()}>Import</button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmReset && (
+        <Modal onClose={() => setConfirmReset(false)} label="Reset Cycle 5/3/1">
+          <h3>Reset Cycle?</h3>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Kembali ke <b>{getFullLabel(1, 0)}</b>. Training Max tidak berubah.
+            <br /><br />
+            Gunakan ini setelah long break atau injury.
+          </div>
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setConfirmReset(false)}>Batal</button>
+            <button className="btn danger" onClick={() => {
+              saveSettings({ cycleNumber: 1, sessionIndex: 0 })
+              setConfirmReset(false)
+            }}>Reset</button>
           </div>
         </Modal>
       )}

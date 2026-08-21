@@ -72,6 +72,15 @@ export interface UserSettings {
   weightTarget: number | null // target berat badan (kg) — null = tanpa target
   weightTargetBase: number | null // berat awal saat target diset (baseline kemajuan)
   shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur' (timpa manual per hari)
+
+  // 5/3/1 Wendler periodization
+  cycleNumber: number // cycle saat ini (1-based)
+  sessionIndex: number // posisi dalam cycle (0-15)
+  trainingMax: {
+    squat: number
+    bench: number
+    deadlift: number
+  }
 }
 
 export const MUSCLE_GROUPS = [

@@ -15,6 +15,7 @@ import {
   lastFinishedSession,
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
+import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession } from '../lib/progression'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -110,6 +111,17 @@ export default function Today() {
   const sugPreset = presetByKey(sug.key)
   const dsl = daysSinceLast(sessions, base)
 
+  // ===== 5/3/1 =====
+  const cyclePos = computePosition(sessions)
+  const cycleScheme = getScheme(cyclePos.sessionIndex)
+  const cycleLabel = getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)
+  const cycleTM = settings.trainingMax
+  const tmForLift = getSbdLiftForSession(cyclePos.sessionIndex)
+  const prescribed = cycleScheme && tmForLift && cycleTM ?
+    getPrescribedWeights(cycleScheme, cycleTM[tmForLift] ?? 0) : []
+  const prescribedSummary = prescribed.length > 0
+    ? prescribed.map((p) => `${p.weight}kg×${p.reps}`).join(' · ') : ''
+
   const todaySessions = sessions.filter((s) => s.date === base)
   // Istirahat hari ini = ada sesi Rest Day tersimpan (bukan state lokal) —
   // sehingga muncul juga di kalender Riwayat & bertahan setelah reload.
@@ -143,7 +155,7 @@ export default function Today() {
     ? 'Lanjutkan sesi hari ini'
     : rotationMode
       ? sugPlan
-        ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}`
+        ? `Mulai ${cycleLabel}`
         : 'Buat plan saran dulu'
       : todayPlan
         ? 'Mulai sesi hari ini'
@@ -201,7 +213,7 @@ export default function Today() {
         setShowPlan(true)
         return
       }
-      void createAndOpen(sugPlan)
+      void createAndOpen(sugPlan, cycleLabel)
       return
     }
     if (todayPlan && !todayIsRest) {
@@ -209,6 +221,12 @@ export default function Today() {
     } else {
       setShowPlan(true)
     }
+  }
+
+  function handleSkip() {
+    // Skip = tidak buka sesi, position tidak naik.
+    // Tidak ada yang perlu disimpan — user kembali ke home, posisi tetap.
+    showToast(`Dilewati — sesi tetap ${cycleLabel}`)
   }
 
   // Simpan sesi Rest Day — tersimpan di Firestore, muncul di kalender Riwayat
@@ -307,7 +325,7 @@ export default function Today() {
                 </div>
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Sesi berikutnya: {presetByKey(sug.key)?.shortLabel ?? sug.key.toUpperCase()} — mulai setelah istirahat cukup.
+                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)} — mulai setelah istirahat cukup.
                 </div>
                 <div style={{ height: 10 }} />
                 <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
@@ -318,6 +336,14 @@ export default function Today() {
                   <span className="dot" style={{ background: sugPlan ? dotColorFor(sugPlan.name) : 'var(--accent)' }} />
                   <span className="name">{sugPreset?.shortLabel ?? sug.key.toUpperCase()}</span>
                 </div>
+                <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
+                  {cycleLabel}
+                </div>
+                {prescribedSummary && (
+                  <div className="small muted" style={{ marginBottom: 4 }}>
+                    {cycleScheme?.label} · {tmForLift && cycleTM ? `${tmForLift.charAt(0).toUpperCase() + tmForLift.slice(1)} TM ${cycleTM[tmForLift]}kg` : ''} · {prescribedSummary}
+                  </div>
+                )}
                 <div className="suggest-meta">
                   {last
                     ? `Latihan terakhir: ${shortLabelFor(last.planName) || last.planName} · ${dsl === 0 ? 'hari ini' : dsl === 1 ? 'kemarin' : dsl + ' hari lalu'}`
@@ -348,10 +374,11 @@ export default function Today() {
                 ) : (
                   <div className="action-row">
                     <button className="btn primary" onClick={handleStart}>
-                      {sugPlan ? `Mulai ${sugPreset?.shortLabel ?? sugPlan.name}` : 'Buat plan dulu'}
+                      {sugPlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
                     </button>
                     <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
-                    <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat hari ini</button>
+                    <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
+                    <button className="btn ghost" onClick={handleSkip}>Skip</button>
                   </div>
                 )}
               </>
