@@ -49,6 +49,8 @@ export default function Weight() {
   const autoSaveTimer = useRef<number | undefined>(undefined)
 
   const today = todayKey()
+  const [logDate, setLogDate] = useState(today)
+  const isToday = logDate === today
 
   // Filter rentang untuk grafik & daftar
   const [range, setRange] = useState<RangeKey>('30')
@@ -105,7 +107,7 @@ export default function Weight() {
       return
     }
     setSaveState('saving')
-    saveBodyweight(todayKey(), kg)
+    saveBodyweight(logDate, kg)
       .then(() => {
         setDotsDirty(false)
         setSaveState('ok')
@@ -119,11 +121,12 @@ export default function Weight() {
       })
   }
 
-  // Sinkron dari log (perangkat lain) — hanya saat user tidak sedang mengetik
+  // Sinkron dari log — saat user tidak mengetik, update input dari data yang sesuai tanggal
   useEffect(() => {
-    if (latestKg == null || dotsDirty) return
-    setDotsBw(String(latestKg))
-  }, [latestKg, dotsDirty])
+    if (dotsDirty) return
+    const existing = sortedBw.find((b) => b.date === logDate)
+    setDotsBw(existing ? String(existing.kg) : '')
+  }, [logDate, sortedBw, dotsDirty])
 
   // Autosave debounce (500ms) — bisa dibatalkan dari doSave (mencegah double-write)
   useEffect(() => {
@@ -132,7 +135,7 @@ export default function Weight() {
     if (kg == null) return
     window.clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = window.setTimeout(() => {
-      saveBodyweight(todayKey(), kg)
+      saveBodyweight(logDate, kg)
         .then(() => setDotsDirty(false))
         .catch(() => undefined)
     }, 500)
@@ -166,7 +169,7 @@ export default function Weight() {
       <div className="page-title">Berat Badan</div>
 
       <div className="card">
-        <div className="card-title">DOTS Score</div>
+        <div className="card-title">Berat Badan</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px' }}>
           <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3v5" />
@@ -179,7 +182,7 @@ export default function Weight() {
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            placeholder="Berat hari ini (kg)"
+            placeholder="Berat (kg)"
             value={dotsBw}
             onChange={(e) => { setDotsBw(e.target.value); setDotsDirty(true) }}
             onBlur={() => { if (dotsDirty) doSave() }}
@@ -189,8 +192,35 @@ export default function Weight() {
           <span style={{ fontWeight: 700, color: 'var(--muted)', fontSize: 15 }}>kg</span>
         </div>
         <div className="row spread wrap" style={{ marginTop: 6, marginBottom: 10, gap: 8 }}>
+          <div className="row" style={{ gap: 6, alignItems: 'center' }}>
+            <input
+              type="date"
+              className="input"
+              value={logDate}
+              max={today}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) {
+                  setLogDate(v)
+                  // Load berat yang sudah ada untuk tanggal ini
+                  const existing = sortedBw.find((b) => b.date === v)
+                  setDotsBw(existing ? String(existing.kg) : '')
+                  setDotsDirty(false)
+                }
+              }}
+              style={{ width: 140, padding: '4px 6px', fontSize: 13 }}
+            />
+            {!isToday && (
+              <button className="btn sm ghost" onClick={() => {
+                setLogDate(today)
+                const existing = sortedBw.find((b) => b.date === today)
+                setDotsBw(existing ? String(existing.kg) : '')
+                setDotsDirty(false)
+              }}>Hari ini</button>
+            )}
+          </div>
           <span className="small muted">
-            Hari ini · {todayKey().slice(8, 10) + '/' + todayKey().slice(5, 7) + '/' + todayKey().slice(0, 4)} · otomatis saat mengetik
+            {isToday ? 'Otomatis saat mengetik' : 'Catat untuk tanggal lalu'}
           </span>
           <div className="row" style={{ gap: 8 }}>
             <button className="btn sm primary" onClick={doSave} disabled={saveState === 'saving'}>Simpan</button>
