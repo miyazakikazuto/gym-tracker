@@ -10,7 +10,7 @@ import { computePosition, get531Sequence, computeExcludedTypes } from '../lib/pr
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
-  const { sessions, exercises } = useData()
+  const { sessions, exercises, settings } = useData()
 
   const today = todayKey()
   const [volPage, setVolPage] = useState(0)
@@ -515,9 +515,8 @@ export default function Progress() {
       <div className="card">
         <div className="card-title">5/3/1 Progress</div>
         {(() => {
-          const { settings } = useData()
           const excluded = computeExcludedTypes(settings)
-          const pos = computePosition(sessions, excluded)
+          const pos = computePosition(sessions, excluded, settings.skippedSessions ?? 0)
           const seq = get531Sequence(excluded)
           const pct = Math.round((pos.sessionIndex / pos.cycleLength) * 100)
           return (

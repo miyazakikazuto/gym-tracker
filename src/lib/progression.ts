@@ -113,8 +113,10 @@ export interface CyclePosition {
 export function computePosition(
   sessions: Session[],
   excluded: Set<string> = new Set(),
+  skippedSessions: number = 0,
 ): CyclePosition {
-  const total = countCompletedSessions(sessions)
+  const completed = countCompletedSessions(sessions)
+  const total = completed + Math.max(0, skippedSessions)
   const cycleLen = dynamicCycleLength(excluded)
   return {
     cycle: Math.floor(total / cycleLen) + 1,

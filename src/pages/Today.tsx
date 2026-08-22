@@ -63,7 +63,7 @@ export default function Today() {
   const { user } = useAuth()
   const uid = useUid()
   const navigate = useNavigate()
-  const { plans, exercises, sessions, settings, ready, showToast } = useData()
+  const { plans, exercises, sessions, settings, ready, showToast, saveSettings } = useData()
   const [showPlan, setShowPlan] = useState(false)
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
@@ -112,7 +112,7 @@ export default function Today() {
   // ===== 5/3/1 =====
   const excludedTypes = computeExcludedTypes(settings)
   const cycleLen = dynamicCycleLength(excludedTypes)
-  const cyclePos = computePosition(sessions, excludedTypes)
+  const cyclePos = computePosition(sessions, excludedTypes, settings.skippedSessions ?? 0)
   const cycleScheme = getScheme(cyclePos.sessionIndex, excludedTypes)
   const cycleLabel = getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)
   const cycleTM = settings.trainingMax
@@ -230,19 +230,10 @@ export default function Today() {
   }
 
   async function handleSkip() {
-    // Skip = simpan sebagai Rest Day, supaya computePosition() tidak naik.
-    // Rest Day sudah di-skip otomatis oleh countCompletedSessions().
+    // Skip = increment counter, posisi maju 1, tidak buat sesi apapun.
     try {
-      await createSession(uid, {
-        date: base,
-        planId: null,
-        planName: 'Rest Day',
-        note: `${effectivePreset?.name ?? effectiveKey} dilewati`,
-        startedAt: Date.now(),
-        endedAt: Date.now(),
-        sets: [],
-      })
-      showToast(`${effectivePreset?.shortLabel ?? effectiveKey} → dianggap istirahat`)
+      await saveSettings({ skippedSessions: (settings.skippedSessions ?? 0) + 1 })
+      showToast(`${effectivePreset?.shortLabel ?? effectiveKey} dilewati → lanjut ke sesi berikutnya`)
     } catch {
       showToast('Gagal skip — cek koneksi internet')
     }
@@ -397,9 +388,7 @@ export default function Today() {
                     </button>
                     <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                     <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
-                    {effectiveKey === 'easy' && (
-                      <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
-                    )}
+                    <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
                   </div>
                 )}
               </>

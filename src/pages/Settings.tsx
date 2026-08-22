@@ -70,7 +70,7 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null)
   const excludedTypes = computeExcludedTypes(settings)
   const cycleLen = dynamicCycleLength(excludedTypes)
-  const cyclePos = computePosition(sessions, excludedTypes)
+  const cyclePos = computePosition(sessions, excludedTypes, settings.skippedSessions ?? 0)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
 
