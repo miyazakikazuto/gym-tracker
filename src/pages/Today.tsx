@@ -229,24 +229,19 @@ export default function Today() {
   }
 
   async function handleSkip() {
-    // Skip = majukan posisi 5/3/1 tanpa buka sesi.
-    // Simpan catatan skip ke Firestore supaya posisi tetap terhitung.
-    if (!is531Active) {
-      showToast('Dilewati')
-      return
-    }
+    // Skip = simpan sebagai Rest Day, supaya computePosition() tidak naik.
+    // Rest Day sudah di-skip otomatis oleh countCompletedSessions().
     try {
       await createSession(uid, {
         date: base,
         planId: null,
-        planName: `Skip — ${effectivePreset?.name ?? effectiveKey}`,
-        note: `Dilewati dari ${cycleLabel}`,
+        planName: 'Rest Day',
+        note: `${effectivePreset?.name ?? effectiveKey} dilewati`,
         startedAt: Date.now(),
         endedAt: Date.now(),
         sets: [],
       })
-      // Refresh — computePosition akan naik 1 karena ada sesi baru (endedAt != null)
-      showToast(`${effectivePreset?.shortLabel ?? effectiveKey} dilewati → sesi berikutnya`)
+      showToast(`${effectivePreset?.shortLabel ?? effectiveKey} → dianggap istirahat`)
     } catch {
       showToast('Gagal skip — cek koneksi internet')
     }
