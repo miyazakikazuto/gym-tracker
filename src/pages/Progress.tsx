@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useData } from '../context/DataContext'
-import { volumeOf, todayKey, addDays, weekStart, MONTHS } from '../lib/date'
+import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
@@ -202,6 +202,38 @@ export default function Progress() {
     .map(([exId, v]) => ({ exId, avg: v.sum / v.count, count: v.count }))
     .sort((a, b) => b.avg - a.avg)
 
+  // ===== Minggu ini: breakdown per grup otot =====
+  const thisWeekStart = weekStart(today)
+  const thisWeekEnd = addDays(thisWeekStart, 6)
+  interface MuscleWeekInfo { sessions: Set<string>; sets: number; vol: number }
+  const thisWeekMuscle = new Map<string, MuscleWeekInfo>()
+  for (const m of MUSCLE_TRACKED) thisWeekMuscle.set(m, { sessions: new Set(), sets: 0, vol: 0 })
+  for (const s of sessions) {
+    if (s.endedAt === null) continue
+    if (s.date < thisWeekStart || s.date > thisWeekEnd) continue
+    for (const set of s.sets) {
+      const ex = exercises.find((e) => e.id === set.exerciseId)
+      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) continue
+      const info = thisWeekMuscle.get(ex.muscleGroup)!
+      info.sessions.add(s.id)
+      info.sets += 1
+      info.vol += volumeOf([set])
+      if (inclSecondary) {
+        for (const f of secondaryFactorsFor(ex.name)) {
+          if (!MUSCLE_TRACKED.includes(f.group)) continue
+          const sec = thisWeekMuscle.get(f.group)!
+          sec.sessions.add(s.id)
+          sec.sets += 1
+          sec.vol += volumeOf([set]) * f.factor
+        }
+      }
+    }
+  }
+  const thisWeekList = Array.from(thisWeekMuscle.entries())
+    .filter(([, v]) => v.sets > 0)
+    .sort((a, b) => b[1].vol - a[1].vol)
+  const maxThisWeekVol = Math.max(...thisWeekList.map(([, v]) => v.vol), 1)
+
   return (
     <div className="page">
       <div className="page-title">Progress</div>
@@ -211,6 +243,37 @@ export default function Progress() {
         <StatCard label="Sesi selesai" value={String(pageSessions)} />
         <StatCard label="Total set" value={String(pageSets)} />
         <StatCard label="Volume total" value={fmtNumber(pageVolume) + ' kg'} />
+      </div>
+
+      {/* ===== Otot Minggu Ini ===== */}
+      <div className="card">
+        <div className="card-title">Otot Minggu Ini</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          {formatDMYWIB(thisWeekStart)} – {formatDMYWIB(thisWeekEnd)}
+        </div>
+        {thisWeekList.length === 0 ? (
+          <div className="small muted">Belum ada sesi latihan minggu ini.</div>
+        ) : (
+          <>
+          {thisWeekList.map(([m, v]) => (
+            <div key={m} className="row" style={{ marginTop: 6, alignItems: 'center' }}>
+              <span className="small" style={{ width: 64, fontWeight: 700 }}>{m}</span>
+              <div className="bar-track grow">
+                <div className="bar-fill" style={{ width: `${(v.vol / maxThisWeekVol) * 100}%` }} />
+              </div>
+              <div className="small muted" style={{ width: 100, textAlign: 'right' }}>
+                {v.sessions.size} sesi · {v.sets} set · {fmtNumber(Math.round(v.vol))} kg
+              </div>
+            </div>
+          ))}
+          <div className="small muted" style={{ marginTop: 8 }}>
+            {thisWeekList.reduce((a, [, v]) => a + v.sessions.size, 0)} sesi ·{' '}
+            {thisWeekList.reduce((a, [, v]) => a + v.sets, 0)} total set ·{' '}
+            {fmtNumber(Math.round(thisWeekList.reduce((a, [, v]) => a + v.vol, 0)))} kg volume
+            {inclSecondary && ' · termasuk secondary'}
+          </div>
+          </>
+        )}
       </div>
 
       <div className="card">
