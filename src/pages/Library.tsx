@@ -1,19 +1,75 @@
 import { useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { createExercise, updateExercise, deleteExercise } from '../lib/gymstore'
-import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, EXERCISE_TYPES, type Exercise } from '../types'
+import { createExercise, updateExercise, deleteExercise, updateSession } from '../lib/gymstore'
+import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, EXERCISE_TYPES, type Exercise, type Session, type WorkoutPlan } from '../types'
 import { categoryOfExercise, categoryKeysOfExercise } from '../lib/helpers'
 import Modal from '../components/Modal'
 
 export default function Library() {
   const uid = useUid()
-  const { exercises, showToast } = useData()
+  const { exercises, sessions, plans, showToast } = useData()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Exercise | null>(null)
   const [tab, setTab] = useState<string>('push')
   const [query, setQuery] = useState('')
   const [confirmDel, setConfirmDel] = useState<Exercise | null>(null)
+  const [showDuplicates, setShowDuplicates] = useState(false)
+
+  // --- Duplicate detection ---
+  function normalizeForDup(name: string): string {
+    return name.toLowerCase().trim()
+      .replace(/^(barbell|dumbbell|cable|machine|bw|bodyweight)\s+/i, '')
+      .replace(/\s*\((barbell|dumbbell|cable|machine)\)$/i, '')
+      .replace(/\bpress\b/g, 'press')
+      .replace(/\bcurls?\b/g, 'curl')
+      .replace(/\brows?\b/g, 'row')
+      .replace(/\bs\b/g, '')
+  }
+
+  function findDuplicates(): Exercise[][] {
+    const groups = new Map<string, Exercise[]>()
+    for (const ex of exercises) {
+      const key = normalizeForDup(ex.name)
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(ex)
+    }
+    return [...groups.values()]
+      .filter((g) => g.length > 1)
+      .sort((a, b) => b.length - a.length)
+  }
+
+  async function mergeDuplicates(
+    keepId: string,
+    deleteIds: string[],
+    allSessions: Session[],
+    allPlans: WorkoutPlan[],
+  ) {
+    for (const exId of deleteIds) {
+      for (const sess of allSessions) {
+        const updatedSets = sess.sets.map((s) =>
+          s.exerciseId === exId ? { ...s, exerciseId: keepId } : s,
+        )
+        if (updatedSets.some((s, i) => s !== sess.sets[i])) {
+          await updateSession(uid, sess.id, { sets: updatedSets })
+        }
+      }
+      for (const plan of allPlans) {
+        const updatedItems = plan.items.map((it) =>
+          it.exerciseId === exId ? { ...it, exerciseId: keepId } : it,
+        )
+        if (updatedItems.some((it, i) => it !== plan.items[i])) {
+          const { updatePlan } = await import('../lib/gymstore')
+          await updatePlan(uid, plan.id, { name: plan.name, dayOfWeek: plan.dayOfWeek, items: updatedItems })
+        }
+      }
+    }
+    for (const id of deleteIds) {
+      await deleteExercise(uid, id)
+    }
+  }
+
+  const dupGroups = findDuplicates()
 
   const list = exercises.filter(
     (e) =>
@@ -28,7 +84,14 @@ export default function Library() {
           <div className="page-title">Gerakan</div>
           <div className="subtitle">Library latihan ({exercises.length})</div>
         </div>
-        <button className="btn sm primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Baru</button>
+        <div className="row" style={{ gap: 6 }}>
+          {dupGroups.length > 0 && (
+            <button className="btn sm ghost" onClick={() => setShowDuplicates(true)}>
+              🔍 {dupGroups.length} Duplikat
+            </button>
+          )}
+          <button className="btn sm primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Baru</button>
+        </div>
       </div>
 
       <div className="day-strip" style={{ paddingBottom: 10 }}>
@@ -113,6 +176,18 @@ export default function Library() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {showDuplicates && (
+        <DuplicatesModal
+          groups={dupGroups}
+          onClose={() => setShowDuplicates(false)}
+          onMerge={(keepId, deleteIds) => {
+            void mergeDuplicates(keepId, deleteIds, sessions, plans)
+              .then(() => { showToast('Duplikat digabungkan'); setShowDuplicates(false) })
+              .catch(() => showToast('Gagal menggabungkan — cek koneksi'))
+          }}
+        />
       )}
     </div>
   )
@@ -234,6 +309,69 @@ function ExerciseForm({
           </button>
           <button className="btn ghost" onClick={onClose}>Batal</button>
         </div>
+    </Modal>
+  )
+}
+
+function DuplicatesModal({
+  groups,
+  onClose,
+  onMerge,
+}: {
+  groups: Exercise[][]
+  onClose: () => void
+  onMerge: (keepId: string, deleteIds: string[]) => void
+}) {
+  const [selected, setSelected] = useState<Record<string, string | null>>({})
+
+  function pickKeep(groupId: string, keepId: string) {
+    setSelected((s) => ({ ...s, [groupId]: keepId }))
+  }
+
+  function handleMergeGroup(group: Exercise[]) {
+    const keepId = selected[group[0].id]
+    if (!keepId) return
+    const deleteIds = group.filter((e) => e.id !== keepId).map((e) => e.id)
+    onMerge(keepId, deleteIds)
+  }
+
+  return (
+    <Modal onClose={onClose} label="Duplikat ditemukan">
+      <h3>Duplikat ditemukan</h3>
+      <div className="small muted" style={{ marginBottom: 10 }}>
+        {groups.length} grup duplikat. Pilih gerakan yang ingin disimpan, sisanya akan dihapus & digabungkan.
+      </div>
+      {groups.map((group) => (
+        <div key={group[0].id} className="card" style={{ marginBottom: 8, padding: 10 }}>
+          <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>
+            "{group[0].name}" — {group.length} salinan
+          </div>
+          {group.map((ex) => (
+            <div key={ex.id} className="row" style={{ padding: '4px 0', gap: 8 }}>
+              <button
+                className={'rpe-chip' + ((selected[group[0].id] ?? group[0].id) === ex.id ? ' active' : '')}
+                onClick={() => pickKeep(group[0].id, ex.id)}
+              >
+                Simpan
+              </button>
+              <span className="grow small">{ex.name}</span>
+              <span className="badge">{ex.equipment}</span>
+              <span className="badge">{ex.muscleGroup}</span>
+            </div>
+          ))}
+          <button
+            className="btn sm primary"
+            style={{ marginTop: 6 }}
+            disabled={!selected[group[0].id]}
+            onClick={() => handleMergeGroup(group)}
+          >
+            Gabungkan ({group.filter((e) => e.id !== (selected[group[0].id] ?? group[0].id)).length} hapus)
+          </button>
+        </div>
+      ))}
+      <div className="form-actions">
+        <button className="btn ghost" onClick={onClose}>Tutup</button>
+      </div>
     </Modal>
   )
 }
