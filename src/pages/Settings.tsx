@@ -8,7 +8,7 @@ import { importBackup } from '../lib/gymstore'
 import { rotationOf } from '../lib/rotation'
 import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
-import { computePosition, getFullLabel, CYCLE_LENGTH } from '../lib/progression'
+import { computePosition, getFullLabel, dynamicCycleLength, computeExcludedTypes } from '../lib/progression'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
@@ -68,7 +68,9 @@ export default function Settings() {
   const [finishedOnly, setFinishedOnly] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const cyclePos = computePosition(sessions)
+  const excludedTypes = computeExcludedTypes(settings)
+  const cycleLen = dynamicCycleLength(excludedTypes)
+  const cyclePos = computePosition(sessions, excludedTypes)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
 
@@ -286,7 +288,7 @@ export default function Settings() {
       <div className="card">
         <div className="card-title">5/3/1 Training Max</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
-          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)} — Sesi {cyclePos.sessionIndex + 1}/{CYCLE_LENGTH}
+          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — Sesi {cyclePos.sessionIndex + 1}/{cycleLen}
         </div>
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <div className="field" style={{ flex: 1 }}>
@@ -316,6 +318,20 @@ export default function Settings() {
         </div>
         <div className="small muted" style={{ marginBottom: 8 }}>
           Training Max = 90% dari 1RM. Weight di sesi 5/3/1 dihitung dari TM ini.
+        </div>
+        <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <label className="small" style={{ fontWeight: 700, flex: 1 }}>Sertakan Easy Day</label>
+          <button
+            className={'btn sm ' + (settings.excludeEasyDay ? 'ghost' : 'primary')}
+            onClick={() => saveSettings({ excludeEasyDay: !settings.excludeEasyDay })}
+          >
+            {settings.excludeEasyDay ? 'OFF' : 'ON'}
+          </button>
+        </div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          {settings.excludeEasyDay
+            ? `Easy Day dihapus dari siklus — 1 cycle = ${cycleLen} sesi (Leg → Push → Pull × 4).`
+            : `Easy Day termasuk — 1 cycle = ${cycleLen} sesi (Leg → Push → Pull → Easy × 4).`}
         </div>
         <button className="btn sm danger" onClick={() => setConfirmReset(true)}>Reset Cycle</button>
       </div>

@@ -15,7 +15,7 @@ import {
   lastFinishedSession,
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
-import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence } from '../lib/progression'
+import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -110,11 +110,13 @@ export default function Today() {
   const dsl = daysSinceLast(sessions, base)
 
   // ===== 5/3/1 =====
-  const cyclePos = computePosition(sessions)
-  const cycleScheme = getScheme(cyclePos.sessionIndex)
-  const cycleLabel = getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)
+  const excludedTypes = computeExcludedTypes(settings)
+  const cycleLen = dynamicCycleLength(excludedTypes)
+  const cyclePos = computePosition(sessions, excludedTypes)
+  const cycleScheme = getScheme(cyclePos.sessionIndex, excludedTypes)
+  const cycleLabel = getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)
   const cycleTM = settings.trainingMax
-  const tmForLift = getSbdLiftForSession(cyclePos.sessionIndex)
+  const tmForLift = getSbdLiftForSession(cyclePos.sessionIndex, excludedTypes)
   const prescribed = cycleScheme && tmForLift && cycleTM ?
     getPrescribedWeights(cycleScheme, cycleTM[tmForLift] ?? 0) : []
   const prescribedSummary = prescribed.length > 0
@@ -122,8 +124,7 @@ export default function Today() {
 
   // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0)
   const is531Active = !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
-  // Gunakan key dari 5/3/1 jika aktif, fallback ke rotation bebas
-  const effectiveKey = is531Active ? suggestKey531(cyclePos.sessionIndex) : sug.key
+  const effectiveKey = is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
   const effectivePreset = presetByKey(effectiveKey)
   const effectivePlan = planForKey(plans, effectiveKey)
 
@@ -143,7 +144,7 @@ export default function Today() {
   // Kalau plan belum dibuat, sesi tetap bisa dimulai dari template preset
   // (gerakan dicocokkan dengan library lewat templatePlan).
   const pickOptions = PLAN_PRESETS
-    .filter((p) => p.key !== 'rest')
+    .filter((p) => p.key !== 'rest' && !(settings.excludeEasyDay && p.key === 'easy'))
     .map((p) => ({
       key: p.key,
       name: p.name,
@@ -396,7 +397,9 @@ export default function Today() {
                     </button>
                     <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                     <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
-                    <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
+                    {effectiveKey === 'easy' && (
+                      <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
+                    )}
                   </div>
                 )}
               </>
@@ -406,7 +409,7 @@ export default function Today() {
           <div className="card">
             <div className="card-title">
               {is531Active ? (
-                <>Urutan 5/3/1 <span className="badge accent">C{cyclePos.cycle}</span></>
+                <>Urutan 5/3/1 <span className="badge accent">C{cyclePos.cycle}</span> <span className="badge">{cycleLen} sesi</span></>
               ) : (
                 <>Rotasi <span className="badge accent">auto</span></>
               )}
@@ -414,7 +417,7 @@ export default function Today() {
             {is531Active ? (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-                  {get531Sequence().map((s, i) => {
+                  {get531Sequence(excludedTypes).map((s, i) => {
                     const isCurrent = i === cyclePos.sessionIndex
                     const isDone = i < cyclePos.sessionIndex
                     const weekLabel = i < 4 ? '3×5' : i < 8 ? '3×3' : i < 12 ? '5/3/1' : 'Deload'
@@ -458,7 +461,7 @@ export default function Today() {
                   })}
                 </div>
                 <div className="small muted" style={{ marginTop: 8 }}>
-                  1 cycle = 16 sesi · S{cyclePos.sessionIndex + 1} = sesi saat ini
+                  1 cycle = {cycleLen} sesi · S{cyclePos.sessionIndex + 1} = sesi saat ini
                 </div>
               </>
             ) : (

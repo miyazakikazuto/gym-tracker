@@ -81,6 +81,7 @@ export interface UserSettings {
     bench: number
     deadlift: number
   }
+  excludeEasyDay?: boolean // true = Easy Day dihapus dari siklus 5/3/1 (cycle jadi 12 sesi)
 }
 
 export const MUSCLE_GROUPS = [

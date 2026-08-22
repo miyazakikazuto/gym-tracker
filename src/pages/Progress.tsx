@@ -6,7 +6,7 @@ import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
 import StatCard from '../components/StatCard'
-import { computePosition, getScheme, CYCLE_LENGTH, SESSION_TYPES } from '../lib/progression'
+import { computePosition, get531Sequence, computeExcludedTypes } from '../lib/progression'
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
@@ -515,21 +515,23 @@ export default function Progress() {
       <div className="card">
         <div className="card-title">5/3/1 Progress</div>
         {(() => {
-          const pos = computePosition(sessions)
-          const pct = Math.round((pos.sessionIndex / CYCLE_LENGTH) * 100)
+          const { settings } = useData()
+          const excluded = computeExcludedTypes(settings)
+          const pos = computePosition(sessions, excluded)
+          const seq = get531Sequence(excluded)
+          const pct = Math.round((pos.sessionIndex / pos.cycleLength) * 100)
           return (
             <>
               <div className="small" style={{ marginBottom: 4 }}>
-                Cycle {pos.cycle} · Sesi {pos.sessionIndex + 1}/{CYCLE_LENGTH}
+                Cycle {pos.cycle} · Sesi {pos.sessionIndex + 1}/{pos.cycleLength}
               </div>
               <div className="bar-track" style={{ marginBottom: 10 }}>
                 <div className="bar-fill" style={{ width: pct + '%' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-                {SESSION_TYPES.map((t, i) => {
+                {seq.map((s, i) => {
                   const done = i < pos.sessionIndex
                   const current = i === pos.sessionIndex
-                  const scheme = getScheme(i)
                   const typeColors: Record<string, string> = { leg: '#44cc88', push: '#6699ff', pull: '#aa77ff', easy: '#7ee787' }
                   return (
                     <div key={i} style={{
@@ -538,10 +540,10 @@ export default function Progress() {
                       border: current ? '1px solid var(--accent)' : '1px solid transparent',
                       opacity: done ? 0.5 : 1,
                     }}>
-                      <div style={{ color: typeColors[t] ?? 'var(--muted)', fontSize: 10, fontWeight: 700 }}>
+                      <div style={{ color: typeColors[s.key] ?? 'var(--muted)', fontSize: 10, fontWeight: 700 }}>
                         S{String(i + 1).padStart(2, '0')}
                       </div>
-                      <div style={{ fontSize: 10 }}>{scheme?.label ?? t}</div>
+                      <div style={{ fontSize: 10 }}>{s.scheme || s.key}</div>
                     </div>
                   )
                 })}
