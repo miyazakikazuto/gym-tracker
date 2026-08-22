@@ -15,7 +15,7 @@ import {
   lastFinishedSession,
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
-import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession } from '../lib/progression'
+import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence } from '../lib/progression'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -107,8 +107,6 @@ export default function Today() {
   const lastKey = last ? presetByName(last.planName)?.key : undefined
   const todayShift = shiftForDate(base, settings)
   const sug = suggestKey(settings, sessions, todayShift)
-  const sugPlan = planForKey(plans, sug.key)
-  const sugPreset = presetByKey(sug.key)
   const dsl = daysSinceLast(sessions, base)
 
   // ===== 5/3/1 =====
@@ -121,6 +119,13 @@ export default function Today() {
     getPrescribedWeights(cycleScheme, cycleTM[tmForLift] ?? 0) : []
   const prescribedSummary = prescribed.length > 0
     ? prescribed.map((p) => `${p.weight}kg×${p.reps}`).join(' · ') : ''
+
+  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0)
+  const is531Active = !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
+  // Gunakan key dari 5/3/1 jika aktif, fallback ke rotation bebas
+  const effectiveKey = is531Active ? suggestKey531(cyclePos.sessionIndex) : sug.key
+  const effectivePreset = presetByKey(effectiveKey)
+  const effectivePlan = planForKey(plans, effectiveKey)
 
   const todaySessions = sessions.filter((s) => s.date === base)
   // Istirahat hari ini = ada sesi Rest Day tersimpan (bukan state lokal) —
@@ -143,7 +148,7 @@ export default function Today() {
       key: p.key,
       name: p.name,
       plan: planForKey(plans, p.key),
-      suggested: p.key === sug.key,
+      suggested: p.key === effectiveKey,
       sub: planForKey(plans, p.key)
         ? `${planForKey(plans, p.key)!.items.length} gerakan`
         : `${p.exercises.length} gerakan (template)`,
@@ -154,7 +159,7 @@ export default function Today() {
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
     : rotationMode
-      ? sugPlan
+      ? effectivePlan
         ? `Mulai ${cycleLabel}`
         : 'Buat plan saran dulu'
       : todayPlan
@@ -209,11 +214,11 @@ export default function Today() {
       return
     }
     if (rotationMode) {
-      if (!sugPlan) {
+      if (!effectivePlan) {
         setShowPlan(true)
         return
       }
-      void createAndOpen(sugPlan, cycleLabel)
+      void createAndOpen(effectivePlan, cycleLabel)
       return
     }
     if (todayPlan && !todayIsRest) {
@@ -325,7 +330,7 @@ export default function Today() {
                 </div>
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)} — mulai setelah istirahat cukup.
+                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)} — {presetByKey(suggestKey531(cyclePos.sessionIndex))?.shortLabel ?? ''}
                 </div>
                 <div style={{ height: 10 }} />
                 <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
@@ -333,8 +338,8 @@ export default function Today() {
             ) : (
               <>
                 <div className="suggest-big">
-                  <span className="dot" style={{ background: sugPlan ? dotColorFor(sugPlan.name) : 'var(--accent)' }} />
-                  <span className="name">{sugPreset?.shortLabel ?? sug.key.toUpperCase()}</span>
+                  <span className="dot" style={{ background: effectivePlan ? dotColorFor(effectivePlan.name) : 'var(--accent)' }} />
+                  <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
                   {cycleLabel}
@@ -350,12 +355,12 @@ export default function Today() {
                     : 'Belum ada sesi — rotasi mulai dari Leg'}
                   {sug.isNightLight && ' · disarankan ringan (shift malam)'}
                 </div>
-                {!sugPlan ? (
+                {!effectivePlan ? (
                   <div className="small muted" style={{ marginBottom: 10 }}>
-                    Plan {sugPreset?.name ?? sug.key} belum dibuat — atur lewat "Kelola jadwal" dulu.
+                    Plan {effectivePreset?.name ?? effectiveKey} belum dibuat — atur lewat "Kelola jadwal" dulu.
                   </div>
                 ) : (
-                  sugPlan.items.map((it, i) => {
+                  effectivePlan.items.map((it, i) => {
                     const ex = exercises.find((e) => e.id === it.exerciseId)
                     return (
                       <div className="row" key={i} style={{ padding: '5px 0' }}>
@@ -374,7 +379,7 @@ export default function Today() {
                 ) : (
                   <div className="action-row">
                     <button className="btn primary" onClick={handleStart}>
-                      {sugPlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
+                      {effectivePlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
                     </button>
                     <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                     <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
@@ -386,20 +391,80 @@ export default function Today() {
           </div>
 
           <div className="card">
-            <div className="card-title">Rotasi <span className="badge accent">auto</span></div>
-            <div className="flow">
-              {rot.rotation.map((k, i) => (
-                <Fragment key={k}>
-                  {i > 0 && <span className="arr">→</span>}
-                  <span className={'chip' + (k === sug.key ? ' next' : '') + (lastKey === k ? ' done' : '')}>
-                    {presetByKey(k)?.shortLabel ?? k.toUpperCase()}
-                  </span>
-                </Fragment>
-              ))}
+            <div className="card-title">
+              {is531Active ? (
+                <>Urutan 5/3/1 <span className="badge accent">C{cyclePos.cycle}</span></>
+              ) : (
+                <>Rotasi <span className="badge accent">auto</span></>
+              )}
             </div>
-            <div className="small muted" style={{ marginTop: 8 }}>
-              Urutan rotasi diatur di Pengaturan.
-            </div>
+            {is531Active ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+                  {get531Sequence().map((s, i) => {
+                    const isCurrent = i === cyclePos.sessionIndex
+                    const isDone = i < cyclePos.sessionIndex
+                    const weekLabel = i < 4 ? '3×5' : i < 8 ? '3×3' : i < 12 ? '5/3/1' : 'Deload'
+                    return (
+                      <div
+                        key={i}
+                        className={'shift-week-cell' + (isCurrent ? ' today' : '')}
+                        style={
+                          isCurrent
+                            ? { borderColor: 'var(--accent)', background: 'rgba(99,102,241,0.1)' }
+                            : isDone
+                              ? { opacity: 0.4 }
+                              : undefined
+                        }
+                      >
+                        <div className="sw-dow" style={{ fontSize: 10 }}>
+                          {weekLabel}
+                        </div>
+                        <div className="sw-dnum" style={{ fontSize: 11 }}>
+                          S{i + 1}
+                        </div>
+                        <span
+                          className="sw-shift"
+                          style={{
+                            background:
+                              s.key === 'leg'
+                                ? '#6366f1'
+                                : s.key === 'push'
+                                  ? '#f59e0b'
+                                  : s.key === 'pull'
+                                    ? '#10b981'
+                                    : '#6b7280',
+                            fontSize: 10,
+                            padding: '1px 4px',
+                          }}
+                        >
+                          {s.key === 'leg' ? 'L' : s.key === 'push' ? 'P' : s.key === 'pull' ? 'Pl' : 'E'}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="small muted" style={{ marginTop: 8 }}>
+                  1 cycle = 16 sesi · S{cyclePos.sessionIndex + 1} = sesi saat ini
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flow">
+                  {rot.rotation.map((k, i) => (
+                    <Fragment key={k}>
+                      {i > 0 && <span className="arr">→</span>}
+                      <span className={'chip' + (k === effectiveKey ? ' next' : '') + (lastKey === k ? ' done' : '')}>
+                        {presetByKey(k)?.shortLabel ?? k.toUpperCase()}
+                      </span>
+                    </Fragment>
+                  ))}
+                </div>
+                <div className="small muted" style={{ marginTop: 8 }}>
+                  Urutan rotasi diatur di Pengaturan.
+                </div>
+              </>
+            )}
           </div>
 
           {restToday && (

@@ -167,3 +167,20 @@ export function positionAfterSkip(currentIndex: number): number {
 export function positionAfterSession(currentIndex: number): number {
   return (currentIndex + 1) % CYCLE_LENGTH
 }
+
+// ===== 5/3/1 SUGGESTION KEY =====
+
+/** Key preset (leg/push/pull/easy) untuk sesi 5/3/1 berdasarkan sessionIndex.
+ *  Ini menggantikan rotasi bebas saat 5/3/1 aktif. */
+export function suggestKey531(sessionIndex: number): string {
+  return SESSION_TYPES[sessionIndex % CYCLE_LENGTH]
+}
+
+/** 5/3/1 sequence untuk ditampilkan di UI (16 sesi). */
+export function get531Sequence(): { key: string; label: string; scheme: string }[] {
+  return SESSION_TYPES.map((key, i) => ({
+    key,
+    label: SESSION_LABELS[i],
+    scheme: SCHEMES[i]?.label ?? '',
+  }))
+}
