@@ -228,10 +228,28 @@ export default function Today() {
     }
   }
 
-  function handleSkip() {
-    // Skip = tidak buka sesi, position tidak naik.
-    // Tidak ada yang perlu disimpan — user kembali ke home, posisi tetap.
-    showToast(`Dilewati — sesi tetap ${cycleLabel}`)
+  async function handleSkip() {
+    // Skip = majukan posisi 5/3/1 tanpa buka sesi.
+    // Simpan catatan skip ke Firestore supaya posisi tetap terhitung.
+    if (!is531Active) {
+      showToast('Dilewati')
+      return
+    }
+    try {
+      await createSession(uid, {
+        date: base,
+        planId: null,
+        planName: `Skip — ${effectivePreset?.name ?? effectiveKey}`,
+        note: `Dilewati dari ${cycleLabel}`,
+        startedAt: Date.now(),
+        endedAt: Date.now(),
+        sets: [],
+      })
+      // Refresh — computePosition akan naik 1 karena ada sesi baru (endedAt != null)
+      showToast(`${effectivePreset?.shortLabel ?? effectiveKey} dilewati → sesi berikutnya`)
+    } catch {
+      showToast('Gagal skip — cek koneksi internet')
+    }
   }
 
   // Simpan sesi Rest Day — tersimpan di Firestore, muncul di kalender Riwayat
@@ -383,7 +401,7 @@ export default function Today() {
                     </button>
                     <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                     <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
-                    <button className="btn ghost" onClick={handleSkip}>Skip</button>
+                    <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
                   </div>
                 )}
               </>
