@@ -230,12 +230,22 @@ export default function Today() {
   }
 
   async function handleSkip() {
-    // Skip = increment counter, posisi maju 1, tidak buat sesi apapun.
     try {
       await saveSettings({ skippedSessions: (settings.skippedSessions ?? 0) + 1 })
       showToast(`${effectivePreset?.shortLabel ?? effectiveKey} dilewati → lanjut ke sesi berikutnya`)
     } catch {
       showToast('Gagal skip — cek koneksi internet')
+    }
+  }
+
+  async function handleUndoSkip() {
+    const n = settings.skippedSessions ?? 0
+    if (n <= 0) return
+    try {
+      await saveSettings({ skippedSessions: n - 1 })
+      showToast('Skip dikembalikan — posisi mundur 1')
+    } catch {
+      showToast('Gagal mengembalikan skip')
     }
   }
 
@@ -382,14 +392,21 @@ export default function Today() {
                 {restToday ? (
                   <button className="btn sm ghost wide" onClick={() => void cancelRestToday()}>Batalkan istirahat</button>
                 ) : (
-                  <div className="action-row">
-                    <button className="btn primary" onClick={handleStart}>
-                      {effectivePlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
-                    </button>
-                    <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
-                    <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
-                    <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
-                  </div>
+                  <>
+                    <div className="action-row">
+                      <button className="btn primary" onClick={handleStart}>
+                        {effectivePlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
+                      </button>
+                      <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
+                      <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
+                      <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
+                    </div>
+                    {(settings.skippedSessions ?? 0) > 0 && (
+                      <button className="btn sm ghost wide" onClick={() => void handleUndoSkip()} style={{ marginTop: 6 }}>
+                        ↩ Kembalikan skip terakhir ({settings.skippedSessions} di-skip)
+                      </button>
+                    )}
+                  </>
                 )}
               </>
             )}
