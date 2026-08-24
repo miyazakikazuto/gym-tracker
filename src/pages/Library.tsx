@@ -208,13 +208,12 @@ function ExerciseForm({
   const [name, setName] = useState(initial?.name ?? '')
   const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? MUSCLE_GROUPS[0])
   const [equipment, setEquipment] = useState<string>(initial?.equipment ?? EQUIPMENTS[0])
-  const [category, setCategory] = useState<string>(
-    () => (initial?.category
+  const initCat = initial?.category
       ? categoryOfExercise({ category: initial.category, muscleGroup: initial.muscleGroup })
-      : defaultCategory),
-  )
+      : defaultCategory
+  const [category, setCategory] = useState<string>(initCat)
   const [extra, setExtra] = useState<string[]>(initial?.extraCategories ?? [])
-  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? 'reps')
+  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? (initCat === 'cardio' ? 'duration' : 'reps'))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -255,7 +254,11 @@ function ExerciseForm({
 
         <div className="field">
           <label>Kategori</label>
-          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select className="input" value={category} onChange={(e) => {
+            const c = e.target.value
+            setCategory(c)
+            if (c === 'cardio') setType('duration')
+          }}>
             {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
           </select>
         </div>
@@ -280,7 +283,7 @@ function ExerciseForm({
         </div>
 
         <div className="field">
-          <label>Jenis set</label>
+          <label>Cara pencatatan</label>
           <select className="input" value={type} onChange={(e) => setType(e.target.value as 'reps' | 'duration')}>
             {EXERCISE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
           </select>

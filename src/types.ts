@@ -9,8 +9,8 @@ export interface Exercise {
 }
 
 export const EXERCISE_TYPES = [
-  { key: 'reps', name: 'Reps' },
-  { key: 'duration', name: 'Durasi (detik)' },
+  { key: 'reps', name: 'Reps (set × rep)' },
+  { key: 'duration', name: 'Durasi (dtk)' },
 ] as const
 
 export const EXERCISE_CATEGORIES = [
