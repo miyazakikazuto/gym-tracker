@@ -17,6 +17,7 @@ interface SetResult {
   reps: number
   durationSec?: number
   distanceKm?: number
+  elevationM?: number
 }
 
 export default function Session() {
@@ -75,6 +76,7 @@ export default function Session() {
             reps: set.reps,
             durationSec: set.durationSec,
             distanceKm: set.distanceKm,
+            elevationM: set.elevationM,
           })
         }
       }
