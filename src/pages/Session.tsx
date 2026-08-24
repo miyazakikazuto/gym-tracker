@@ -294,7 +294,9 @@ export default function Session() {
   }
 
   function isCardio(exId: string): boolean {
-    return exercises.find((e) => e.id === exId)?.muscleGroup === 'Cardio'
+    const ex = exercises.find((e) => e.id === exId)
+    if (!ex) return false
+    return ex.muscleGroup === 'Cardio' || ex.category === 'cardio'
   }
 
   async function finish() {

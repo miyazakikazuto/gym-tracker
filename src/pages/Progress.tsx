@@ -76,7 +76,7 @@ export default function Progress() {
     if (s.endedAt === null) continue
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
-      if (!ex || ex.muscleGroup !== 'Cardio') continue
+      if (!ex || (ex.muscleGroup !== 'Cardio' && ex.category !== 'cardio')) continue
       const c = cardioMap.get(set.exerciseId) ?? { dist: 0, dur: 0, elev: 0, sesi: new Set<string>() }
       c.dist += set.distanceKm ?? 0
       c.dur += set.durationSec ?? 0
