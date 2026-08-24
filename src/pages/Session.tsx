@@ -391,7 +391,7 @@ export default function Session() {
             {!cardio && <span className="grow">Beban (kg)</span>}
             {cardio ? (
               <>
-                <span style={{ width: 60, textAlign: 'center' }}>Durasi</span>
+                <span style={{ width: 76, textAlign: 'center' }}>Durasi</span>
                 <span style={{ width: 60, textAlign: 'center' }}>Jarak</span>
                 <span style={{ width: 60, textAlign: 'center' }}>Elevasi</span>
                 <span style={{ width: 56, textAlign: 'center' }}>Pace</span>
@@ -524,15 +524,39 @@ const SetRow = memo(function SetRow({
       <span className="num">{s.setNumber}</span>
       {isCardio ? (
         <>
-          <input
-            className="wt"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={s.durationSec || ''}
-            placeholder={prev ? String(prev.durationSec ?? '') : '0'}
-            onChange={(e) => onPatch(s.id, { durationSec: Number(e.target.value) })}
-          />
+          <div className="row" style={{ gap: 2, alignItems: 'center' }}>
+            <input
+              className="wt"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              style={{ width: 32, textAlign: 'center' }}
+              value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
+              placeholder="0"
+              onChange={(e) => {
+                const h = Number(e.target.value) || 0
+                const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
+                onPatch(s.id, { durationSec: h * 3600 + m * 60 })
+              }}
+            />
+            <span className="small muted">j</span>
+            <input
+              className="wt"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={59}
+              style={{ width: 32, textAlign: 'center' }}
+              value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
+              placeholder="0"
+              onChange={(e) => {
+                const m = Number(e.target.value) || 0
+                const h = Math.floor((s.durationSec ?? 0) / 3600)
+                onPatch(s.id, { durationSec: h * 3600 + m * 60 })
+              }}
+            />
+            <span className="small muted">mnt</span>
+          </div>
           <input
             className="wt dist"
             type="text"

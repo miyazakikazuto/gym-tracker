@@ -342,7 +342,7 @@ export default function Progress() {
                   <div>
                     <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
                     <div className="small muted">
-                      {fmtNumber(dist)} km · {fmtMinutes(dur)} · {n} sesi
+                      {fmtNumber(dist)} km · {fmtHM(dur)} · {n} sesi
                       {pace && ` · ${pace}/km`}
                       {elev > 0 && ` · ↑${fmtNumber(elev)} m`}
                     </div>
@@ -656,9 +656,11 @@ function buildTrendMap(
 }
 
 
-function fmtMinutes(sec: number): string {
-  const m = Math.round(sec / 60)
-  return m >= 60 ? Math.floor(m / 60) + ' j ' + (m % 60) + ' mnt' : m + ' mnt'
+function fmtHM(sec: number): string {
+  const h = Math.floor(sec / 3600)
+  const m = Math.round((sec % 3600) / 60)
+  if (h > 0) return h + 'j ' + (m > 0 ? m + 'mnt' : '')
+  return m + ' mnt'
 }
 
 function paceStr(minutes: number, km: number): string {
