@@ -44,6 +44,7 @@ export interface SessionSet {
   reps: number
   durationSec?: number // set gerakan durasi (tidak ada = reps)
   distanceKm?: number // jarak per set (cardio)
+  elevationM?: number // elevasi/ketinggian naik dalam meter (cardio outdoor)
 }
 
 export interface Session {

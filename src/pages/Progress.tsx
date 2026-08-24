@@ -70,21 +70,23 @@ export default function Progress() {
   const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), 1)
 
   // Ringkasan cardio (semua sesi)
-  const cardioMap = new Map<string, { dist: number; dur: number; sesi: Set<string> }>()
+  interface CardioInfo { dist: number; dur: number; elev: number; sesi: Set<string> }
+  const cardioMap = new Map<string, CardioInfo>()
   for (const s of sessions) {
     if (s.endedAt === null) continue
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
       if (!ex || ex.muscleGroup !== 'Cardio') continue
-      const c = cardioMap.get(set.exerciseId) ?? { dist: 0, dur: 0, sesi: new Set<string>() }
+      const c = cardioMap.get(set.exerciseId) ?? { dist: 0, dur: 0, elev: 0, sesi: new Set<string>() }
       c.dist += set.distanceKm ?? 0
       c.dur += set.durationSec ?? 0
+      c.elev += set.elevationM ?? 0
       c.sesi.add(s.id)
       cardioMap.set(set.exerciseId, c)
     }
   }
   const cardioList = Array.from(cardioMap.entries())
-    .map(([exId, c]) => ({ exId, dist: c.dist, dur: c.dur, n: c.sesi.size }))
+    .map(([exId, c]) => ({ exId, dist: c.dist, dur: c.dur, elev: c.elev, n: c.sesi.size }))
     .sort((a, b) => b.dist - a.dist)
 
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
@@ -333,14 +335,16 @@ export default function Progress() {
           <div className="small muted">Belum ada data cardio. Isi durasi & jarak (km) di sesi Cardio Day.</div>
         ) : (
           <div className="pr-list">
-            {cardioList.map(({ exId, dist, dur, n }) => {
+            {cardioList.map(({ exId, dist, dur, elev, n }) => {
               const pace = dur > 0 && dist > 0 ? paceStr(dur / 60, dist) : null
               return (
                 <div className="pr" key={exId}>
                   <div>
                     <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
                     <div className="small muted">
-                      {fmtNumber(dist)} km · {fmtMinutes(dur)} · {n} sesi{pace && ` · pace ${pace}/km`}
+                      {fmtNumber(dist)} km · {fmtMinutes(dur)} · {n} sesi
+                      {pace && ` · ${pace}/km`}
+                      {elev > 0 && ` · ↑${fmtNumber(elev)} m`}
                     </div>
                   </div>
                   <div className="val">{fmtNumber(dist)} km</div>

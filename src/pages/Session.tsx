@@ -209,11 +209,13 @@ export default function Session() {
     let r = 0
     let d: number | undefined = dur ? 0 : undefined
     let d2: number | undefined = undefined
+    let elev: number | undefined = undefined
     if (prev) {
       w = prev.weightKg
       r = dur ? 0 : prev.reps
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
+      elev = prev.elevationM
     } else if (planScheme && planTM) {
       // 5/3/1: pre-fill dari TM berdasarkan set number
       const ex = exercises.find((e) => e.id === exerciseId)
@@ -245,7 +247,7 @@ export default function Session() {
     }
     mutateSets([
       ...localSets,
-      { id: makeSetId(), exerciseId, setNumber: setNo, weightKg: w, reps: r, ...(d !== undefined ? { durationSec: d } : {}), ...(d2 !== undefined ? { distanceKm: d2 } : {}) },
+      { id: makeSetId(), exerciseId, setNumber: setNo, weightKg: w, reps: r, ...(d !== undefined ? { durationSec: d } : {}), ...(d2 !== undefined ? { distanceKm: d2 } : {}), ...(elev !== undefined ? { elevationM: elev } : {}) },
     ])
   }
 
@@ -385,9 +387,20 @@ export default function Session() {
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>
             {!cardio && <span className="grow">Beban (kg)</span>}
-            <span className={cardio ? 'grow' : ''} style={{ width: cardio ? undefined : 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
-            {cardio && dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
-            {!cardio && <span className="int">Int</span>}
+            {cardio ? (
+              <>
+                <span style={{ width: 60, textAlign: 'center' }}>Durasi</span>
+                <span style={{ width: 60, textAlign: 'center' }}>Jarak</span>
+                <span style={{ width: 60, textAlign: 'center' }}>Elevasi</span>
+                <span style={{ width: 56, textAlign: 'center' }}>Pace</span>
+              </>
+            ) : (
+              <>
+                <span style={{ width: 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
+                {dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
+                <span className="int">Int</span>
+              </>
+            )}
             <span style={{ width: 32 }} />
           </div>
           {sets.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => {
@@ -507,53 +520,87 @@ const SetRow = memo(function SetRow({
   return (
     <div className="set-row">
       <span className="num">{s.setNumber}</span>
-      {!isCardio && (
-      <>
-      <button className="step-btn" onClick={() => onStep(s.id, -0.5)} disabled={!s.weightKg}>−</button>
-      <input
-        className="wt"
-        type="text"
-        inputMode="decimal"
-        autoComplete="off"
-        value={s.weightKg ? fmtNumber(s.weightKg) : ''}
-        placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
-        onChange={(e) => {
-          const n = parseDecimal(e.target.value)
-          if (n !== null) onPatch(s.id, { weightKg: n })
-        }}
-      />
-      <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
-      </>
-      )}
-      <input
-        className="wt"
-        type="number"
-        inputMode="numeric"
-        min={0}
-        value={dur ? s.durationSec || '' : s.reps || ''}
-        placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
-        onChange={(e) => onPatch(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
-      />
-      {isCardio && dur && (
-        <input
-          className="wt dist"
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
-          placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
-          onChange={(e) => {
-            const n = parseDecimal(e.target.value)
-            if (n !== null) onPatch(s.id, { distanceKm: n })
-          }}
-        />
-      )}
-      {!isCardio && (
-        pct !== null ? (
-          <span className={'int int-' + intZone(pct)}>~{Math.round(pct)}%</span>
-        ) : (
-          <span className="int" />
-        )
+      {isCardio ? (
+        <>
+          <input
+            className="wt"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={s.durationSec || ''}
+            placeholder={prev ? String(prev.durationSec ?? '') : '0'}
+            onChange={(e) => onPatch(s.id, { durationSec: Number(e.target.value) })}
+          />
+          <input
+            className="wt dist"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
+            placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
+            onChange={(e) => {
+              const n = parseDecimal(e.target.value)
+              if (n !== null) onPatch(s.id, { distanceKm: n })
+            }}
+          />
+          <input
+            className="wt"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={s.elevationM || ''}
+            placeholder={prev && prev.elevationM ? String(prev.elevationM) : '0'}
+            onChange={(e) => onPatch(s.id, { elevationM: Number(e.target.value) })}
+          />
+          <span className="small muted" style={{ width: 56, textAlign: 'center' }}>
+            {s.durationSec && s.distanceKm ? paceStr(s.durationSec / 60, s.distanceKm) + '/km' : '—'}
+          </span>
+        </>
+      ) : (
+        <>
+          <button className="step-btn" onClick={() => onStep(s.id, -0.5)} disabled={!s.weightKg}>−</button>
+          <input
+            className="wt"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={s.weightKg ? fmtNumber(s.weightKg) : ''}
+            placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
+            onChange={(e) => {
+              const n = parseDecimal(e.target.value)
+              if (n !== null) onPatch(s.id, { weightKg: n })
+            }}
+          />
+          <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
+          <input
+            className="wt"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={dur ? s.durationSec || '' : s.reps || ''}
+            placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
+            onChange={(e) => onPatch(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
+          />
+          {dur && (
+            <input
+              className="wt dist"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
+              placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
+              onChange={(e) => {
+                const n = parseDecimal(e.target.value)
+                if (n !== null) onPatch(s.id, { distanceKm: n })
+              }}
+            />
+          )}
+          {pct !== null ? (
+            <span className={'int int-' + intZone(pct)}>~{Math.round(pct)}%</span>
+          ) : (
+            <span className="int" />
+          )}
+        </>
       )}
       <button className="icon-btn danger" aria-label={`Hapus set ${s.setNumber}`} onClick={() => onRemove(s.id)}>✕</button>
     </div>
@@ -565,4 +612,11 @@ function intZone(pct: number): string {
   if (pct < 75) return 'hypert'
   if (pct < 90) return 'strength'
   return 'peak'
+}
+
+function paceStr(minutes: number, km: number): string {
+  const p = minutes / km
+  const m = Math.floor(p)
+  const s = Math.round((p - m) * 60)
+  return m + ':' + (s < 10 ? '0' + s : s)
 }
