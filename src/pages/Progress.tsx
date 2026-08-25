@@ -52,6 +52,9 @@ export default function Progress() {
   // Volume yang tak teratribusi ke otot terlacak (gerakan hilang dari Library /
   // grup Cardio) — ditampilkan sebagai baris "(Lainnya)" supaya tidak hilang diam-diam.
   let otherVol = 0
+  // Pecahan secondary (vol × faktor) — ditampilkan terpisah agar footer tetap
+  // sebanding dengan chart mingguan.
+  let secVolTotal = 0
   for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
   for (const s of sessions) {
     if (s.endedAt === null) continue
@@ -68,13 +71,13 @@ export default function Progress() {
         for (const f of secondaryFactorsFor(ex.name)) {
           if (!MUSCLE_TRACKED.includes(f.group)) continue
           muscleVol.set(f.group, (muscleVol.get(f.group) ?? 0) + vol * f.factor)
+          secVolTotal += vol * f.factor
         }
       }
     }
   }
   const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
   const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), otherVol, 1)
-  const trackedVolSum = muscleList.reduce((a, [, v]) => a + v, 0)
 
   // Ringkasan cardio (semua sesi)
   interface CardioInfo { dist: number; dur: number; elev: number; sesi: Set<string> }
@@ -217,11 +220,20 @@ export default function Progress() {
   interface MuscleWeekInfo { sessions: Set<string>; sets: number; vol: number }
   const thisWeekMuscle = new Map<string, MuscleWeekInfo>()
   let thisWeekOther = 0
+  // Counter riil untuk footer: sesi unik, set sekali-hitung, volume mentah
+  // (= nilai bar mingguan), dan pecahan secondary terpisah.
+  const thisWeekUniqSessions = new Set<string>()
+  let thisWeekRealSets = 0
+  let thisWeekRawVol = 0
+  let thisWeekSecVol = 0
   for (const m of MUSCLE_TRACKED) thisWeekMuscle.set(m, { sessions: new Set(), sets: 0, vol: 0 })
   for (const s of sessions) {
     if (s.endedAt === null) continue
     if (s.date < thisWeekStart || s.date > thisWeekEnd) continue
+    thisWeekUniqSessions.add(s.id)
     for (const set of s.sets) {
+      thisWeekRealSets += 1
+      thisWeekRawVol += volumeOf([set])
       const ex = exercises.find((e) => e.id === set.exerciseId)
       if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) {
         thisWeekOther += volumeOf([set])
@@ -238,6 +250,7 @@ export default function Progress() {
           sec.sessions.add(s.id)
           sec.sets += 1
           sec.vol += volumeOf([set]) * f.factor
+          thisWeekSecVol += volumeOf([set]) * f.factor
         }
       }
     }
@@ -291,10 +304,10 @@ export default function Progress() {
             </div>
           )}
           <div className="small muted" style={{ marginTop: 8 }}>
-            {thisWeekList.reduce((a, [, v]) => a + v.sessions.size, 0)} sesi ·{' '}
-            {thisWeekList.reduce((a, [, v]) => a + v.sets, 0)} total set ·{' '}
-            {fmtNumber(Math.round(thisWeekList.reduce((a, [, v]) => a + v.vol, 0)))} kg volume
-            {inclSecondary && ' · termasuk secondary'}
+            {thisWeekUniqSessions.size} sesi ·{' '}
+            {thisWeekRealSets} total set ·{' '}
+            {fmtNumber(Math.round(thisWeekRawVol))} kg volume
+            {inclSecondary && thisWeekSecVol > 0 && ` · +${fmtNumber(Math.round(thisWeekSecVol))} kg secondary`}
             {thisWeekOther > 0 && ` · (Lainnya) ${fmtNumber(Math.round(thisWeekOther))} kg`}
           </div>
           </>
@@ -356,7 +369,8 @@ export default function Progress() {
           </div>
         )}
         <div className="small muted" style={{ marginTop: 8 }}>
-          Total terlacak {fmtNumber(trackedVolSum)} kg
+          {pageSessions} sesi · {pageSets} set · {fmtNumber(pageVolume)} kg volume
+          {inclSecondary && secVolTotal > 0 && ` · +${fmtNumber(Math.round(secVolTotal))} kg secondary`}
           {otherVol > 0 && ` · (Lainnya) ${fmtNumber(otherVol)} kg — gerakan tidak ada di Library atau Cardio`}
         </div>
         {inclSecondary && (
