@@ -22,37 +22,47 @@ const ALL_SESSION_LABELS = [
   'Leg Day — Deload',  'Push — Deload',  'Pull Day',         'Easy Day',
 ]
 
-// Lift yang dipakai di sesi 5/3/1 (index 8 = squat, index 9 = bench)
-const SBD_KEY: Record<number, 'squat' | 'bench' | 'deadlift'> = {
-  8: 'squat',
-  9: 'bench',
+// Lift yang dipakai di sesi 5/3/1 — berdasarkan TIPE sesi, bukan index:
+// Leg → Squat · Push → Bench · Pull → Deadlift (pola klasik Wendler).
+// Dengan begitu prescribed weights tetap benar walau urutan/index bergeser
+// karena exclusion (mis. Easy Day dimatikan).
+const LIFT_BY_TYPE: Record<string, 'squat' | 'bench' | 'deadlift'> = {
+  leg: 'squat',
+  push: 'bench',
+  pull: 'deadlift',
 }
 
 // Persentase TM per scheme
 interface Scheme {
   type: '3x5' | '3x3' | '531' | 'deload' | null
   label: string
-  lift?: 'squat' | 'bench' | 'deadlift'
   percentages: number[]
   sets: number
   reps: number | number[]
 }
 
 const ALL_SCHEMES: Record<number, Scheme> = {
-  0:  { type: '3x5',   label: '3×5',   percentages: [65],          sets: 3, reps: 5 },
-  1:  { type: '3x5',   label: '3×5',   percentages: [65],          sets: 3, reps: 5 },
-  4:  { type: '3x3',   label: '3×3',   percentages: [75],          sets: 3, reps: 3 },
-  5:  { type: '3x3',   label: '3×3',   percentages: [75],          sets: 3, reps: 3 },
-  8:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90],  sets: 3, reps: [5, 3, 1], lift: 'squat' },
-  9:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90],  sets: 3, reps: [5, 3, 1], lift: 'bench' },
+  // Week 1 — 3×5 (Leg=Squat, Push=Bench, Pull=Deadlift)
+  0:  { type: '3x5',   label: '3×5',   percentages: [65],         sets: 3, reps: 5 },
+  1:  { type: '3x5',   label: '3×5',   percentages: [65],         sets: 3, reps: 5 },
+  2:  { type: '3x5',   label: '3×5',   percentages: [65],         sets: 3, reps: 5 },
+  // Week 2 — 3×3
+  4:  { type: '3x3',   label: '3×3',   percentages: [75],         sets: 3, reps: 3 },
+  5:  { type: '3x3',   label: '3×3',   percentages: [75],         sets: 3, reps: 3 },
+  6:  { type: '3x3',   label: '3×3',   percentages: [75],         sets: 3, reps: 3 },
+  // Week 3 — 5/3/1
+  8:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90], sets: 3, reps: [5, 3, 1] },
+  9:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90], sets: 3, reps: [5, 3, 1] },
+  10: { type: '531',   label: '5/3/1', percentages: [70, 80, 90], sets: 3, reps: [5, 3, 1] },
+  // Week 4 — Deload
   12: { type: 'deload', label: 'Deload', percentages: [40, 50],    sets: 2, reps: 5 },
   13: { type: 'deload', label: 'Deload', percentages: [40, 50],    sets: 2, reps: 5 },
+  14: { type: 'deload', label: 'Deload', percentages: [40, 50],    sets: 2, reps: 5 },
 }
 
-// 5/3/1 Leg progression: squat di index 8, deadlift di index 12 (deload)
-// Full: 8=squat, 9=bench
-// Without easy: 8=squat, 9=bench (index berubah tapi lift sama)
-// Deadlift: tidak ada di default 5/3/1 — user bisa pakai di Pull/Hard day
+// Catatan: key ALL_SCHEMES adalah index pada array FULL (16 sesi).
+// buildEffective() memetakan ulang ke index siklus efektif setelah exclusion,
+// jadi alignment minggu (3×5 → 3×3 → 5/3/1 → Deload) selalu terjaga.
 
 // ===== EXCLUSION HELPERS =====
 
@@ -81,7 +91,8 @@ function buildEffective(excluded: Set<string>) {
     types.push(ALL_SESSION_TYPES[i])
     labels.push(ALL_SESSION_LABELS[i])
     if (ALL_SCHEMES[i]) schemes.set(newIdx, ALL_SCHEMES[i])
-    if (SBD_KEY[i]) allSbdKey[newIdx] = SBD_KEY[i]
+    const lift = LIFT_BY_TYPE[ALL_SESSION_TYPES[i]]
+    if (lift) allSbdKey[newIdx] = lift
     newIdx++
   }
 
@@ -241,8 +252,7 @@ export function get531Sequence(excluded: Set<string> = new Set()) {
   }))
 }
 
-/** Deadlift lift key for deload (index 12 = squat in standard, but we want deadlift). */
-export function getDeloadLiftKey(
+/** Deadlift lift key for deload (index 12 = squat in standard, but we want deadlift). */export function getDeloadLiftKey(
   index: number,
   excluded: Set<string> = new Set(),
 ): 'squat' | 'bench' | 'deadlift' | undefined {
