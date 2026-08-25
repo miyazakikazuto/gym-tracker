@@ -1,7 +1,7 @@
 // Service worker untuk Gym Tracker — ditulis ke dist/sw.js saat build (postbuild).
 // Strategi:
-//   - PRECACHE: hanya file kritis (index shell + main bundle + icons + manifest)
-//   - LAZY CACHE: chunk halaman & Firebase di-cache otomatis saat pertama diakses
+//   - PRECACHE: SEMUA file (shell + seluruh chunk + icons + manifest) — app langsung
+//     100% offline-proof setelah satu kunjungan online pasca-deploy
 //   - cache.add() per file: partial failure tolerance (1 file gagal tidak membatalkan SW)
 const fs = require('fs')
 const path = require('path')
@@ -24,22 +24,11 @@ scan('', base)
 scan('assets', base + 'assets/')
 scan('icons', base + 'icons/')
 
-// ===== Filter: hanya file kritis untuk precache =====
-// File kritis = yang dibutuhkan untuk first load (sebelum lazy chunks dimuat).
-// Chunk halaman (Today/Session/History/dll) & DataContext (Firebase) di-cache
-// secara lazy oleh fetch handler saat pertama diakses.
-const CRITICAL_PATTERNS = [
-  /^.*\/index\.html$/,              // shell app
-  /^.*\/index-[^/]+\.js$/,         // main bundle (React + App + Auth)
-  /^.*\/index-[^/]+\.css$/,        // global styles
-  /^.*\/icon-\d+\.png$/,           // PWA icons
-  /^.*\/manifest\.webmanifest$/,   // PWA manifest
-  /^.*\/sw\.js$/,                   // SW itu sendiri
-]
-
-const precache = allFiles.filter((f) =>
-  CRITICAL_PATTERNS.some((pat) => pat.test(f))
-)
+// ===== Precache SEMUA file =====
+// Alasan: activate menghapus cache lama — kalau chunk halaman/firestore hanya
+// lazy-cached, app yang dibuka OFFLINE tepat pasca-deploy crash dengan
+// "Importing a module script failed". Precache penuh menutup window itu.
+const precache = allFiles.slice()
 
 const cache = 'gym-tracker-' + Date.now().toString(36)
 
