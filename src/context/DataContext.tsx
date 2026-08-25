@@ -17,7 +17,7 @@ import {
   updateSession,
   upsertBodyweight,
   deleteBodyweight,
-  patchExerciseCategory,
+  patchExerciseCategories,
   createExercise,
 } from '../lib/gymstore'
 import { categoryOfExercise } from '../lib/helpers'
@@ -72,20 +72,42 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setReady(false)
     exercisesFromServerRef.current = false
     setExercisesFromServer(false)
-    const unsubs = [
-      subscribeExercises(uid, (list, meta) => {
-        if (meta?.fromServer && !exercisesFromServerRef.current) {
-          exercisesFromServerRef.current = true
-          setExercisesFromServer(true)
+    // ready = true setelah snapshot PERTAMA dari kelima subscription tiba
+    // (bukan timer fix) — UI tidak tampil sebelum data benar-benar terisi.
+    let remaining = 5
+    const markFirst = () => {
+      remaining -= 1
+      if (remaining === 0) setReady(true)
+    }
+    const wrapFirst = <A extends unknown[]>(cb: (...args: A) => void) => {
+      let first = true
+      return (...args: A) => {
+        if (first) {
+          first = false
+          markFirst()
         }
-        setExercises(list)
-      }),
-      subscribePlans(uid, setPlans),
-      subscribeSessions(uid, setSessions),
-      subscribeBodyweights(uid, setBodyweights),
-      subscribeSettings(uid, setSettings),
+        cb(...args)
+      }
+    }
+    const unsubs = [
+      subscribeExercises(
+        uid,
+        wrapFirst((list: Exercise[], meta?: { fromServer: boolean }) => {
+          if (meta?.fromServer && !exercisesFromServerRef.current) {
+            exercisesFromServerRef.current = true
+            setExercisesFromServer(true)
+          }
+          setExercises(list)
+        }),
+      ),
+      subscribePlans(uid, wrapFirst(setPlans)),
+      subscribeSessions(uid, wrapFirst(setSessions)),
+      subscribeBodyweights(uid, wrapFirst(setBodyweights)),
+      subscribeSettings(uid, wrapFirst(setSettings)),
     ]
-    const t = setTimeout(() => setReady(true), 800)
+    // Safety-net: kalau ada subscription yang tak kunjung memanggil balik
+    // (mis. jaringan diblokir total), tetap tandai siap setelah 5 detik.
+    const t = setTimeout(() => setReady(true), 5000)
     return () => {
       unsubs.forEach((u) => u())
       clearTimeout(t)
@@ -95,14 +117,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Migrasi sekali jalan: gerakan lama tanpa kategori diberi kategori dari grup otot
   useEffect(() => {
     if (!uid || exercises.length === 0) return
-    const missing = exercises.filter((e) => !e.category)
-    if (missing.length === 0) return
-    for (const e of missing) {
-      const cat = categoryOfExercise(e)
-      if (cat !== e.category) {
-        patchExerciseCategory(uid, e.id, cat).catch(() => undefined)
-      }
-    }
+    const entries = exercises
+      .filter((e) => !e.category)
+      .map((e) => ({ id: e.id, category: categoryOfExercise(e) }))
+    if (entries.length === 0) return
+    patchExerciseCategories(uid, entries).catch(() => undefined)
   }, [uid, exercises])
 
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).

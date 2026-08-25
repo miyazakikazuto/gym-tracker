@@ -82,6 +82,23 @@ export function patchExerciseCategory(uid: string, id: string, category: string)
   return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), { category })
 }
 
+// Batch: satu round-trip untuk banyak update kategori (migrasi akun lama).
+export async function patchExerciseCategories(
+  uid: string,
+  entries: Array<{ id: string; category: string }>,
+) {
+  if (entries.length === 0) return
+  const db = getDb()
+  const CHUNK = 400
+  for (let i = 0; i < entries.length; i += CHUNK) {
+    const batch = writeBatch(db)
+    for (const { id, category } of entries.slice(i, i + CHUNK)) {
+      batch.update(doc(db, 'users', uid, 'exercises', id), { category })
+    }
+    await batch.commit()
+  }
+}
+
 // ===== PLANS =====
 export async function fetchPlans(uid: string): Promise<WorkoutPlan[]> {
   const snap = await getDocs(userGymRef(uid, 'plans'))
