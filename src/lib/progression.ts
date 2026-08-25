@@ -142,11 +142,6 @@ export function computePosition(
 
 // ===== SCHEME LOOKUP (dynamic) =====
 
-export function getSessionType(index: number, excluded: Set<string> = new Set()): string {
-  const { types } = buildEffective(excluded)
-  return types[index % types.length] ?? 'leg'
-}
-
 export function getSessionLabel(index: number, excluded: Set<string> = new Set()): string {
   const { labels } = buildEffective(excluded)
   return labels[index % labels.length] ?? ''
@@ -186,38 +181,7 @@ export function getSbdLiftForSession(
   return sbdKey[index]
 }
 
-// ===== TM MANAGEMENT =====
-
-export function nextTMFromAMRAP(weightKg: number, reps: number, currentTM: number): number {
-  if (weightKg <= 0 || reps <= 0) return currentTM
-  const e1rm = weightKg * (1 + reps / 30)
-  const raw = e1rm * 0.9
-  return Math.round(raw / 2.5) * 2.5
-}
-
-// ===== CYCLE TRANSITION =====
-
-export function isCycleTransition(prevIndex: number, currentIndex: number, cycleLength: number): boolean {
-  return prevIndex === cycleLength - 1 && currentIndex === 0
-}
-
-export function resetCycle(): { cycleNumber: number; sessionIndex: number } {
-  return { cycleNumber: 1, sessionIndex: 0 }
-}
-
-// ===== SKIP LOGIC =====
-
-export function positionAfterSkip(currentIndex: number): number {
-  return currentIndex
-}
-
-export function positionAfterSession(currentIndex: number, cycleLength: number): number {
-  return (currentIndex + 1) % cycleLength
-}
-
 // ===== 5/3/1 SUGGESTION KEY (dynamic) =====
-
-const ROTATION = ['leg', 'easy', 'push', 'pull'] as const
 
 /** Key preset untuk sesi 5/3/1 berdasarkan sessionIndex. */
 export function suggestKey531(
@@ -228,20 +192,6 @@ export function suggestKey531(
   return types[sessionIndex % types.length] ?? 'leg'
 }
 
-/** Next key in rotation, respecting exclusion. */
-export function nextRotationKey(
-  currentKey: string,
-  excluded: Set<string> = new Set(),
-): string {
-  const idx = ROTATION.indexOf(currentKey as typeof ROTATION[number])
-  if (idx === -1) return currentKey
-  for (let step = 1; step <= ROTATION.length; step++) {
-    const next = ROTATION[(idx + step) % ROTATION.length]
-    if (!excluded.has(next)) return next
-  }
-  return currentKey
-}
-
 /** 5/3/1 sequence untuk UI. */
 export function get531Sequence(excluded: Set<string> = new Set()) {
   const { types, labels, schemes } = buildEffective(excluded)
@@ -250,12 +200,4 @@ export function get531Sequence(excluded: Set<string> = new Set()) {
     label: labels[i],
     scheme: schemes.get(i)?.label ?? '',
   }))
-}
-
-/** Deadlift lift key for deload (index 12 = squat in standard, but we want deadlift). */export function getDeloadLiftKey(
-  index: number,
-  excluded: Set<string> = new Set(),
-): 'squat' | 'bench' | 'deadlift' | undefined {
-  const { sbdKey } = buildEffective(excluded)
-  return sbdKey[index]
 }
