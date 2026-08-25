@@ -10,5 +10,22 @@ export default defineConfig({
   build: {
     // Kompatibilitas lebih luas: browser/webview HP lama (Android 7+, iOS 13+)
     target: ['es2019', 'safari13', 'chrome73', 'firefox66'],
+    // SDK Firestore (~520 kB, gzip ~150 kB) dipisah ke chunk sendiri:
+    // isinya jarang berubah antar rilis, jadi hash-nya stabil — returning user
+    // tidak perlu download ulang saat kode app berubah. Tetap lazy-loaded
+    // (hanya diunduh setelah login, bersama DataContext).
+    chunkSizeWarningLimit: 600,
+    rolldownOptions: {
+      output: {
+        advancedChunks: {
+          groups: [
+            {
+              name: 'firebase-firestore',
+              test: /[\\/]@?firebase[\\/](firestore|logger)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
   },
 })
