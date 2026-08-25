@@ -53,6 +53,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
+  // True setelah snapshot exercises datang dari SERVER Firestore (bukan cache).
+  // Seed default menunggu flag ini supaya tidak dobel saat internet lambat:
+  // tanpa ini, seed bisa jalan dari cache kosong lalu data asli datang belakangan.
+  const exercisesFromServerRef = useRef(false)
+  const [exercisesFromServer, setExercisesFromServer] = useState(false)
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -65,8 +70,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid) return
     setReady(false)
+    exercisesFromServerRef.current = false
+    setExercisesFromServer(false)
     const unsubs = [
-      subscribeExercises(uid, setExercises),
+      subscribeExercises(uid, (list, meta) => {
+        if (meta?.fromServer && !exercisesFromServerRef.current) {
+          exercisesFromServerRef.current = true
+          setExercisesFromServer(true)
+        }
+        setExercises(list)
+      }),
       subscribePlans(uid, setPlans),
       subscribeSessions(uid, setSessions),
       subscribeBodyweights(uid, setBodyweights),
@@ -93,16 +106,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [uid, exercises])
 
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
-  // Idempoten: hanya jalan sekali saat data pertama kali dimuat.
+  // Idempoten & aman race: hanya jalan setelah data konfirmasi dari SERVER —
+  // bukan sekadar cache lokal yang belum terisi (internet lambat / storage bersih).
   const seededRef = useRef(false)
   useEffect(() => {
-    if (!uid || !ready || seededRef.current) return
+    if (!uid || !ready || !exercisesFromServer || seededRef.current) return
     if (exercises.length > 0 || sessions.length > 0) return
     seededRef.current = true
     for (const ex of DEFAULT_EXERCISES) {
       createExercise(uid, ex).catch(() => undefined)
     }
-  }, [uid, ready, exercises.length, sessions.length])
+  }, [uid, ready, exercisesFromServer, exercises.length, sessions.length])
 
   // Auto-close: sesi berjalan yang ditinggalkan (>48 jam) ditandai selesai.
   // Idempoten & best-effort (sama seperti migrasi kategori): kalau gagal,

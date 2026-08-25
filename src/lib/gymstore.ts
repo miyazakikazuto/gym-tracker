@@ -51,9 +51,18 @@ export async function fetchExercises(uid: string): Promise<Exercise[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) }))
 }
 
-export function subscribeExercises(uid: string, cb: (list: Exercise[]) => void) {
+// meta.fromServer = true saat data datang dari server Firestore (bukan cache
+// lokal). Dipakai DataContext untuk memastikan seed default hanya jalan SETELAH
+// kita yakin akun benar-benar kosong — bukan sekadar cache yang belum terisi.
+export function subscribeExercises(
+  uid: string,
+  cb: (list: Exercise[], meta?: { fromServer: boolean }) => void,
+) {
   return onSnapshot(userGymRef(uid, 'exercises'), (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) })))
+    cb(
+      snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) })),
+      { fromServer: !snap.metadata.fromCache },
+    )
   })
 }
 
