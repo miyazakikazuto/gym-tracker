@@ -49,13 +49,19 @@ export default function Progress() {
   // Volume per grup otot (mengikuti halaman pager volume)
   const MUSCLE_TRACKED = ['Dada', 'Punggung', 'Kaki', 'Bahu', 'Bisep', 'Trisep', 'Forearm', 'Core']
   const muscleVol = new Map<string, number>()
+  // Volume yang tak teratribusi ke otot terlacak (gerakan hilang dari Library /
+  // grup Cardio) — ditampilkan sebagai baris "(Lainnya)" supaya tidak hilang diam-diam.
+  let otherVol = 0
   for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
   for (const s of sessions) {
     if (s.endedAt === null) continue
     if (!weeks.some((w) => s.date >= w.start && s.date <= w.end)) continue
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
-      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) continue
+      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) {
+        otherVol += volumeOf([set])
+        continue
+      }
       const vol = volumeOf([set])
       muscleVol.set(ex.muscleGroup, (muscleVol.get(ex.muscleGroup) ?? 0) + vol)
       if (inclSecondary) {
@@ -67,7 +73,8 @@ export default function Progress() {
     }
   }
   const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
-  const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), 1)
+  const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), otherVol, 1)
+  const trackedVolSum = muscleList.reduce((a, [, v]) => a + v, 0)
 
   // Ringkasan cardio (semua sesi)
   interface CardioInfo { dist: number; dur: number; elev: number; sesi: Set<string> }
@@ -209,13 +216,17 @@ export default function Progress() {
   const thisWeekEnd = addDays(thisWeekStart, 6)
   interface MuscleWeekInfo { sessions: Set<string>; sets: number; vol: number }
   const thisWeekMuscle = new Map<string, MuscleWeekInfo>()
+  let thisWeekOther = 0
   for (const m of MUSCLE_TRACKED) thisWeekMuscle.set(m, { sessions: new Set(), sets: 0, vol: 0 })
   for (const s of sessions) {
     if (s.endedAt === null) continue
     if (s.date < thisWeekStart || s.date > thisWeekEnd) continue
     for (const set of s.sets) {
       const ex = exercises.find((e) => e.id === set.exerciseId)
-      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) continue
+      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) {
+        thisWeekOther += volumeOf([set])
+        continue
+      }
       const info = thisWeekMuscle.get(ex.muscleGroup)!
       info.sessions.add(s.id)
       info.sets += 1
@@ -268,11 +279,23 @@ export default function Progress() {
               </div>
             </div>
           ))}
+          {thisWeekOther > 0 && (
+            <div className="row" style={{ marginTop: 6, alignItems: 'center' }}>
+              <span className="small" style={{ width: 64, fontWeight: 700 }}>(Lainnya)</span>
+              <div className="bar-track grow">
+                <div className="bar-fill" style={{ width: `${(thisWeekOther / maxThisWeekVol) * 100}%` }} />
+              </div>
+              <div className="small muted" style={{ width: 100, textAlign: 'right' }}>
+                · {fmtNumber(Math.round(thisWeekOther))} kg
+              </div>
+            </div>
+          )}
           <div className="small muted" style={{ marginTop: 8 }}>
             {thisWeekList.reduce((a, [, v]) => a + v.sessions.size, 0)} sesi ·{' '}
             {thisWeekList.reduce((a, [, v]) => a + v.sets, 0)} total set ·{' '}
             {fmtNumber(Math.round(thisWeekList.reduce((a, [, v]) => a + v.vol, 0)))} kg volume
             {inclSecondary && ' · termasuk secondary'}
+            {thisWeekOther > 0 && ` · (Lainnya) ${fmtNumber(Math.round(thisWeekOther))} kg`}
           </div>
           </>
         )}
@@ -323,6 +346,19 @@ export default function Progress() {
             <span className="small" style={{ width: 60, textAlign: 'right' }}>{fmtNumber(v)}</span>
           </div>
         ))}
+        {otherVol > 0 && (
+          <div className="row" style={{ marginTop: 6 }}>
+            <span className="small muted" style={{ width: 96 }}>(Lainnya)</span>
+            <div className="bar-track grow">
+              <div className="bar-fill" style={{ width: `${(otherVol / maxMuscleVol) * 100}%` }} />
+            </div>
+            <span className="small" style={{ width: 60, textAlign: 'right' }}>{fmtNumber(otherVol)}</span>
+          </div>
+        )}
+        <div className="small muted" style={{ marginTop: 8 }}>
+          Total terlacak {fmtNumber(trackedVolSum)} kg
+          {otherVol > 0 && ` · (Lainnya) ${fmtNumber(otherVol)} kg — gerakan tidak ada di Library atau Cardio`}
+        </div>
         {inclSecondary && (
           <div className="small muted" style={{ marginTop: 8 }}>
             Termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3 · Squat → Punggung 0.3, Core 0.4).

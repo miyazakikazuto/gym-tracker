@@ -51,9 +51,18 @@ export async function fetchExercises(uid: string): Promise<Exercise[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) }))
 }
 
-export function subscribeExercises(uid: string, cb: (list: Exercise[]) => void) {
+// meta.fromServer = true saat data datang dari server Firestore (bukan cache
+// lokal). Dipakai DataContext untuk memastikan seed default hanya jalan SETELAH
+// kita yakin akun benar-benar kosong — bukan sekadar cache yang belum terisi.
+export function subscribeExercises(
+  uid: string,
+  cb: (list: Exercise[], meta?: { fromServer: boolean }) => void,
+) {
   return onSnapshot(userGymRef(uid, 'exercises'), (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) })))
+    cb(
+      snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) })),
+      { fromServer: !snap.metadata.fromCache },
+    )
   })
 }
 
@@ -71,6 +80,23 @@ export async function deleteExercise(uid: string, id: string) {
 
 export function patchExerciseCategory(uid: string, id: string, category: string) {
   return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), { category })
+}
+
+// Batch: satu round-trip untuk banyak update kategori (migrasi akun lama).
+export async function patchExerciseCategories(
+  uid: string,
+  entries: Array<{ id: string; category: string }>,
+) {
+  if (entries.length === 0) return
+  const db = getDb()
+  const CHUNK = 400
+  for (let i = 0; i < entries.length; i += CHUNK) {
+    const batch = writeBatch(db)
+    for (const { id, category } of entries.slice(i, i + CHUNK)) {
+      batch.update(doc(db, 'users', uid, 'exercises', id), { category })
+    }
+    await batch.commit()
+  }
 }
 
 // ===== PLANS =====

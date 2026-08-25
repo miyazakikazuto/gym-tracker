@@ -22,37 +22,47 @@ const ALL_SESSION_LABELS = [
   'Leg Day — Deload',  'Push — Deload',  'Pull Day',         'Easy Day',
 ]
 
-// Lift yang dipakai di sesi 5/3/1 (index 8 = squat, index 9 = bench)
-const SBD_KEY: Record<number, 'squat' | 'bench' | 'deadlift'> = {
-  8: 'squat',
-  9: 'bench',
+// Lift yang dipakai di sesi 5/3/1 — berdasarkan TIPE sesi, bukan index:
+// Leg → Squat · Push → Bench · Pull → Deadlift (pola klasik Wendler).
+// Dengan begitu prescribed weights tetap benar walau urutan/index bergeser
+// karena exclusion (mis. Easy Day dimatikan).
+const LIFT_BY_TYPE: Record<string, 'squat' | 'bench' | 'deadlift'> = {
+  leg: 'squat',
+  push: 'bench',
+  pull: 'deadlift',
 }
 
 // Persentase TM per scheme
 interface Scheme {
   type: '3x5' | '3x3' | '531' | 'deload' | null
   label: string
-  lift?: 'squat' | 'bench' | 'deadlift'
   percentages: number[]
   sets: number
   reps: number | number[]
 }
 
 const ALL_SCHEMES: Record<number, Scheme> = {
-  0:  { type: '3x5',   label: '3×5',   percentages: [65],          sets: 3, reps: 5 },
-  1:  { type: '3x5',   label: '3×5',   percentages: [65],          sets: 3, reps: 5 },
-  4:  { type: '3x3',   label: '3×3',   percentages: [75],          sets: 3, reps: 3 },
-  5:  { type: '3x3',   label: '3×3',   percentages: [75],          sets: 3, reps: 3 },
-  8:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90],  sets: 3, reps: [5, 3, 1], lift: 'squat' },
-  9:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90],  sets: 3, reps: [5, 3, 1], lift: 'bench' },
+  // Week 1 — 3×5 (Leg=Squat, Push=Bench, Pull=Deadlift)
+  0:  { type: '3x5',   label: '3×5',   percentages: [65],         sets: 3, reps: 5 },
+  1:  { type: '3x5',   label: '3×5',   percentages: [65],         sets: 3, reps: 5 },
+  2:  { type: '3x5',   label: '3×5',   percentages: [65],         sets: 3, reps: 5 },
+  // Week 2 — 3×3
+  4:  { type: '3x3',   label: '3×3',   percentages: [75],         sets: 3, reps: 3 },
+  5:  { type: '3x3',   label: '3×3',   percentages: [75],         sets: 3, reps: 3 },
+  6:  { type: '3x3',   label: '3×3',   percentages: [75],         sets: 3, reps: 3 },
+  // Week 3 — 5/3/1
+  8:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90], sets: 3, reps: [5, 3, 1] },
+  9:  { type: '531',   label: '5/3/1', percentages: [70, 80, 90], sets: 3, reps: [5, 3, 1] },
+  10: { type: '531',   label: '5/3/1', percentages: [70, 80, 90], sets: 3, reps: [5, 3, 1] },
+  // Week 4 — Deload
   12: { type: 'deload', label: 'Deload', percentages: [40, 50],    sets: 2, reps: 5 },
   13: { type: 'deload', label: 'Deload', percentages: [40, 50],    sets: 2, reps: 5 },
+  14: { type: 'deload', label: 'Deload', percentages: [40, 50],    sets: 2, reps: 5 },
 }
 
-// 5/3/1 Leg progression: squat di index 8, deadlift di index 12 (deload)
-// Full: 8=squat, 9=bench
-// Without easy: 8=squat, 9=bench (index berubah tapi lift sama)
-// Deadlift: tidak ada di default 5/3/1 — user bisa pakai di Pull/Hard day
+// Catatan: key ALL_SCHEMES adalah index pada array FULL (16 sesi).
+// buildEffective() memetakan ulang ke index siklus efektif setelah exclusion,
+// jadi alignment minggu (3×5 → 3×3 → 5/3/1 → Deload) selalu terjaga.
 
 // ===== EXCLUSION HELPERS =====
 
@@ -81,7 +91,8 @@ function buildEffective(excluded: Set<string>) {
     types.push(ALL_SESSION_TYPES[i])
     labels.push(ALL_SESSION_LABELS[i])
     if (ALL_SCHEMES[i]) schemes.set(newIdx, ALL_SCHEMES[i])
-    if (SBD_KEY[i]) allSbdKey[newIdx] = SBD_KEY[i]
+    const lift = LIFT_BY_TYPE[ALL_SESSION_TYPES[i]]
+    if (lift) allSbdKey[newIdx] = lift
     newIdx++
   }
 
@@ -97,6 +108,9 @@ function countCompletedSessions(sessions: Session[]): number {
     if (s.endedAt === null) continue
     if (isRest(s.planName)) continue
     if (/cardio/i.test(s.planName)) continue
+    // Sesi "Skip — …" (dibuat oleh versi lama tombol Skip) tidak dihitung —
+    // skip sekarang pakai counter skippedSessions, bukan sesi tersimpan.
+    if (/^skip/i.test(s.planName.trim())) continue
     count++
   }
   return count
@@ -127,11 +141,6 @@ export function computePosition(
 }
 
 // ===== SCHEME LOOKUP (dynamic) =====
-
-export function getSessionType(index: number, excluded: Set<string> = new Set()): string {
-  const { types } = buildEffective(excluded)
-  return types[index % types.length] ?? 'leg'
-}
 
 export function getSessionLabel(index: number, excluded: Set<string> = new Set()): string {
   const { labels } = buildEffective(excluded)
@@ -172,38 +181,7 @@ export function getSbdLiftForSession(
   return sbdKey[index]
 }
 
-// ===== TM MANAGEMENT =====
-
-export function nextTMFromAMRAP(weightKg: number, reps: number, currentTM: number): number {
-  if (weightKg <= 0 || reps <= 0) return currentTM
-  const e1rm = weightKg * (1 + reps / 30)
-  const raw = e1rm * 0.9
-  return Math.round(raw / 2.5) * 2.5
-}
-
-// ===== CYCLE TRANSITION =====
-
-export function isCycleTransition(prevIndex: number, currentIndex: number, cycleLength: number): boolean {
-  return prevIndex === cycleLength - 1 && currentIndex === 0
-}
-
-export function resetCycle(): { cycleNumber: number; sessionIndex: number } {
-  return { cycleNumber: 1, sessionIndex: 0 }
-}
-
-// ===== SKIP LOGIC =====
-
-export function positionAfterSkip(currentIndex: number): number {
-  return currentIndex
-}
-
-export function positionAfterSession(currentIndex: number, cycleLength: number): number {
-  return (currentIndex + 1) % cycleLength
-}
-
 // ===== 5/3/1 SUGGESTION KEY (dynamic) =====
-
-const ROTATION = ['leg', 'easy', 'push', 'pull'] as const
 
 /** Key preset untuk sesi 5/3/1 berdasarkan sessionIndex. */
 export function suggestKey531(
@@ -214,20 +192,6 @@ export function suggestKey531(
   return types[sessionIndex % types.length] ?? 'leg'
 }
 
-/** Next key in rotation, respecting exclusion. */
-export function nextRotationKey(
-  currentKey: string,
-  excluded: Set<string> = new Set(),
-): string {
-  const idx = ROTATION.indexOf(currentKey as typeof ROTATION[number])
-  if (idx === -1) return currentKey
-  for (let step = 1; step <= ROTATION.length; step++) {
-    const next = ROTATION[(idx + step) % ROTATION.length]
-    if (!excluded.has(next)) return next
-  }
-  return currentKey
-}
-
 /** 5/3/1 sequence untuk UI. */
 export function get531Sequence(excluded: Set<string> = new Set()) {
   const { types, labels, schemes } = buildEffective(excluded)
@@ -236,13 +200,4 @@ export function get531Sequence(excluded: Set<string> = new Set()) {
     label: labels[i],
     scheme: schemes.get(i)?.label ?? '',
   }))
-}
-
-/** Deadlift lift key for deload (index 12 = squat in standard, but we want deadlift). */
-export function getDeloadLiftKey(
-  index: number,
-  excluded: Set<string> = new Set(),
-): 'squat' | 'bench' | 'deadlift' | undefined {
-  const { sbdKey } = buildEffective(excluded)
-  return sbdKey[index]
 }

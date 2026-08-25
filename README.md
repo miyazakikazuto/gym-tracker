@@ -36,8 +36,24 @@ Project Vercel: `gym-tracker` (akun miyazakikazuto, team `miyazakikazutos-projec
 
 - **Production branch Vercel = `freebuff`** → setiap push ke `freebuff` otomatis jadi Production deployment.
 - **URL tetap (selalu code terbaru): `https://gym-tracker-inky-rho.vercel.app`** — bookmark URL ini, jangan pakai URL deployment (immutable per deploy).
-- **`main`** → tidak di-deploy ke Vercel (`ignoreCommand` di `vercel.json` me-skip build, exit 0 = skip); production asli tetap GitHub Pages.
+- **`main`** → production asli tetap GitHub Pages; di Vercel hanya menghasilkan preview deployment (`vercel.json` tidak lagi punya `ignoreCommand`, jadi semua branch dapat preview).
 - URL preview per deploy (berubah-ubah, hanya untuk debug): `https://gym-tracker-<hash>-<team>.vercel.app`
+
+### Deploy via Vercel CLI
+
+```bash
+npm i -g vercel        # sekali saja
+cd gym-tracker
+vercel deploy          # preview deployment
+vercel deploy --prod   # production -> URL tetap langsung update
+```
+
+Auth: `vercel login` interaktif, atau pakai token dari [vercel.com/account/tokens](https://vercel.com/account/tokens):
+
+```bash
+export VERCEL_TOKEN=<token>
+vercel deploy --prod --token="$VERCEL_TOKEN"
+```
 
 Base path otomatis menyesuaikan platform: `/gym-tracker/` di GitHub Pages, `/` di Vercel (via env `VERCEL=1` saat build).
 

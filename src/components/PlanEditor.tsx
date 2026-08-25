@@ -233,7 +233,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
                 value={it.reps}
                 min={1}
                 onChange={(e) => updateItem(i, { reps: Number(e.target.value) })}
-                title={exerciseIsDuration(exercises, it.exerciseId) ? 'Durasi (dtk)' : 'Rep'}
+                title={exerciseIsDuration(exercises, it.exerciseId) ? 'Durasi (jam·menit)' : 'Rep'}
               />
               <button className="icon-btn danger" aria-label="Hapus gerakan dari jadwal" onClick={() => removeItem(i)}>✕</button>
             </div>

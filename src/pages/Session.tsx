@@ -8,7 +8,7 @@ import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetRes
 import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
-import { getPrescribedWeights, getScheme } from '../lib/progression'
+import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes } from '../lib/progression'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
 
@@ -17,6 +17,7 @@ interface SetResult {
   reps: number
   durationSec?: number
   distanceKm?: number
+  elevationM?: number
 }
 
 export default function Session() {
@@ -75,6 +76,7 @@ export default function Session() {
             reps: set.reps,
             durationSec: set.durationSec,
             distanceKm: set.distanceKm,
+            elevationM: set.elevationM,
           })
         }
       }
@@ -192,7 +194,9 @@ export default function Session() {
   // Parse 5/3/1 context dari planName — mis. "[C1-S05] Leg Day — 3×3"
   const cycleMatch = session.planName.match(/\[C(\d+)-S(\d+)\]/)
   const planSessionIdx = cycleMatch ? Number(cycleMatch[2]) - 1 : -1
-  const planScheme = planSessionIdx >= 0 ? getScheme(planSessionIdx) : null
+  const planExcluded = computeExcludedTypes(settings)
+  const planScheme = planSessionIdx >= 0 ? getScheme(planSessionIdx, planExcluded) : null
+  const planLift = planSessionIdx >= 0 ? getSbdLiftForSession(planSessionIdx, planExcluded) : undefined
   const planTM = settings.trainingMax
 
   function addSet(exerciseId: string) {
@@ -216,16 +220,12 @@ export default function Session() {
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
       elev = prev.elevationM
-    } else if (planScheme && planTM) {
-      // 5/3/1: pre-fill dari TM berdasarkan set number
-      const ex = exercises.find((e) => e.id === exerciseId)
-      if (ex) {
-        const liftKey = planSessionIdx === 8 ? 'squat' : planSessionIdx === 9 ? 'bench' : undefined
-        if (liftKey && planTM[liftKey] > 0) {
-          const weights = getPrescribedWeights(planScheme, planTM[liftKey])
-          const prescribed = weights[setNo - 1] ?? weights[weights.length - 1]
-          if (prescribed) { w = prescribed.weight; r = typeof prescribed.reps === 'number' ? prescribed.reps : 0 }
-        }
+    } else if (planScheme && planTM && planLift) {
+      // 5/3/1: pre-fill dari TM sesuai tipe sesi (Leg→Squat, Push→Bench, Pull→Deadlift)
+      if (planTM[planLift] > 0) {
+        const weights = getPrescribedWeights(planScheme, planTM[planLift])
+        const prescribed = weights[setNo - 1] ?? weights[weights.length - 1]
+        if (prescribed) { w = prescribed.weight; r = typeof prescribed.reps === 'number' ? prescribed.reps : 0 }
       }
       if (w === 0) {
         const best = bestSetResult(sessions, sid, exerciseId)
@@ -398,7 +398,7 @@ export default function Session() {
               </>
             ) : (
               <>
-                <span style={{ width: 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
+                <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·mnt)' : 'Rep'}</span>
                 {dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
                 <span className="int">Int</span>
               </>
@@ -598,15 +598,52 @@ const SetRow = memo(function SetRow({
             }}
           />
           <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
-          <input
-            className="wt"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={dur ? s.durationSec || '' : s.reps || ''}
-            placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
-            onChange={(e) => onPatch(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
-          />
+          {dur ? (
+            // Durasi pakai jam + menit (bukan detik mentah) — konsisten dengan
+            // baris cardio. Backend tetap simpan durationSec.
+            <div className="row" style={{ gap: 2, alignItems: 'center', width: 76 }}>
+              <input
+                className="wt"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                style={{ width: 30, textAlign: 'center' }}
+                value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
+                placeholder="0"
+                onChange={(e) => {
+                  const h = Number(e.target.value) || 0
+                  const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
+                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
+                }}
+              />
+              <span className="small muted">j</span>
+              <input
+                className="wt"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={59}
+                style={{ width: 30, textAlign: 'center' }}
+                value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
+                placeholder="0"
+                onChange={(e) => {
+                  const m = Number(e.target.value) || 0
+                  const h = Math.floor((s.durationSec ?? 0) / 3600)
+                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
+                }}
+              />
+            </div>
+          ) : (
+            <input
+              className="wt"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={s.reps || ''}
+              placeholder={prev ? String(prev.reps) : '0'}
+              onChange={(e) => onPatch(s.id, { reps: Number(e.target.value) })}
+            />
+          )}
           {dur && (
             <input
               className="wt dist"

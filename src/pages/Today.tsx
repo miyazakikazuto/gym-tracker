@@ -345,7 +345,7 @@ export default function Today() {
                 </div>
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex)} — {presetByKey(suggestKey531(cyclePos.sessionIndex))?.shortLabel ?? ''}
+                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}
                 </div>
                 <div style={{ height: 10 }} />
                 <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
