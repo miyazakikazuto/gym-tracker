@@ -97,6 +97,9 @@ function countCompletedSessions(sessions: Session[]): number {
     if (s.endedAt === null) continue
     if (isRest(s.planName)) continue
     if (/cardio/i.test(s.planName)) continue
+    // Sesi "Skip — …" (dibuat oleh versi lama tombol Skip) tidak dihitung —
+    // skip sekarang pakai counter skippedSessions, bukan sesi tersimpan.
+    if (/^skip/i.test(s.planName.trim())) continue
     count++
   }
   return count
