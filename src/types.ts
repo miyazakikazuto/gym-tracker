@@ -10,7 +10,7 @@ export interface Exercise {
 
 export const EXERCISE_TYPES = [
   { key: 'reps', name: 'Reps (set × rep)' },
-  { key: 'duration', name: 'Durasi (dtk)' },
+  { key: 'duration', name: 'Durasi (jam·menit)' },
 ] as const
 
 export const EXERCISE_CATEGORIES = [
@@ -25,6 +25,9 @@ export interface PlanItem {
   exerciseId: string
   order: number
   targetSets: number
+  // Catatan: untuk gerakan bertipe 'duration', field ini menyimpan DURASI dalam
+  // detik (bukan rep) — dipakai buildSession() sebagai durationSec awal set.
+  // Overloading disengaja supaya struktur plan lama tetap kompatibel.
   reps: number
   restSec: number
 }

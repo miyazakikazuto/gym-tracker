@@ -398,7 +398,7 @@ export default function Session() {
               </>
             ) : (
               <>
-                <span style={{ width: 60, textAlign: 'center' }}>{dur ? 'Durasi (dtk)' : 'Rep'}</span>
+                <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·mnt)' : 'Rep'}</span>
                 {dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
                 <span className="int">Int</span>
               </>
@@ -598,15 +598,52 @@ const SetRow = memo(function SetRow({
             }}
           />
           <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
-          <input
-            className="wt"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={dur ? s.durationSec || '' : s.reps || ''}
-            placeholder={prev ? String(dur ? prev.durationSec ?? '' : prev.reps) : '0'}
-            onChange={(e) => onPatch(s.id, dur ? { durationSec: Number(e.target.value) } : { reps: Number(e.target.value) })}
-          />
+          {dur ? (
+            // Durasi pakai jam + menit (bukan detik mentah) — konsisten dengan
+            // baris cardio. Backend tetap simpan durationSec.
+            <div className="row" style={{ gap: 2, alignItems: 'center', width: 76 }}>
+              <input
+                className="wt"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                style={{ width: 30, textAlign: 'center' }}
+                value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
+                placeholder="0"
+                onChange={(e) => {
+                  const h = Number(e.target.value) || 0
+                  const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
+                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
+                }}
+              />
+              <span className="small muted">j</span>
+              <input
+                className="wt"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={59}
+                style={{ width: 30, textAlign: 'center' }}
+                value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
+                placeholder="0"
+                onChange={(e) => {
+                  const m = Number(e.target.value) || 0
+                  const h = Math.floor((s.durationSec ?? 0) / 3600)
+                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
+                }}
+              />
+            </div>
+          ) : (
+            <input
+              className="wt"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={s.reps || ''}
+              placeholder={prev ? String(prev.reps) : '0'}
+              onChange={(e) => onPatch(s.id, { reps: Number(e.target.value) })}
+            />
+          )}
           {dur && (
             <input
               className="wt dist"
