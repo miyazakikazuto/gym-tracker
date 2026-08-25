@@ -19,7 +19,10 @@ export const PLAN_PRESETS: PlanPreset[] = [
     shortLabel: 'LEG',
     dotColor: '#44cc88',
     exercises: [
-      { name: 'Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      // Nama disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts) supaya
+      // templatePlan() menemukan gerakan yang sudah ada di library —
+      // bukan membuat duplikat baru saat "Pilih plan lain".
+      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Leg Press', muscleGroup: 'Kaki', equipment: 'Machine' },
       { name: 'Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Leg Extension', muscleGroup: 'Kaki', equipment: 'Machine' },
@@ -34,11 +37,11 @@ export const PLAN_PRESETS: PlanPreset[] = [
     dotColor: '#6699ff',
     exercises: [
       { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
-      { name: 'Incline Dumbbell Press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
+      { name: 'Incline DB press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
       { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
-      { name: 'Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
-      { name: 'Triceps Pushdown', muscleGroup: 'Trisep', equipment: 'Kabel' },
-      { name: 'Dips', muscleGroup: 'Trisep', equipment: 'Bodyweight' },
+      { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Tricep Pushdown', muscleGroup: 'Trisep', equipment: 'Kabel' },
+      { name: 'Pec Fly (Machine)', muscleGroup: 'Dada', equipment: 'Machine' },
     ],
   },
   {
@@ -50,7 +53,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Lat Pulldown', muscleGroup: 'Punggung', equipment: 'Kabel' },
       { name: 'Barbell Row', muscleGroup: 'Punggung', equipment: 'Barbell' },
       { name: 'Seated Cable Row', muscleGroup: 'Punggung', equipment: 'Kabel' },
-      { name: 'Bicep Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+      { name: 'Bicep Curl DB', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Hammer Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Face Pull', muscleGroup: 'Bahu', equipment: 'Kabel' },
     ],
@@ -61,11 +64,12 @@ export const PLAN_PRESETS: PlanPreset[] = [
     shortLabel: 'EASY',
     dotColor: '#7ee787',
     exercises: [
-      { name: 'Goblet Squat', muscleGroup: 'Kaki', equipment: 'Dumbbell' },
+      { name: 'Cable Hip Abduction', muscleGroup: 'Kaki', equipment: 'Kabel' },
       { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight' },
-      { name: 'Pull-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
-      { name: 'Dumbbell Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
-      { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
+      { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
+      { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Dead Hang', muscleGroup: 'Forearm', equipment: 'Bodyweight' },
+      { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
     ],
   },
   {
@@ -74,10 +78,9 @@ export const PLAN_PRESETS: PlanPreset[] = [
     shortLabel: 'CARDIO',
     dotColor: '#ff6699',
     exercises: [
-      { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Machine' },
-      { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Machine' },
-      { name: 'Row Machine', muscleGroup: 'Cardio', equipment: 'Machine' },
-      { name: 'Jump Rope', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+      { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+      { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+      { name: 'Easy Running', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
     ],
   },
   {
