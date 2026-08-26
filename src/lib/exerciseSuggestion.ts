@@ -1,6 +1,6 @@
 // Saran gerakan pintar saat tambah ke sesi: gap volume otot dalam window
 // se-kategori + frekuensi pemakaian + belum-pernah. Pure function, testable.
-import { volumeOf } from './date'
+import { addDays, parseKey, todayKey, volumeOf } from './date'
 import type { Exercise, Session } from '../types'
 
 export type Reason = 'gap' | 'baru' | 'lupa' | 'biasa'
@@ -21,7 +21,7 @@ export function suggestExercises(
   const weeks = opts.weeks ?? 4
   const forgetDays = opts.forgetDays ?? 21
 
-  const cutoff = new Date(Date.now() - weeks * 7 * 86400000).toISOString().slice(0, 10)
+  const cutoff = addDays(todayKey(), -weeks * 7)
 
   // Volume per muscleGroup dalam window se-kategori (sesi selesai saja)
   const volByMuscle = new Map<string, number>()
@@ -58,7 +58,7 @@ export function suggestExercises(
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayKey()
   const scored: Suggestion[] = []
   for (const ex of pool) {
     if (currentSetIds.has(ex.id)) continue
@@ -69,7 +69,7 @@ export function suggestExercises(
       reason = 'baru'
     } else {
       const diff = Math.round(
-        (new Date(today).getTime() - new Date(last).getTime()) / 86400000,
+        (parseKey(today).getTime() - parseKey(last).getTime()) / 86400000,
       )
       daysSinceLast = diff
       if (gapMuscles.has(ex.muscleGroup)) reason = 'gap'

@@ -19,11 +19,18 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
   }
 }
 
-// Sesi yang selesai paling terakhir (tanggal + waktu mulai).
-// Sesi Rest Day dikecualikan — istirahat bukan latihan, jadi tidak boleh
-// menggeser rotasi atau menghitung ulang "hari sejak latihan".
+// Sesi yang tidak dihitung sebagai latihan gym: Rest Day, Cardio, dan sesi
+// Skip lama ("Skip — …"). Disamakan dengan filter progression agar cycle
+// Wendler dan rotasi tidak divergen.
+function isNonCountingSession(s: Session): boolean {
+  if (isRest(s.planName)) return true
+  if (/cardio/i.test(s.planName)) return true
+  if (/^skip/i.test(s.planName.trim())) return true
+  return false
+}
+
 function isRestSession(s: Session): boolean {
-  return isRest(s.planName)
+  return isNonCountingSession(s)
 }
 
 export function lastFinishedSession(sessions: Session[]): Session | null {

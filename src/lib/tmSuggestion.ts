@@ -1,7 +1,7 @@
 // Saran Training Max 5/3/1 yang personal: e1RM terbaik (Epley) dari riwayat
 // set Squat/Bench/Deadlift asli dalam window N minggu × faktor 90%,
 // dibulatkan ke 2,5 kg. Murni saran — tidak pernah menulis settings.
-import { todayKey } from './date'
+import { addDays, todayKey } from './date'
 import { e1rm } from './e1rm'
 import { isSbdExercise, SBD_LIFTS } from './sbd'
 import type { Exercise, Session, UserSettings } from '../types'
@@ -25,8 +25,7 @@ export function roundTo2_5(n: number): number {
 }
 
 function shiftDate(iso: string, days: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1, d) - days * 86400000).toISOString().slice(0, 10)
+  return addDays(iso, -days)
 }
 
 function bestE1rmForLift(
