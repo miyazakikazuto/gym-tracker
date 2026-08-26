@@ -68,6 +68,8 @@ export default function Today() {
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [showPick, setShowPick] = useState(false)
+  // Guard double-tap: satu sesi per tekan Mulai (Firestore await bisa >1 detik)
+  const [creating, setCreating] = useState(false)
 
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -156,6 +158,9 @@ export default function Today() {
     }))
 
   const showStart = rotationMode ? !restToday && !todayDone : !todayIsRest
+  // CTA bawah hanya tampil saat kartu Saran (dengan tombol Mulai inline) tidak tampak —
+  // hindari dua tombol Mulai serentak di satu layar.
+  const showBottomStart = showStart && (!rotationMode || restToday)
 
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
@@ -194,6 +199,8 @@ export default function Today() {
   }
 
   async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string) {
+    if (creating) return
+    setCreating(true)
     const payload = buildSession(
       plan,
       base,
@@ -205,11 +212,14 @@ export default function Today() {
       const ref = await createSession(uid, payload)
       navigate(`/session/${ref.id}`)
     } catch {
-      showToast('Gagal membuat sesi — cek koneksi internet')
+      showToast('Gagal membuat sesi — cek koneksi internet', 'error')
+    } finally {
+      setCreating(false)
     }
   }
 
   function handleStart() {
+    if (creating) return
     if (activeSession) {
       navigate(`/session/${activeSession.id}`)
       return
@@ -234,7 +244,7 @@ export default function Today() {
       await saveSettings({ skippedSessions: (settings.skippedSessions ?? 0) + 1 })
       showToast(`${effectivePreset?.shortLabel ?? effectiveKey} dilewati → lanjut ke sesi berikutnya`)
     } catch {
-      showToast('Gagal skip — cek koneksi internet')
+      showToast('Gagal skip — cek koneksi internet', 'error')
     }
   }
 
@@ -245,7 +255,7 @@ export default function Today() {
       await saveSettings({ skippedSessions: n - 1 })
       showToast('Skip dikembalikan — posisi mundur 1')
     } catch {
-      showToast('Gagal mengembalikan skip')
+      showToast('Gagal mengembalikan skip', 'error')
     }
   }
 
@@ -262,7 +272,7 @@ export default function Today() {
         sets: [],
       })
     } catch {
-      showToast('Gagal menyimpan istirahat — cek koneksi internet')
+      showToast('Gagal menyimpan istirahat — cek koneksi internet', 'error')
     }
   }
 
@@ -273,7 +283,7 @@ export default function Today() {
     try {
       await deleteSession(uid, rest.id)
     } catch {
-      showToast('Gagal membatalkan istirahat — cek koneksi internet')
+      showToast('Gagal membatalkan istirahat — cek koneksi internet', 'error')
     }
   }
 
@@ -394,7 +404,7 @@ export default function Today() {
                 ) : (
                   <>
                     <div className="action-row">
-                      <button className="btn primary" onClick={handleStart}>
+                      <button className="btn primary" disabled={creating} onClick={handleStart}>
                         {effectivePlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
                       </button>
                       <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
@@ -542,8 +552,8 @@ export default function Today() {
         <div className="empty">Memuat…</div>
       ) : (
         <>
-          {showStart && (
-            <button className="btn primary wide" onClick={handleStart}>
+          {showBottomStart && (
+            <button className="btn primary wide" disabled={creating} onClick={handleStart}>
               {startLabel}
             </button>
           )}
