@@ -37,7 +37,7 @@ interface DataState {
   saveBodyweight: (date: string, kg: number) => Promise<void>
   removeBodyweight: (date: string) => void
   saveSettings: (patch: Partial<UserSettings>) => void
-  showToast: (msg: string) => void
+  showToast: (msg: string, kind?: 'ok' | 'error') => void
 }
 
 const DataContext = createContext<DataState | null>(null)
@@ -51,7 +51,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [bodyweights, setBodyweights] = useState<Bodyweight[]>([])
   const [settings, setSettings] = useState<Partial<UserSettings>>({})
   const [ready, setReady] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; kind: 'ok' | 'error' } | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
   // True setelah snapshot exercises datang dari SERVER Firestore (bukan cache).
   // Seed default menunggu flag ini supaya tidak dobel saat internet lambat:
@@ -59,8 +59,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const exercisesFromServerRef = useRef(false)
   const [exercisesFromServer, setExercisesFromServer] = useState(false)
 
-  const showToast = (msg: string) => {
-    setToast(msg)
+  const showToast = (msg: string, kind: 'ok' | 'error' = 'ok') => {
+    setToast({ msg, kind })
     window.clearTimeout(toastTimer.current)
     toastTimer.current = window.setTimeout(() => setToast(null), 3500)
   }
@@ -186,8 +186,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     >
       {children}
       {toast && (
-        <div className="toast" role="alert">
-          {toast}
+        <div className={`toast ${toast.kind}`} role="alert">
+          {toast.msg}
         </div>
       )}
     </DataContext.Provider>

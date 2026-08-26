@@ -33,6 +33,10 @@ export default function Session() {
   const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
   const [syncPending, setSyncPending] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
+  // Undo hapus set: snapshot ditahan 5 detik sebelum dianggap final.
+  const [undoDelete, setUndoDelete] = useState<{ set: SessionSet; index: number } | null>(null)
+  const undoRef = useRef<{ set: SessionSet; index: number } | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
   // Timer terpisah per jenis data — aksi satu jenis tidak membatalkan write jenis lain
   const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -137,14 +141,44 @@ export default function Session() {
 
   const removeSet = useCallback(
     (setId: string) => {
+      let removed: { set: SessionSet; index: number } | null = null
       setLocalSets((cur) => {
-        const next = cur.filter((s) => s.id !== setId)
+        const index = cur.findIndex((s) => s.id === setId)
+        if (index >= 0) removed = { set: cur[index], index }
+        const next = index >= 0 ? cur.filter((s) => s.id !== setId) : cur
         scheduleSync(next)
         return next
+      })
+      // Tunda sampai updater selesai (StrictMode bisa memanggilnya 2×),
+      // lalu tawarkan undo selama 5 detik.
+      void Promise.resolve().then(() => {
+        if (!removed) return
+        undoRef.current = removed
+        setUndoDelete(removed)
+        window.clearTimeout(undoTimer.current)
+        undoTimer.current = window.setTimeout(() => {
+          undoRef.current = null
+          setUndoDelete(null)
+        }, 5000)
       })
     },
     [scheduleSync],
   )
+
+  const restoreDeleted = useCallback(() => {
+    const d = undoRef.current
+    window.clearTimeout(undoTimer.current)
+    undoRef.current = null
+    setUndoDelete(null)
+    if (!d) return
+    setLocalSets((cur) => {
+      if (cur.some((s) => s.id === d.set.id)) return cur
+      const next = [...cur]
+      next.splice(Math.min(d.index, next.length), 0, d.set)
+      scheduleSync(next)
+      return next
+    })
+  }, [scheduleSync])
 
   const stepWeight = useCallback(
     (setId: string, delta: number) => {
@@ -304,7 +338,7 @@ export default function Session() {
     try {
       await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
     } catch {
-      showToast('Gagal menyelesaikan sesi — cek koneksi internet')
+      showToast('Gagal menyelesaikan sesi — cek koneksi internet', 'error')
       return
     }
     dirtyRef.current = {}
@@ -316,7 +350,7 @@ export default function Session() {
     try {
       await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
     } catch {
-      showToast('Gagal menyimpan — cek koneksi internet')
+      showToast('Gagal menyimpan — cek koneksi internet', 'error')
       return
     }
     dirtyRef.current = {}
@@ -329,7 +363,7 @@ export default function Session() {
     try {
       await deleteSession(uid, sid)
     } catch {
-      showToast('Gagal menghapus sesi — cek koneksi internet')
+      showToast('Gagal menghapus sesi — cek koneksi internet', 'error')
       return
     }
     navigate('/')
@@ -375,13 +409,20 @@ export default function Session() {
             const text = formatSessionForAI(snapshot, exercises, findPrevSessionsByExercise(sessions, snapshot))
             navigator.clipboard.writeText(text).then(
               () => showToast('Ringkasan disalin — tempel ke Claude'),
-              () => showToast('Gagal menyalin — coba lagi'),
+              () => showToast('Gagal menyalin — coba lagi', 'error'),
             )
           }}
         >
           📋 Salin untuk AI
         </button>
       </div>
+
+      {undoDelete && (
+        <div className="card row spread" style={{ padding: '10px 12px', borderColor: 'var(--danger)' }}>
+          <span className="small">1 set dihapus</span>
+          <button className="btn sm ghost" onClick={restoreDeleted}>↩ Urungkan</button>
+        </div>
+      )}
 
       {grouped.size === 0 && (
         <div className="card empty">Belum ada gerakan. Tambahkan lewat tombol di bawah.</div>
@@ -506,7 +547,7 @@ export default function Session() {
           <div className="small muted" style={{ marginBottom: 10 }}>
             "{session.planName}" ({formatDMYWIB(session.date)}) akan dihapus permanen.
           </div>
-          <div className="form-actions">
+      <div className="form-actions sticky">
             <button className="btn ghost" onClick={() => setConfirmDel(false)}>Batal</button>
             <button className="btn danger" onClick={() => { setConfirmDel(false); void del() }}>Hapus</button>
           </div>

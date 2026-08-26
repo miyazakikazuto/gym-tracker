@@ -60,12 +60,12 @@ function navIcons(name: string) {
 }
 
 const TABS = [
-  { path: '/today', label: 'Home', key: 'today' },
-  { path: '/history', label: 'History', key: 'history' },
+  { path: '/today', label: 'Beranda', key: 'today' },
+  { path: '/history', label: 'Riwayat', key: 'history' },
   { path: '/progress', label: 'Progress', key: 'progress' },
-  { path: '/weight', label: 'Weight', key: 'weight' },
-  { path: '/library', label: 'Exercises', key: 'library' },
-  { path: '/settings', label: 'Settings', key: 'settings' },
+  { path: '/weight', label: 'Berat', key: 'weight' },
+  { path: '/library', label: 'Gerakan', key: 'library' },
+  { path: '/settings', label: 'Setelan', key: 'settings' },
 ]
 
 export default function Layout() {
