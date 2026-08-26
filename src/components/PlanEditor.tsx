@@ -120,7 +120,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
       await deletePlan(uid, plan.id)
       onClose()
     } catch {
-      showToast('Gagal menghapus jadwal — cek koneksi internet')
+      showToast('Gagal menghapus jadwal — cek koneksi internet', 'error')
     }
   }
 

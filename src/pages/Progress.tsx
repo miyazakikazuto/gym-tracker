@@ -35,7 +35,7 @@ export default function Progress() {
     const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind: recapKind })
     navigator.clipboard.writeText(text).then(
       () => showToast('Rekap disalin — tempel ke Claude'),
-      () => showToast('Gagal menyalin — coba lagi'),
+      () => showToast('Gagal menyalin — coba lagi', 'error'),
     )
   }
 

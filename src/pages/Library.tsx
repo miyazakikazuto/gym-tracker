@@ -169,7 +169,7 @@ export default function Library() {
               onClick={() => {
                 const id = confirmDel.id
                 setConfirmDel(null)
-                void deleteExercise(uid, id).catch(() => showToast('Gagal menghapus gerakan — cek koneksi internet'))
+                void deleteExercise(uid, id).catch(() => showToast('Gagal menghapus gerakan — cek koneksi internet', 'error'))
               }}
             >
               Hapus
@@ -185,7 +185,7 @@ export default function Library() {
           onMerge={(keepId, deleteIds) => {
             void mergeDuplicates(keepId, deleteIds, sessions, plans)
               .then(() => { showToast('Duplikat digabungkan'); setShowDuplicates(false) })
-              .catch(() => showToast('Gagal menggabungkan — cek koneksi'))
+              .catch(() => showToast('Gagal menggabungkan — cek koneksi', 'error'))
           }}
         />
       )}
