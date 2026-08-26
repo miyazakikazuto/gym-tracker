@@ -9,6 +9,7 @@ import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes } from '../lib/progression'
+import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
 
@@ -365,6 +366,21 @@ export default function Session() {
         </span>
         <span className="badge">{localSets.length} set</span>
         {syncPending && <span className="badge">•• menyimpan</span>}
+        <button
+          className="btn sm ghost"
+          style={{ marginLeft: 'auto' }}
+          onClick={() => {
+            if (!session) return
+            const snapshot: typeof session = { ...session, sets: localSets }
+            const text = formatSessionForAI(snapshot, exercises, findPrevSessionsByExercise(sessions, snapshot))
+            navigator.clipboard.writeText(text).then(
+              () => showToast('Ringkasan disalin — tempel ke Claude'),
+              () => showToast('Gagal menyalin — coba lagi'),
+            )
+          }}
+        >
+          📋 Salin untuk AI
+        </button>
       </div>
 
       {grouped.size === 0 && (
