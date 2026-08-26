@@ -1,28 +1,44 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useData } from '../context/DataContext'
 import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
-import { formatPeriodForAI, weekWindow, monthWindow, prevWeekWindow, prevMonthWindow } from '../lib/periodSummary'
+import {
+  formatPeriodForAI,
+  weekWindow,
+  monthWindow,
+  prevWeekWindow,
+  prevMonthWindow,
+  listWeekOptions,
+  listMonthOptions,
+} from '../lib/periodSummary'
 import StatCard from '../components/StatCard'
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
   const { sessions, exercises, bodyweights, showToast } = useData()
 
-  const copyRecap = (kind: 'mingguan' | 'bulanan') => {
-    const win = kind === 'mingguan' ? weekWindow(today) : monthWindow(today)
-    const prev = kind === 'mingguan' ? prevWeekWindow(win) : prevMonthWindow(win)
-    const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind })
+  const today = todayKey()
+
+  const weekOpts = useMemo(() => listWeekOptions(sessions, today), [sessions, today])
+  const monthOpts = useMemo(() => listMonthOptions(sessions, today), [sessions, today])
+  const [recapKind, setRecapKind] = useState<'mingguan' | 'bulanan'>('mingguan')
+  // Index ke daftar opsi — 0 = periode berjalan. Reset saat kind berganti.
+  const [recapSel, setRecapSel] = useState(0)
+  const recapOpts = recapKind === 'mingguan' ? weekOpts : monthOpts
+
+  const copyRecap = () => {
+    const win = recapOpts[recapSel] ?? (recapKind === 'mingguan' ? weekWindow(today) : monthWindow(today))
+    const prev = recapKind === 'mingguan' ? prevWeekWindow(win) : prevMonthWindow(win)
+    const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind: recapKind })
     navigator.clipboard.writeText(text).then(
       () => showToast('Rekap disalin — tempel ke Claude'),
       () => showToast('Gagal menyalin — coba lagi'),
     )
   }
 
-  const today = todayKey()
   const [volPage, setVolPage] = useState(0)
   // true = volume otot termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3)
   const [inclSecondary, setInclSecondary] = useState(true)
@@ -642,12 +658,33 @@ export default function Progress() {
       <div className="card">
         <div className="card-title">Rekap untuk AI</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
-          Salin rekap latihan siap-tempel untuk minta kesimpulan/saran ke Claude.
+          Pilih minggu/bulan bebas, salin rekap siap-tempel untuk minta kesimpulan/saran ke Claude.
         </div>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn sm ghost" onClick={() => copyRecap('mingguan')}>📋 Minggu ini</button>
-          <button className="btn sm ghost" onClick={() => copyRecap('bulanan')}>📋 Bulan ini</button>
+          <select
+            className="input"
+            value={recapKind}
+            onChange={(e) => {
+              setRecapKind(e.target.value as 'mingguan' | 'bulanan')
+              setRecapSel(0)
+            }}
+          >
+            <option value="mingguan">Mingguan</option>
+            <option value="bulanan">Bulanan</option>
+          </select>
+          <select
+            className="input"
+            value={String(recapSel)}
+            onChange={(e) => setRecapSel(Number(e.target.value))}
+          >
+            {recapOpts.map((o, i) => (
+              <option key={o.start} value={i}>{o.label}</option>
+            ))}
+          </select>
         </div>
+        <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={copyRecap}>
+          📋 Salin rekap
+        </button>
       </div>
     </div>
   )

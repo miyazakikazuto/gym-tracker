@@ -201,3 +201,67 @@ export function formatPeriodForAI(input: {
 
   return lines.join('\n')
 }
+
+// ===== Opsi periode untuk dropdown rekap =====
+
+export interface PeriodOption {
+  start: string
+  end: string
+  label: string
+}
+
+function earliestSessionDate(sessions: Session[]): string | null {
+  let earliest: string | null = null
+  for (const s of sessions) {
+    if (s.endedAt === null) continue
+    if (!earliest || s.date < earliest) earliest = s.date
+  }
+  return earliest
+}
+
+// Daftar minggu dari minggu sesi pertama sampai minggu berjalan (terbaru dulu).
+// Tanpa data → cukup minggu berjalan. Cap 52 minggu TERBARU (yang tua dipangkas).
+export function listWeekOptions(sessions: Session[], today?: string): PeriodOption[] {
+  const t = today ?? todayKey()
+  const earliest = earliestSessionDate(sessions)
+  const current = weekWindow(t)
+  let cursor = weekStart(earliest && earliest < t ? earliest : t)
+  // Jaga-jaga data masa depan aneh: mulai tak boleh lewat dari minggu berjalan.
+  if (cursor > current.start) cursor = current.start
+
+  // Cap dari sisi terbaru: minggu berjalan wajib ikut.
+  const floor = addDays(current.start, -51 * 7)
+  if (cursor < floor) cursor = floor
+
+  const options: PeriodOption[] = []
+  while (cursor <= current.start && options.length < 52) {
+    const end = addDays(cursor, 6)
+    options.push({ start: cursor, end, label: fmtRange({ start: cursor, end }) })
+    cursor = addDays(cursor, 7)
+  }
+  return options.reverse()
+}
+
+// Daftar bulan kalender dari bulan sesi pertama sampai bulan berjalan (terbaru dulu).
+export function listMonthOptions(sessions: Session[], today?: string): PeriodOption[] {
+  const t = today ?? todayKey()
+  const ty = Number(t.slice(0, 4))
+  const tm = Number(t.slice(5, 7))
+  const earliest = earliestSessionDate(sessions)
+
+  let y = earliest ? Number(earliest.slice(0, 4)) : ty
+  let m = earliest ? Number(earliest.slice(5, 7)) : tm
+
+  const options: PeriodOption[] = []
+  while (y < ty || (y === ty && m <= tm)) {
+    const mm = String(m).padStart(2, '0')
+    const w = monthWindow(`${y}-${mm}-15`)
+    options.push({ ...w, label: `${MONTHS[m - 1]} ${y}` })
+    m += 1
+    if (m > 12) {
+      m = 1
+      y += 1
+    }
+  }
+  return options.reverse()
+}
