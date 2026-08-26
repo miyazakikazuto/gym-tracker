@@ -5,12 +5,23 @@ import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
+import { formatPeriodForAI, weekWindow, monthWindow, prevWeekWindow, prevMonthWindow } from '../lib/periodSummary'
 import StatCard from '../components/StatCard'
 import { computePosition, get531Sequence, computeExcludedTypes } from '../lib/progression'
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
-  const { sessions, exercises, settings } = useData()
+  const { sessions, exercises, bodyweights, settings, showToast } = useData()
+
+  const copyRecap = (kind: 'mingguan' | 'bulanan') => {
+    const win = kind === 'mingguan' ? weekWindow(today) : monthWindow(today)
+    const prev = kind === 'mingguan' ? prevWeekWindow(win) : prevMonthWindow(win)
+    const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind })
+    navigator.clipboard.writeText(text).then(
+      () => showToast('Rekap disalin — tempel ke Claude'),
+      () => showToast('Gagal menyalin — coba lagi'),
+    )
+  }
 
   const today = todayKey()
   const [volPage, setVolPage] = useState(0)
@@ -269,6 +280,18 @@ export default function Progress() {
         <StatCard label="Sesi selesai" value={String(pageSessions)} />
         <StatCard label="Total set" value={String(pageSets)} />
         <StatCard label="Volume total" value={fmtNumber(pageVolume) + ' kg'} />
+      </div>
+
+      {/* ===== Rekap untuk AI ===== */}
+      <div className="card">
+        <div className="card-title">Rekap untuk AI</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Salin rekap latihan siap-tempel untuk minta kesimpulan/saran ke Claude.
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn sm ghost" onClick={() => copyRecap('mingguan')}>📋 Minggu ini</button>
+          <button className="btn sm ghost" onClick={() => copyRecap('bulanan')}>📋 Bulan ini</button>
+        </div>
       </div>
 
       {/* ===== Otot Minggu Ini ===== */}
