@@ -5,6 +5,8 @@ import {
   monthWindow,
   prevWeekWindow,
   prevMonthWindow,
+  listWeekOptions,
+  listMonthOptions,
 } from './periodSummary'
 import type { Bodyweight, Exercise, Session } from '../types'
 
@@ -30,6 +32,43 @@ function mkSession(id: string, date: string, sets: Session['sets'], over: Partia
 
 const WIN = { start: '2026-08-24', end: '2026-08-30' }
 const PREV = { start: '2026-08-17', end: '2026-08-23' }
+
+describe('listWeekOptions / listMonthOptions', () => {
+  it('tanpa data → hanya periode berjalan', () => {
+    const w = listWeekOptions([], '2026-08-26')
+    expect(w).toHaveLength(1)
+    expect(w[0].start).toBe('2026-08-23')
+    expect(w[0].label).toBe('23–29 Agu 2026')
+
+    const m = listMonthOptions([], '2026-08-26')
+    expect(m).toHaveLength(1)
+    expect(m[0].label).toBe('Agu 2026')
+  })
+
+  it('span data Juni→Agustus: bulan terurut terbaru dulu, termasuk bulan berjalan', () => {
+    const sessions = [
+      mkSession('a', '2026-06-15', []),
+      mkSession('b', '2026-07-02', []),
+      mkSession('c', '2026-08-10', []),
+    ]
+    const m = listMonthOptions(sessions, '2026-08-26')
+    expect(m.map((o) => o.label)).toEqual(['Agu 2026', 'Jul 2026', 'Jun 2026'])
+    expect(m[2]).toMatchObject({ start: '2026-06-01', end: '2026-06-30' })
+  })
+
+  it('minggu lintas bulan memakai label rentang dua bulan; cap 52', () => {
+    const cross = listWeekOptions([mkSession('a', '2026-08-30', [])], '2026-09-01')
+    const newest = cross[0]
+    expect(newest.label).toContain('Agu')
+    expect(newest.label).toContain('Sep')
+
+    // cap: sesi pertama >1 tahun lalu → maksimal 52 MINGGU TERBARU (yang tua dipangkas)
+    const old = listWeekOptions([mkSession('b', '2024-01-05', [])], '2026-08-26')
+    expect(old).toHaveLength(52)
+    expect(old[0].start).toBe(weekWindow('2026-08-26').start)
+    expect(old[51].start).toBe('2025-08-31') // tepat 51 minggu sebelum minggu berjalan
+  })
+})
 
 describe('windows', () => {
   it('weekWindow mulai hari Minggu (konsisten chart)', () => {
