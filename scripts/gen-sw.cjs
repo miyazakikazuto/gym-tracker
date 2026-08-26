@@ -77,7 +77,11 @@ self.addEventListener('fetch', function (e) {
         var cp = res.clone();
         caches.open(CACHE).then(function (c) { c.put(req, cp); });
         return res;
-      }).catch(function () { return caches.match(ROOT); })
+      }).catch(function () {
+        return caches.match(ROOT).then(function (r) {
+          return r || caches.match(ROOT + 'index.html');
+        });
+      })
     );
     return;
   }

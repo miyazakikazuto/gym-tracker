@@ -75,7 +75,8 @@ export function computeExcludedTypes(settings: Partial<UserSettings>): Set<strin
 
 /** Dynamic cycle length after exclusion. */
 export function dynamicCycleLength(excluded: Set<string>): number {
-  return ALL_SESSION_TYPES.filter((t) => !excluded.has(t)).length
+  const n = ALL_SESSION_TYPES.filter((t) => !excluded.has(t)).length
+  return Math.max(1, n)
 }
 
 /** Build effective arrays (types, labels, schemes) after exclusion. */
@@ -178,7 +179,9 @@ export function getSbdLiftForSession(
   excluded: Set<string> = new Set(),
 ): 'squat' | 'bench' | 'deadlift' | undefined {
   const { sbdKey } = buildEffective(excluded)
-  return sbdKey[index]
+  const keys = Object.keys(sbdKey).map(Number)
+  if (keys.length === 0) return undefined
+  return sbdKey[index % keys.length]
 }
 
 // ===== 5/3/1 SUGGESTION KEY (dynamic) =====

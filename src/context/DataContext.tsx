@@ -121,7 +121,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .filter((e) => !e.category)
       .map((e) => ({ id: e.id, category: categoryOfExercise(e) }))
     if (entries.length === 0) return
-    patchExerciseCategories(uid, entries).catch(() => undefined)
+    patchExerciseCategories(uid, entries).catch((err) => {
+      console.warn('[DataContext] migrasi kategori gagal:', err)
+      showToast('Migrasi kategori gagal — coba lagi', 'error')
+    })
   }, [uid, exercises])
 
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
@@ -133,7 +136,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (exercises.length > 0 || sessions.length > 0) return
     seededRef.current = true
     for (const ex of DEFAULT_EXERCISES) {
-      createExercise(uid, ex).catch(() => undefined)
+      createExercise(uid, ex).catch((err) => {
+        console.warn('[DataContext] seed gagal:', ex.name, err)
+        seededRef.current = false
+        showToast('Gagal seed gerakan default — coba lagi', 'error')
+      })
     }
   }, [uid, ready, exercisesFromServer, exercises.length, sessions.length])
 
@@ -147,7 +154,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const stale = sessions.filter((s) => s.endedAt === null && Date.now() - s.startedAt > 48 * 60 * 60 * 1000)
     if (stale.length === 0) return
     for (const s of stale) {
-      updateSession(uid, s.id, { endedAt: s.startedAt + 90 * 60 * 1000 }).catch(() => undefined)
+      updateSession(uid, s.id, { endedAt: s.startedAt + 90 * 60 * 1000 }).catch((err) => {
+        console.warn('[DataContext] auto-close gagal:', s.id, err)
+      })
     }
   }, [uid, sessions])
 
@@ -158,12 +167,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const removeBodyweight = (date: string) => {
     if (!uid) return
-    deleteBodyweight(uid, date).catch(() => showToast('Gagal menghapus — cek koneksi internet'))
+    deleteBodyweight(uid, date).catch(() => showToast('Gagal menghapus — cek koneksi internet', 'error'))
   }
 
   const saveSettings = (patch: Partial<UserSettings>) => {
     if (!uid) return
-    updateSettings(uid, patch).catch(() => showToast('Gagal menyimpan — cek koneksi internet'))
+    updateSettings(uid, patch).catch(() => showToast('Gagal menyimpan — cek koneksi internet', 'error'))
   }
 
   return (
