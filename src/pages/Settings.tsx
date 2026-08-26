@@ -9,6 +9,8 @@ import { rotationOf } from '../lib/rotation'
 import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import { computePosition, getFullLabel, dynamicCycleLength, computeExcludedTypes } from '../lib/progression'
+import { suggestTm } from '../lib/tmSuggestion'
+import { fmtNumber } from '../lib/helpers'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
 
@@ -73,6 +75,31 @@ export default function Settings() {
   const cyclePos = computePosition(sessions, excludedTypes, settings.skippedSessions ?? 0)
 
   const finishedSessions = sessions.filter((s) => s.endedAt !== null).length
+
+  const tmSuggestions = suggestTm(sessions, exercises, settings.trainingMax)
+
+  function applyTm(key: 'squat' | 'bench' | 'deadlift', value: number) {
+    const base = settings.trainingMax ?? { squat: 0, bench: 0, deadlift: 0 }
+    saveSettings({ trainingMax: { ...base, [key]: value } })
+    if (key === 'squat') setTmSquat(String(value))
+    else if (key === 'bench') setTmBench(String(value))
+    else setTmDeadlift(String(value))
+  }
+
+  function applyAllTm() {
+    const next = { ...(settings.trainingMax ?? { squat: 0, bench: 0, deadlift: 0 }) }
+    let any = false
+    for (const s of tmSuggestions) {
+      if (!s.hasData) continue
+      next[s.key] = s.suggestedTm
+      any = true
+    }
+    if (!any) return
+    saveSettings({ trainingMax: next })
+    setTmSquat(String(next.squat))
+    setTmBench(String(next.bench))
+    setTmDeadlift(String(next.deadlift))
+  }
 
   function moveRotation(idx: number, dir: -1 | 1) {
     const arr = [...rot.rotation]
@@ -318,6 +345,37 @@ export default function Settings() {
         </div>
         <div className="small muted" style={{ marginBottom: 8 }}>
           Training Max = 90% dari 1RM. Weight di sesi 5/3/1 dihitung dari TM ini.
+        </div>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+          <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>Saran dari riwayat latihanmu</div>
+          {tmSuggestions.map((s) => (
+            <div key={s.key} className="row spread small" style={{ padding: '3px 0' }}>
+              <span className="muted">
+                {s.label}:{' '}
+                {s.hasData
+                  ? `e1RM ${fmtNumber(s.bestE1rm)} kg${s.fallbackAllTime ? ' (semua riwayat)' : ''}`
+                  : 'belum ada data 8 minggu terakhir'}
+              </span>
+              {s.hasData && (
+                <span className="row" style={{ gap: 8, alignItems: 'center' }}>
+                  <span>
+                    saran <b>{fmtNumber(s.suggestedTm)} kg</b>
+                    {s.status === 'naik' && ' ↑'}
+                    {s.status === 'turun' && ' ↓'}
+                  </span>
+                  <button className="btn sm ghost" onClick={() => applyTm(s.key, s.suggestedTm)}>Pakai</button>
+                </span>
+              )}
+            </div>
+          ))}
+          {tmSuggestions.some((s) => s.hasData) && (
+            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={applyAllTm}>
+              Pakai semua saran
+            </button>
+          )}
+          <div className="small muted" style={{ marginTop: 6 }}>
+            Rumus: e1RM terbaik 8 minggu terakhir × 90%, dibulatkan ke 2,5 kg.
+          </div>
         </div>
         <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <label className="small" style={{ fontWeight: 700, flex: 1 }}>Sertakan Easy Day</label>
