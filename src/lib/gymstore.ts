@@ -213,6 +213,8 @@ export function updateSettings(uid: string, patch: Partial<UserSettings>) {
 // Tulis ulang data backup dengan ID asli (setDoc, bukan addDoc) supaya referensi
 // antar dokumen (session.planId, set.exerciseId, planItem.exerciseId) tetap utuh.
 // ID yang sudah ada akan ditimpa — perilaku restore. Bodyweight: id = tanggal.
+// Peringatan: chunk 400 commit sequential — tidak atomik lintas-chunk. Jika chunk
+// tengah gagal, data menjadi parsial; user harus retry restore penuh.
 export async function importBackup(
   uid: string,
   data: {
@@ -227,17 +229,17 @@ export async function importBackup(
 
   for (const e of data.exercises) {
     const { id, ...rest } = e
-    if (!id) continue
+    if (!id || id.includes('/')) continue
     writes.push({ ref: doc(db, 'users', uid, 'exercises', id), value: rest })
   }
   for (const p of data.plans) {
     const { id, ...rest } = p
-    if (!id) continue
+    if (!id || id.includes('/')) continue
     writes.push({ ref: doc(db, 'users', uid, 'plans', id), value: rest })
   }
   for (const s of data.sessions) {
     const { id, ...rest } = s
-    if (!id) continue
+    if (!id || id.includes('/')) continue
     writes.push({ ref: doc(db, 'users', uid, 'sessions', id), value: rest })
   }
   for (const w of data.bodyweights) {
