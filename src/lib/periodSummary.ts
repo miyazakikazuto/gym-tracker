@@ -3,6 +3,7 @@
 // dengan delta vs periode sebelumnya, dan tren berat badan.
 import { addDays, MONTHS, todayKey, volumeOf, weekStart } from './date'
 import { getExerciseName, fmtNumber } from './helpers'
+import { isRest } from './templates'
 import type { Bodyweight, Exercise, Session } from '../types'
 
 export interface PeriodWindow {
@@ -38,7 +39,7 @@ export function prevMonthWindow(w: PeriodWindow): PeriodWindow {
 }
 
 function inPeriod(s: Session, w: PeriodWindow): boolean {
-  return s.endedAt !== null && s.date >= w.start && s.date <= w.end
+  return s.endedAt !== null && !isRest(s.planName) && s.date >= w.start && s.date <= w.end
 }
 
 function fmtRange(w: PeriodWindow): string {
@@ -145,7 +146,12 @@ export function formatPeriodForAI(input: {
   lines.push('')
 
   const totalSets = finished.reduce((a, s) => a + s.sets.length, 0)
-  const totalMin = Math.round(finished.reduce((a, s) => a + ((s.endedAt ?? s.startedAt) - s.startedAt), 0) / 60000)
+  const totalMin = Math.round(
+    finished.reduce((a, s) => {
+      const dur = Math.max(0, (s.endedAt ?? s.startedAt) - s.startedAt)
+      return a + Math.min(dur, 5 * 3600000)
+    }, 0) / 60000,
+  )
   lines.push(
     `Total: ${totalSets} set · ${fmtNumber(Math.round(totalVolume(finished)))} kg volume · ${Math.floor(totalMin / 60)} j ${totalMin % 60} mnt`,
     '',
@@ -176,19 +182,35 @@ export function formatPeriodForAI(input: {
 
   lines.push('Per gerakan:')
   let idx = 1
-  for (const [exId, a] of agg) {
+  for (const [exId, a] of [...agg.entries()].sort((x, y) => y[1].vol - x[1].vol || y[1].sets - x[1].sets)) {
     const name = getExerciseName(exercises, exId)
+    // Fallback delta via nama bila ID ganti (hapus-buat ulang library)
+    const prevVolForEx = (() => {
+      if (!aggPrev) return 0
+      const direct = aggPrev.get(exId)?.vol
+      if (direct !== undefined) return direct
+      const curName = getExerciseName(exercises, exId).toLowerCase().trim()
+      if (curName.startsWith('[terhapus')) return 0
+      for (const [prevId, prevAgg] of aggPrev) {
+        if (getExerciseName(exercises, prevId).toLowerCase().trim() === curName) return prevAgg.vol
+      }
+      return 0
+    })()
     const bits: string[] = []
-    if (a.isCardioLike || a.bestWeight === 0) {
+    if (a.isCardioLike) {
       if (a.durationSec > 0) bits.push(`${fmtNumber(Math.round((a.durationSec / 60) * 10) / 10)} mnt`)
       if (a.distanceKm > 0) bits.push(`${fmtNumber(Math.round(a.distanceKm * 10) / 10)} km`)
       if (a.elevationM > 0) bits.push(`${fmtNumber(Math.round(a.elevationM))} m naik`)
       if (bits.length === 0) bits.push('—')
+    } else if (a.bestWeight === 0) {
+      // Strength BW / belum isi beban
+      if (a.durationSec > 0) bits.push(`${fmtNumber(Math.round((a.durationSec / 60) * 10) / 10)} mnt`)
+      else bits.push(`BW×${a.bestReps || a.sets} (isi beban)`)
     } else {
-      if (a.bestWeight > 0) bits.push(`terbaik ${fmtNumber(a.bestWeight)}kg×${a.bestReps}`)
+      bits.push(`terbaik ${fmtNumber(a.bestWeight)}kg×${a.bestReps}`)
     }
     if (!a.isCardioLike && a.vol > 0) bits.push(`vol ${fmtNumber(Math.round(a.vol))} kg`)
-    const marker = aggPrev ? deltaMarker(a.vol, aggPrev.get(exId)?.vol ?? 0) : ''
+    const marker = aggPrev ? deltaMarker(a.vol, prevVolForEx) : ''
     lines.push(`${idx}. ${name} — ${a.sets} set · ${bits.join(' · ')}${marker ? ` ${marker}` : ''}`)
     idx++
   }
