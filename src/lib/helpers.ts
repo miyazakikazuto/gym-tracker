@@ -1,7 +1,7 @@
 import type { Exercise, Session } from '../types'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
-  return exercises.find((e) => e.id === id)?.name ?? 'Gerakan'
+  return exercises.find((e) => e.id === id)?.name ?? `[Terhapus ${id.slice(0, 6)}]`
 }
 
 const MUSCLE_TO_CATEGORY: Record<string, string> = {
