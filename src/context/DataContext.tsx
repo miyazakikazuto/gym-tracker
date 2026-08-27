@@ -127,6 +127,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [uid, exercises])
 
+  // Migrasi sekali jalan: benerin stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
+  useEffect(() => {
+    if (!uid || sessions.length === 0) return
+    const mismatched = sessions.filter((s) => s.cycleLabel && !s.cycleLabel.includes(s.planName))
+    if (mismatched.length === 0) return
+    import('../lib/progression').then(({ computePosition, getScheme, computeExcludedTypes }) => {
+      for (const s of mismatched) {
+        const before = sessions.filter(
+          (x) => x.endedAt !== null && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
+        )
+        try {
+          const ex = computeExcludedTypes(settings)
+          const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
+          const wave = getScheme(pos.sessionIndex, ex)?.label ?? s.scheme
+          const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${s.planName}${wave ? ` — ${wave}` : ''}`
+          updateSession(uid, s.id, { cycleLabel: correctLabel, cycle: pos.cycle, sessionIndex: pos.sessionIndex, scheme: wave ?? undefined }).catch((err) => {
+            console.warn('[DataContext] patch cycleLabel gagal:', s.id, err)
+          })
+        } catch { /* ignore */ }
+      }
+    })
+  }, [uid, sessions, settings])
+
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
   // Idempoten & aman race: hanya jalan setelah data konfirmasi dari SERVER —
   // bukan sekadar cache lokal yang belum terisi (internet lambat / storage bersih).
