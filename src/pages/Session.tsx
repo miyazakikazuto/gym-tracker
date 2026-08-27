@@ -415,11 +415,15 @@ export default function Session() {
             if (idx == null) return null
             try { return getScheme(idx, computeExcludedTypes(settings))?.label ?? null } catch { return null }
           })()
+          // Deteksi diluar jadwal: planName Beda tipe dengan yang ada di cycleLabel
+          const expectedInLabel = label ? (() => { const m = label.match(/\] (.+?) —/); return m ? m[1] : null })() : null
+          const isOffSchedule = expectedInLabel && session.planName !== expectedInLabel
           if (!label && !wave) return null
           return (
             <>
               {label && <span className="badge accent">{label}</span>}
               {wave && <span className="badge">{wave}</span>}
+              {isOffSchedule && <span className="badge warn" title={`Seharusnya ${expectedInLabel}`}>⚠️ Diluar jadwal</span>}
             </>
           )
         })()}

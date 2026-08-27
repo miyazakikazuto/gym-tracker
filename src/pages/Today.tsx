@@ -201,19 +201,19 @@ export default function Today() {
   async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string) {
     if (creating) return
     setCreating(true)
-    const snapLabel = getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)
-    const snapScheme = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
+    // Stiker ngikut plan yang dipilih: wave tetap dari siklus, nama ikut plan
+    const chosenName = name ?? plan?.name ?? null
+    const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
+    const stikerName = chosenName ?? getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes).replace(/^\[C\d+-S\d+\]\s*/, '')
+    const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
     const payload = buildSession(
       plan,
       base,
       (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
       Date.now(),
-      { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: snapScheme ?? undefined },
+      { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave ?? undefined },
     )
-    if (name) {
-      payload.planName = name
-      // cycleLabel sudah dari snap saat tombol ditekan — tetap pakai snap, jangan recompute
-    }
+    if (chosenName) payload.planName = chosenName
     try {
       const ref = await createSession(uid, payload)
       navigate(`/session/${ref.id}`)

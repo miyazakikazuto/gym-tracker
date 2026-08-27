@@ -6,6 +6,7 @@ import { parseKey, todayKey, formatDMYWIB, MONTHS } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
+import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
 import Modal from '../components/Modal'
 import SessionRow from '../components/SessionRow'
 import { exerciseIsDuration } from '../lib/helpers'
@@ -104,7 +105,17 @@ export default function History() {
     setCreating(true)
     setError('')
     try {
-      const payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now())
+      const ex = computeExcludedTypes(settings)
+      const before = sessions.filter((x) => x.endedAt !== null && (x.date < selKey || (x.date === selKey && x.startedAt < Date.now())))
+      const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
+      const wave = getScheme(pos.sessionIndex, ex)?.label ?? null
+      const stiker = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${name}${wave ? ` — ${wave}` : ''}`
+      const payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), {
+        cycle: pos.cycle,
+        sessionIndex: pos.sessionIndex,
+        cycleLabel: stiker,
+        scheme: wave ?? undefined,
+      })
       payload.planName = name
       const ref = await createSession(uid, payload)
       setSelKey(null)
