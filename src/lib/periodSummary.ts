@@ -124,7 +124,7 @@ export function formatPeriodForAI(input: {
       ? `Rekap Bulanan Latihan — ${MONTHS[Number(w.start.slice(5, 7)) - 1]} ${w.start.slice(0, 4)}`
       : `Rekap Mingguan Latihan — ${fmtRange(w)}`
 
-  const finished = sessions.filter((s) => inPeriod(s, w))
+  const finished = [...sessions.filter((s) => inPeriod(s, w))].sort((a, b) => a.date.localeCompare(b.date))
   const lines: string[] = [title, '']
 
   if (finished.length === 0) {
@@ -137,6 +137,12 @@ export function formatPeriodForAI(input: {
   for (const s of finished) byPlan.set(s.planName, (byPlan.get(s.planName) ?? 0) + 1)
   const planText = Array.from(byPlan.entries()).map(([p, n]) => (n > 1 ? `${p} ×${n}` : p)).join(' · ')
   lines.push(`Sesi selesai: ${finished.length} (${planText})`)
+  lines.push('Daftar sesi:')
+  for (const s of finished) {
+    const label = s.cycleLabel ? `${s.cycleLabel} ` : ''
+    lines.push(`- ${s.date} ${label}${s.planName}`)
+  }
+  lines.push('')
 
   const totalSets = finished.reduce((a, s) => a + s.sets.length, 0)
   const totalMin = Math.round(finished.reduce((a, s) => a + ((s.endedAt ?? s.startedAt) - s.startedAt), 0) / 60000)

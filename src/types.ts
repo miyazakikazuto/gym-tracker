@@ -60,6 +60,10 @@ export interface Session {
   endedAt: number | null
   sets: SessionSet[]
   rpes?: Record<string, number> // exerciseId → RPE 6..10
+  // Snapshot 5/3/1 saat sesi dibuat — stiker cycle biar history/rekap tetap kebal perubahan setting
+  cycle?: number // C1, C2, ...
+  sessionIndex?: number // 0-based dalam cycle
+  cycleLabel?: string // "[C1-S03] Leg Day — 3×5"
 }
 
 export interface Bodyweight {

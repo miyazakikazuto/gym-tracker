@@ -80,8 +80,10 @@ export function formatSessionForAI(
 
   const durasiMenit =
     session.endedAt != null ? Math.max(1, Math.round((session.endedAt - session.startedAt) / 60000)) : null
+  const cycleLine = session.cycleLabel ? `Siklus: ${session.cycleLabel}` : null
   lines.push(
     `Latihan ${formatDMYWIB(session.date)} — ${session.planName}${durasiMenit ? ` (${durasiMenit} menit)` : ''}`,
+    ...(cycleLine ? [cycleLine] : []),
     '',
   )
 
