@@ -12,7 +12,7 @@ import { computePosition, getFullLabel, dynamicCycleLength, computeExcludedTypes
 import { suggestTm } from '../lib/tmSuggestion'
 import { fmtNumber } from '../lib/helpers'
 import Modal from '../components/Modal'
-import type { Exercise, WorkoutPlan, Session, Bodyweight } from '../types'
+import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
 
 interface BackupPayload {
   app?: string
@@ -22,6 +22,7 @@ interface BackupPayload {
   plans?: unknown[]
   sessions?: unknown[]
   bodyweights?: unknown[]
+  settings?: unknown
 }
 
 const DATA_TYPES = [
@@ -57,6 +58,7 @@ export default function Settings() {
     pls: WorkoutPlan[]
     ses: Session[]
     bws: Bodyweight[]
+    stg: Partial<UserSettings> | null
   } | null>(null)
   const [tmSquat, setTmSquat] = useState(String(settings.trainingMax?.squat ?? ''))
   const [tmBench, setTmBench] = useState(String(settings.trainingMax?.bench ?? ''))
@@ -142,6 +144,18 @@ export default function Settings() {
   function exportData() {
     try {
       const outSessions = sel.sessions ? (finishedOnly ? sessions.filter((s) => s.endedAt !== null) : sessions) : []
+      // Enrich sesi dengan stiker retroaktif bila belum ada — biar history JSON selalu punya cycle
+      const enrichedSessions = outSessions.map((s) => s.cycleLabel ? s : {
+        ...s,
+        cycleLabel: (() => {
+          // Hitung posisi historis: sesi selesai sampai sebelum sesi ini
+          const sorted = [...sessions].filter((x) => x.endedAt !== null).sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+          const idx = sorted.findIndex((x) => x.id === s.id)
+          if (idx < 0) return undefined
+          const pos = computePosition(sorted.slice(0, idx), computeExcludedTypes(settings), settings.skippedSessions ?? 0)
+          return getFullLabel(pos.cycle, pos.sessionIndex, computeExcludedTypes(settings))
+        })(),
+      })
       const payload = {
         app: 'gym-tracker',
         type: 'backup',
@@ -150,13 +164,14 @@ export default function Settings() {
         counts: {
           exercises: sel.exercises ? exercises.length : 0,
           plans: sel.plans ? plans.length : 0,
-          sessions: outSessions.length,
+          sessions: enrichedSessions.length,
           bodyweights: sel.weights ? bodyweights.length : 0,
         },
         exercises: sel.exercises ? exercises : [],
         plans: sel.plans ? plans : [],
-        sessions: outSessions,
+        sessions: enrichedSessions,
         bodyweights: sel.weights ? bodyweights : [],
+        settings,
       }
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -202,12 +217,13 @@ export default function Settings() {
       const bws = (Array.isArray(data.bodyweights) ? data.bodyweights : []).filter(
         (x) => x && typeof (x as { date?: unknown }).date === 'string' && typeof (x as { kg?: unknown }).kg === 'number',
       ) as Bodyweight[]
+      const stg = (data.settings && typeof data.settings === 'object' ? data.settings : null) as Partial<UserSettings> | null
 
-      if (exs.length + pls.length + ses.length + bws.length === 0) {
+      if (exs.length + pls.length + ses.length + bws.length === 0 && !stg) {
         throw new Error('Tidak ada data valid di file ini')
       }
 
-      setPendingImport({ exs, pls, ses, bws })
+      setPendingImport({ exs, pls, ses, bws, stg })
     } catch (e) {
       setImportState('error')
       setImportMsg((e as Error).message)
@@ -216,12 +232,12 @@ export default function Settings() {
 
   async function confirmImport() {
     if (!pendingImport) return
-    const { exs, pls, ses, bws } = pendingImport
+    const { exs, pls, ses, bws, stg } = pendingImport
     setPendingImport(null)
     setImportState('busy')
     setImportMsg('')
     try {
-      const total = await importBackup(uid, { exercises: exs, plans: pls, sessions: ses, bodyweights: bws })
+      const total = await importBackup(uid, { exercises: exs, plans: pls, sessions: ses, bodyweights: bws, settings: stg ?? undefined })
       setImportState('done')
       setImportMsg(
         `✓ ${exs.length} gerakan, ${pls.length} jadwal, ${ses.length} sesi, ${bws.length} berat diimpor (${total} tulis)`,
@@ -515,7 +531,7 @@ export default function Settings() {
           </div>
           <div className="small muted" style={{ marginBottom: 10 }}>
             {pendingImport.exs.length} gerakan · {pendingImport.pls.length} jadwal · {pendingImport.ses.length} sesi ·{' '}
-            {pendingImport.bws.length} berat badan
+            {pendingImport.bws.length} berat badan{pendingImport.stg ? ' · settings' : ''}
           </div>
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setPendingImport(null)}>Batal</button>

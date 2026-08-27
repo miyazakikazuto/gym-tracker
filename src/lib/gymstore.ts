@@ -156,6 +156,7 @@ export function buildSession(
   dateKey: string,
   typeOf?: (exerciseId: string) => 'reps' | 'duration',
   startAt?: number,
+  cycleSnapshot?: { cycle: number; sessionIndex: number; cycleLabel: string; scheme?: string },
 ): Omit<Session, 'id'> {
   const start = startAt ?? parseKey(dateKey).getTime() + 12 * 60 * 60 * 1000
   return {
@@ -165,6 +166,7 @@ export function buildSession(
     note: '',
     startedAt: start,
     endedAt: null,
+    ...(cycleSnapshot ? { cycle: cycleSnapshot.cycle, sessionIndex: cycleSnapshot.sessionIndex, cycleLabel: cycleSnapshot.cycleLabel } : {}),
     sets: (plan?.items ?? [])
       .slice()
       .sort((a, b) => a.order - b.order)
@@ -222,10 +224,15 @@ export async function importBackup(
     plans: WorkoutPlan[]
     sessions: Session[]
     bodyweights: Bodyweight[]
+    settings?: Partial<UserSettings>
   },
 ): Promise<number> {
   const db = getDb()
   const writes: Array<{ ref: DocumentReference; value: object }> = []
+
+  if (data.settings && Object.keys(data.settings).length > 0) {
+    writes.push({ ref: doc(db, 'users', uid, 'settings', 'prefs'), value: data.settings })
+  }
 
   for (const e of data.exercises) {
     const { id, ...rest } = e

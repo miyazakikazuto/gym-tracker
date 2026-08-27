@@ -201,13 +201,19 @@ export default function Today() {
   async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string) {
     if (creating) return
     setCreating(true)
+    const snapLabel = getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)
+    const snapScheme = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
     const payload = buildSession(
       plan,
       base,
       (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
       Date.now(),
+      { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: snapScheme ?? undefined },
     )
-    if (name) payload.planName = name
+    if (name) {
+      payload.planName = name
+      // cycleLabel sudah dari snap saat tombol ditekan — tetap pakai snap, jangan recompute
+    }
     try {
       const ref = await createSession(uid, payload)
       navigate(`/session/${ref.id}`)
