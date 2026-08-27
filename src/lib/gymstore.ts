@@ -157,6 +157,7 @@ export function buildSession(
   typeOf?: (exerciseId: string) => 'reps' | 'duration',
   startAt?: number,
   cycleSnapshot?: { cycle: number; sessionIndex: number; cycleLabel: string; scheme?: string },
+  isExtra?: boolean,
 ): Omit<Session, 'id'> {
   const start = startAt ?? parseKey(dateKey).getTime() + 12 * 60 * 60 * 1000
   return {
@@ -166,7 +167,8 @@ export function buildSession(
     note: '',
     startedAt: start,
     endedAt: null,
-    ...(cycleSnapshot ? { cycle: cycleSnapshot.cycle, sessionIndex: cycleSnapshot.sessionIndex, cycleLabel: cycleSnapshot.cycleLabel } : {}),
+    ...(cycleSnapshot ? { cycle: cycleSnapshot.cycle, sessionIndex: cycleSnapshot.sessionIndex, cycleLabel: cycleSnapshot.cycleLabel, scheme: cycleSnapshot.scheme } : {}),
+    ...(isExtra ? { isExtra: true as const } : {}),
     sets: (plan?.items ?? [])
       .slice()
       .sort((a, b) => a.order - b.order)

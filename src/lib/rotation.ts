@@ -19,10 +19,11 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
   }
 }
 
-// Sesi yang tidak dihitung sebagai latihan gym: Rest Day, Cardio, dan sesi
-// Skip lama ("Skip — …"). Disamakan dengan filter progression agar cycle
-// Wendler dan rotasi tidak divergen.
+// Sesi yang tidak dihitung sebagai latihan gym: Rest Day, Cardio, Skip lama
+// ("Skip — …") dan sesi tambahan manual. Disamakan dengan filter progression
+// agar cycle Wendler dan rotasi tidak divergen.
 function isNonCountingSession(s: Session): boolean {
+  if (s.isExtra) return true
   if (isRest(s.planName)) return true
   if (/cardio/i.test(s.planName)) return true
   if (/^skip/i.test(s.planName.trim())) return true

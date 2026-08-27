@@ -68,6 +68,7 @@ export default function Today() {
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [showPick, setShowPick] = useState(false)
+  const [pickExtra, setPickExtra] = useState(false)
   // Guard double-tap: satu sesi per tekan Mulai (Firestore await bisa >1 detik)
   const [creating, setCreating] = useState(false)
 
@@ -198,22 +199,29 @@ export default function Today() {
     return { id: '', name: preset.name, dayOfWeek: -1, items }
   }
 
-  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string) {
+  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean) {
     if (creating) return
     setCreating(true)
-    // Stiker ngikut plan yang dipilih: wave tetap dari siklus, nama ikut plan
-    const chosenName = name ?? plan?.name ?? null
-    const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
-    const stikerName = chosenName ?? getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes).replace(/^\[C\d+-S\d+\]\s*/, '')
-    const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
-    const payload = buildSession(
-      plan,
-      base,
-      (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
-      Date.now(),
-      { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave ?? undefined },
-    )
-    if (chosenName) payload.planName = chosenName
+    let payload: ReturnType<typeof buildSession>
+    if (isExtra) {
+      payload = buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
+      if (name) payload.planName = name
+    } else {
+      // Stiker ngikut plan yang dipilih: wave tetap dari siklus, nama ikut plan
+      const chosenName = name ?? plan?.name ?? null
+      const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
+      const stikerName = chosenName ?? getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes).replace(/^\[C\d+-S\d+\]\s*/, '')
+      const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
+      payload = buildSession(
+        plan,
+        base,
+        (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+        Date.now(),
+        { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave ?? undefined },
+        false,
+      )
+      if (chosenName) payload.planName = chosenName
+    }
     try {
       const ref = await createSession(uid, payload)
       navigate(`/session/${ref.id}`)
@@ -364,7 +372,7 @@ export default function Today() {
                   Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}
                 </div>
                 <div style={{ height: 10 }} />
-                <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
+                <button className="btn sm ghost wide" onClick={() => { setPickExtra(true); setShowPick(true) }}>Tambah sesi lagi</button>
               </>
             ) : (
               <>
@@ -413,7 +421,7 @@ export default function Today() {
                       <button className="btn primary" disabled={creating} onClick={handleStart}>
                         {effectivePlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
                       </button>
-                      <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
+                      <button className="btn ghost" onClick={() => { setPickExtra(todayDone || !!activeSession); setShowPick(true) }}>Pilih plan lain</button>
                       <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
                       <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
                     </div>
@@ -571,6 +579,10 @@ export default function Today() {
       {showPick && (
         <Modal onClose={() => setShowPick(false)} label="Pilih plan">
           <h3>Pilih plan untuk hari ini</h3>
+          <label className="row small" style={{ gap: 6, marginBottom: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={pickExtra} onChange={(e) => setPickExtra(e.target.checked)} />
+            Sesi tambahan (tidak majuin siklus)
+          </label>
           {pickOptions.length === 0 ? (
             <div className="small muted">Belum ada plan. Atur lewat "Kelola jadwal" dulu.</div>
           ) : (
@@ -582,7 +594,7 @@ export default function Today() {
                   setShowPick(false)
                   const preset = PLAN_PRESETS.find((p) => p.key === o.key)!
                   const plan = o.plan ?? (await templatePlan(preset))
-                  void createAndOpen(plan, o.name)
+                  void createAndOpen(plan, o.name, pickExtra)
                 }}
               >
                 {o.name}{o.suggested && <span className="tag">saran</span>}
