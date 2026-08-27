@@ -18,7 +18,7 @@ import StatCard from '../components/StatCard'
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
-  const { sessions, exercises, bodyweights, showToast } = useData()
+  const { sessions, exercises, bodyweights, settings, showToast } = useData()
 
   const today = todayKey()
 
@@ -32,7 +32,7 @@ export default function Progress() {
   const copyRecap = () => {
     const win = recapOpts[recapSel] ?? (recapKind === 'mingguan' ? weekWindow(today) : monthWindow(today))
     const prev = recapKind === 'mingguan' ? prevWeekWindow(win) : prevMonthWindow(win)
-    const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind: recapKind })
+    const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind: recapKind, settings })
     navigator.clipboard.writeText(text).then(
       () => showToast('Rekap disalin — tempel ke Claude'),
       () => showToast('Gagal menyalin — coba lagi', 'error'),

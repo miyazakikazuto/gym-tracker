@@ -4,6 +4,8 @@
 import { addDays, MONTHS, todayKey, volumeOf, weekStart } from './date'
 import { getExerciseName, fmtNumber } from './helpers'
 import { isRest } from './templates'
+import { computeExcludedTypes, computePosition, getScheme } from './progression'
+import type { UserSettings } from '../types'
 import type { Bodyweight, Exercise, Session } from '../types'
 
 export interface PeriodWindow {
@@ -117,8 +119,9 @@ export function formatPeriodForAI(input: {
   window: PeriodWindow
   prev?: PeriodWindow
   kind?: 'mingguan' | 'bulanan'
+  settings?: Partial<UserSettings>
 }): string {
-  const { sessions, exercises, bodyweights, window: w, prev, kind = 'mingguan' } = input
+  const { sessions, exercises, bodyweights, window: w, prev, kind = 'mingguan', settings } = input
 
   const title =
     kind === 'bulanan'
@@ -140,7 +143,18 @@ export function formatPeriodForAI(input: {
   lines.push(`Sesi selesai: ${finished.length} (${planText})`)
   lines.push('Daftar sesi:')
   for (const s of finished) {
-    const label = s.cycleLabel ? `${s.cycleLabel} ` : ''
+    let label = s.cycleLabel ? `${s.cycleLabel} ` : ''
+    if (!label && !s.isExtra) {
+      const before = sessions.filter(
+        (x) => x.endedAt !== null && !x.isExtra && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
+      )
+      try {
+        const ex = settings ? computeExcludedTypes(settings) : new Set<string>()
+        const pos = computePosition(before, ex, settings?.skippedSessions ?? 0)
+        const wave = getScheme(pos.sessionIndex, ex)?.label
+        label = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${s.planName}${wave ? ` — ${wave}` : ''} `
+      } catch { /* biarkan kosong */ }
+    }
     lines.push(`- ${s.date} ${label}${s.planName}`)
   }
   lines.push('')
