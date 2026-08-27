@@ -8,7 +8,7 @@ import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetRes
 import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
-import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition, getFullLabel } from '../lib/progression'
+import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
@@ -400,31 +400,34 @@ export default function Session() {
           {isActive ? 'Berlangsung' : 'Selesai'}
         </span>
         {(() => {
-          const label = session.cycleLabel ?? (() => {
+          // Stiker salah (mis. Leg Day ditempel Easy Day) → benerin di layar langsung
+          let label: string | null = session.cycleLabel ?? null
+          let wave: string | null = session.scheme ?? null
+          const mismatch = !!(label && !label.includes(session.planName))
+          if (!label || mismatch) {
             const before = sessions.filter(
               (x) => x.endedAt !== null && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)),
             )
             try {
               const ex = computeExcludedTypes(settings)
               const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
-              return getFullLabel(pos.cycle, pos.sessionIndex, ex)
-            } catch { return null }
-          })()
-          const wave = session.scheme ?? (() => {
+              const correctWave = getScheme(pos.sessionIndex, ex)?.label ?? wave
+              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${session.planName}${correctWave ? ` — ${correctWave}` : ''}`
+              label = correctLabel
+              wave = correctWave
+            } catch { /* biarkan label lama */ }
+          } else if (!wave) {
             const idx = session.sessionIndex ?? null
-            if (idx == null) return null
-            try { return getScheme(idx, computeExcludedTypes(settings))?.label ?? null } catch { return null }
-          })()
-          // Deteksi diluar jadwal: planName Beda tipe dengan yang ada di cycleLabel
-          const expectedInLabel = label ? (() => { const m = label.match(/\] (.+?) —/); return m ? m[1] : null })() : null
-          const isOffSchedule = expectedInLabel && session.planName !== expectedInLabel
+            if (idx != null) try { wave = getScheme(idx, computeExcludedTypes(settings))?.label ?? null } catch { /* ignore */ }
+          }
+          // Deteksi diluar jadwal untuk info (bukan error): planName beda dari yang dihitung retroaktif
+          // Sudah ditangani oleh guard mismatch di atas — badge warning tidak perlu lagi bila sudah dibenerin
           if (!label && !wave && !session.isExtra) return null
           return (
             <>
               {session.isExtra && <span className="badge warn">Extra</span>}
               {label && <span className="badge accent">{label}</span>}
               {wave && <span className="badge">{wave}</span>}
-              {isOffSchedule && <span className="badge warn" title={`Seharusnya ${expectedInLabel}`}>⚠️ Diluar jadwal</span>}
             </>
           )
         })()}
