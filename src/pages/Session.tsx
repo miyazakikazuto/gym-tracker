@@ -8,7 +8,7 @@ import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetRes
 import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
-import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes } from '../lib/progression'
+import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition, getFullLabel } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
@@ -399,6 +399,30 @@ export default function Session() {
         <span className={'badge ' + (isActive ? 'warn' : 'ok')}>
           {isActive ? 'Berlangsung' : 'Selesai'}
         </span>
+        {(() => {
+          const label = session.cycleLabel ?? (() => {
+            const before = sessions.filter(
+              (x) => x.endedAt !== null && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)),
+            )
+            try {
+              const ex = computeExcludedTypes(settings)
+              const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
+              return getFullLabel(pos.cycle, pos.sessionIndex, ex)
+            } catch { return null }
+          })()
+          const wave = session.scheme ?? (() => {
+            const idx = session.sessionIndex ?? null
+            if (idx == null) return null
+            try { return getScheme(idx, computeExcludedTypes(settings))?.label ?? null } catch { return null }
+          })()
+          if (!label && !wave) return null
+          return (
+            <>
+              {label && <span className="badge accent">{label}</span>}
+              {wave && <span className="badge">{wave}</span>}
+            </>
+          )
+        })()}
         <span className="badge">{localSets.length} set</span>
         {syncPending && <span className="badge">•• menyimpan</span>}
         <button

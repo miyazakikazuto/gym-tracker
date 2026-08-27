@@ -11,7 +11,7 @@ export default function SessionRow({ s, onOpen }: { s: Session; onOpen: () => vo
     <div className="card" onClick={onOpen} style={{ cursor: 'pointer' }}>
       <div className="row spread">
         <b>{name}</b>
-        <span className="small muted">{s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
+        <span className="small muted">{s.cycleLabel ?? ''} {s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
       </div>
       <div className="row" style={{ marginTop: 8, gap: 6 }}>
         <span className="badge">{s.sets.length} set</span>

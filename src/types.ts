@@ -64,6 +64,7 @@ export interface Session {
   cycle?: number // C1, C2, ...
   sessionIndex?: number // 0-based dalam cycle
   cycleLabel?: string // "[C1-S03] Leg Day — 3×5"
+  scheme?: string // "3×5" / "3×3" / "5/3/1" / "Deload"
 }
 
 export interface Bodyweight {
