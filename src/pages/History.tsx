@@ -68,11 +68,19 @@ export default function History() {
   }, [expanded, showShift])
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [historyExtra, setHistoryExtra] = useState(false)
   const [error, setError] = useState('')
   const [visibleCount, setVisibleCount] = useState(30)
 
   const cells = monthGrid(viewYear, viewMonth)
   const selShift = selKey ? shiftForDate(selKey, settings) : null
+
+  useEffect(() => {
+    if (selKey) {
+      const has = sessions.some((s) => s.date === selKey && !isRest(s.planName))
+      setHistoryExtra(has)
+    }
+  }, [selKey, sessions])
 
   function shift(delta: number) {
     let m = viewMonth + delta
@@ -100,22 +108,35 @@ export default function History() {
   // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual
   const customPlans = plans.filter((p) => !presetNames.includes(p.name) && !usedPlanNames.includes(p.name))
 
-  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
+  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string, isExtra?: boolean) {
     if (!selKey) return
     setCreating(true)
     setError('')
     try {
-      const ex = computeExcludedTypes(settings)
-      const before = sessions.filter((x) => x.endedAt !== null && (x.date < selKey || (x.date === selKey && x.startedAt < Date.now())))
-      const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
-      const wave = getScheme(pos.sessionIndex, ex)?.label ?? null
-      const stiker = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${name}${wave ? ` — ${wave}` : ''}`
-      const payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), {
-        cycle: pos.cycle,
-        sessionIndex: pos.sessionIndex,
-        cycleLabel: stiker,
-        scheme: wave ?? undefined,
-      })
+      const wantExtra = isExtra ?? historyExtra
+      let payload: ReturnType<typeof buildSession>
+      if (wantExtra) {
+        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
+      } else {
+        const ex = computeExcludedTypes(settings)
+        const before = sessions.filter((x) => x.endedAt !== null && !x.isExtra && (x.date < selKey || (x.date === selKey && x.startedAt < Date.now())))
+        const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
+        const wave = getScheme(pos.sessionIndex, ex)?.label ?? null
+        const stiker = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${name}${wave ? ` — ${wave}` : ''}`
+        payload = buildSession(
+          plan,
+          selKey,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          Date.now(),
+          {
+            cycle: pos.cycle,
+            sessionIndex: pos.sessionIndex,
+            cycleLabel: stiker,
+            scheme: wave ?? undefined,
+          },
+          false,
+        )
+      }
       payload.planName = name
       const ref = await createSession(uid, payload)
       setSelKey(null)
@@ -311,6 +332,10 @@ export default function History() {
               </>
             )}
 
+            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={historyExtra} onChange={(e) => setHistoryExtra(e.target.checked)} />
+              Sesi tambahan (tidak majuin siklus)
+            </label>
             <div className="small muted" style={{ margin: daySessions.length ? '12px 0 8px' : '0 0 8px' }}>
               Tambah sesi untuk tanggal ini:
             </div>

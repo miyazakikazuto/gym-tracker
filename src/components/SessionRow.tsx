@@ -14,6 +14,7 @@ export default function SessionRow({ s, onOpen }: { s: Session; onOpen: () => vo
         <span className="small muted">{s.cycleLabel ?? ''} {s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
       </div>
       <div className="row" style={{ marginTop: 8, gap: 6 }}>
+        {s.isExtra && <span className="badge warn">Extra</span>}
         <span className="badge">{s.sets.length} set</span>
         <span className="badge">{fmtNumber(vol)} kg volume</span>
         {topKg > 0 && <span className="badge accent">Top {fmtNumber(topKg)} kg</span>}

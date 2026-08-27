@@ -107,6 +107,7 @@ function countCompletedSessions(sessions: Session[]): number {
   let count = 0
   for (const s of sessions) {
     if (s.endedAt === null) continue
+    if (s.isExtra) continue
     if (isRest(s.planName)) continue
     if (/cardio/i.test(s.planName)) continue
     // Sesi "Skip — …" (dibuat oleh versi lama tombol Skip) tidak dihitung —

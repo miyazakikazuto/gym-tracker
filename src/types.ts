@@ -65,6 +65,7 @@ export interface Session {
   sessionIndex?: number // 0-based dalam cycle
   cycleLabel?: string // "[C1-S03] Leg Day — 3×5"
   scheme?: string // "3×5" / "3×3" / "5/3/1" / "Deload"
+  isExtra?: boolean // true = sesi tambahan, tidak majuin siklus 5/3/1 & rotasi
 }
 
 export interface Bodyweight {
