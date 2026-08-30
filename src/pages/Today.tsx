@@ -217,7 +217,9 @@ export default function Today() {
         base,
         (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
         Date.now(),
-        { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave ?? undefined },
+        wave
+          ? { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave }
+          : { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel },
         false,
       )
       if (chosenName) payload.planName = chosenName

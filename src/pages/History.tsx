@@ -115,7 +115,9 @@ export default function History() {
     try {
       const wantExtra = isExtra ?? historyExtra
       let payload: ReturnType<typeof buildSession>
-      if (wantExtra) {
+      if (isRest(name)) {
+        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, false)
+      } else if (wantExtra) {
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
       } else {
         const ex = computeExcludedTypes(settings)
@@ -128,12 +130,9 @@ export default function History() {
           selKey,
           (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
           Date.now(),
-          {
-            cycle: pos.cycle,
-            sessionIndex: pos.sessionIndex,
-            cycleLabel: stiker,
-            scheme: wave ?? undefined,
-          },
+          wave
+            ? { cycle: pos.cycle, sessionIndex: pos.sessionIndex, cycleLabel: stiker, scheme: wave }
+            : { cycle: pos.cycle, sessionIndex: pos.sessionIndex, cycleLabel: stiker },
           false,
         )
       }
