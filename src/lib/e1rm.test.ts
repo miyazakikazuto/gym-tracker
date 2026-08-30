@@ -39,3 +39,14 @@ describe('e1rmKg composite', () => {
     expect(e1rmKg(100, 8)).toBe('126.5') // 126.666 → round(253.33)=253 → 126.5
   })
 })
+describe('e1rm edge intervals', () => {
+  it('20 rep', () => {
+    expect(e1rm(50, 20)).toBeCloseTo(83.333, 2)
+  })
+  it('5 rep', () => {
+    expect(e1rm(80, 5)).toBeCloseTo(93.333, 2)
+  })
+  it('koma formatting via e1rmKg', () => {
+    expect(e1rmKg(100, 5)).toBe('116.5')
+  })
+})

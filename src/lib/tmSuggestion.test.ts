@@ -93,3 +93,17 @@ describe('suggestTm', () => {
     expect(out.every((s) => !s.hasData && s.suggestedTm === 0)).toBe(true)
   })
 })
+describe('tmSuggestion extra: roundTo2_5 & status', () => {
+  it('roundTo2_5 tepi', () => {
+    expect(roundTo2_5(100)).toBe(100)
+    expect(roundTo2_5(101)).toBe(100)
+    expect(roundTo2_5(102.5)).toBe(102.5)
+    expect(roundTo2_5(103.7)).toBe(102.5)
+  })
+  it('status pas saat delta <2.5', () => {
+    const s = mkSession('a', '2026-08-20', [{ id: 'x1', exerciseId: 'squat', setNumber: 1, weightKg: 100, reps: 5 }])
+    const out = suggestTm([s], exercises, { squat: 105, bench: 0, deadlift: 0 }, { weeks: 8, today: TODAY })
+    // best e1rm 116.7 *0.9=105 → suggested 105 → delta 0 → pas
+    expect(out.find(x=>x.key==='squat')!.status).toBe('pas')
+  })
+})

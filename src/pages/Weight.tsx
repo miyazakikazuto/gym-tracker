@@ -5,9 +5,9 @@ import { fmtNumber } from '../lib/helpers'
 import { parseDecimal } from '../lib/parse'
 import { dotsScore, fmtDots, dotsLevel } from '../lib/dots'
 import { sbdBestLifts } from '../lib/sbd'
+import { deltaKg } from '../lib/weightDelta'
 import Modal from '../components/Modal'
 import LineChart from '../components/LineChart'
-import type { Bodyweight } from '../types'
 
 const RANGES = [
   { key: '7', label: '7 hari' },
@@ -16,14 +16,7 @@ const RANGES = [
 ] as const
 type RangeKey = (typeof RANGES)[number]['key']
 
-// Selisih berat terakhir vs entri terdekat ≤ N hari lalu (null jika belum cukup data)
-function deltaKg(entries: Bodyweight[], daysAgo: number, today: string): number | null {
-  if (entries.length === 0) return null
-  const from = addDays(today, -daysAgo)
-  const prev = [...entries].reverse().find((b) => b.date <= from)
-  if (!prev) return null
-  return Math.round((entries[entries.length - 1].kg - prev.kg) * 100) / 100
-}
+// deltaKg di-extract ke src/lib/weightDelta.ts agar testable (pure, anchor latest)
 
 function DeltaStat({ label, val }: { label: string; val: number | null }) {
   return (
@@ -78,8 +71,9 @@ export default function Weight() {
   })()
 
   // Ringkasan: delta & min/max 30 hari
-  const delta7 = deltaKg(sortedBw, 7, today)
-  const delta30 = deltaKg(sortedBw, 30, today)
+  const delta7 = deltaKg(sortedBw, 7)
+  const delta30 = deltaKg(sortedBw, 30)
+  // window kalender dari today, bukan dari latest entry (sesuai ekspektasi "30 hari terakhir" di UI)
   const win30 = sortedBw.filter((b) => b.date >= addDays(today, -29))
   const min30 = win30.length > 0 ? Math.min(...win30.map((b) => b.kg)) : null
   const max30 = win30.length > 0 ? Math.max(...win30.map((b) => b.kg)) : null

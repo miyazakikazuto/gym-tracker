@@ -230,15 +230,20 @@ export function formatPeriodForAI(input: {
   }
   lines.push('')
 
-  // Berat badan dalam periode
-  const bw = bodyweights.filter((b) => b.date >= w.start && b.date <= w.end).sort((a, b) => a.date.localeCompare(b.date))
-  if (bw.length >= 2) {
-    const d = bw[bw.length - 1].kg - bw[0].kg
-    lines.push(
-      `Berat badan: ${fmtNumber(bw[0].kg)} → ${fmtNumber(bw[bw.length - 1].kg)} kg (${d >= 0 ? '+' : '−'}${fmtNumber(Math.abs(Math.round(d * 10) / 10))})`,
-    )
-  } else if (bw.length === 1) {
-    lines.push(`Berat badan: ${fmtNumber(bw[0].kg)} kg`)
+  // Berat badan dalam periode — delta vs acuan sebelum window (lastBefore) bila ada
+  const bwIn = bodyweights.filter((b) => b.date >= w.start && b.date <= w.end).sort((a, b) => a.date.localeCompare(b.date))
+  const bwBefore = bodyweights.filter((b) => b.date < w.start).sort((a, b) => a.date.localeCompare(b.date))
+  const lastBefore = bwBefore.length ? bwBefore[bwBefore.length - 1] : null
+  if (bwIn.length >= 1) {
+    const cur = bwIn[bwIn.length - 1]
+    const startKg = lastBefore ? lastBefore.kg : bwIn.length >= 2 ? bwIn[0].kg : null
+    const endKg = cur.kg
+    if (startKg != null) {
+      const d = endKg - startKg
+      lines.push(`Berat badan: ${fmtNumber(startKg)} → ${fmtNumber(endKg)} kg (${d >= 0 ? '+' : '−'}${fmtNumber(Math.abs(Math.round(d * 10) / 10))})`)
+    } else {
+      lines.push(`Berat badan: ${fmtNumber(endKg)} kg`)
+    }
   }
 
   return lines.join('\n')

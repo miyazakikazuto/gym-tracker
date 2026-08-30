@@ -123,3 +123,31 @@ describe('suggestKey', () => {
     expect(r.isNightLight).toBe(false)
   })
 })
+describe('suggestKey night-light & siang alias', () => {
+  function mk(over: Partial<Session> = {}): Session {
+    return { id: 'x', date: '2026-08-10', planId: null, planName: 'Leg Day', note: '', startedAt: 1, endedAt: 2, sets: [], ...over } as Session
+  }
+  it('malam → easy (night-light)', () => {
+    const sessions = [mk({ planName: 'Leg Day', date: '2026-08-10' })]
+    // rotasi default setelah Leg adalah easy, tapi bila next adalah push dan shift malam, should lighten ke easy
+    const r = suggestKey({}, sessions, 'malam')
+    // setup: last is Leg → next is easy → isNightLight false karena key sudah easy
+    expect(r.isNightLight).toBe(false)
+    // Now test dengan sesi last = Easy → next = Push, malam → isNightLight true
+    const sessions2 = [mk({ planName: 'Easy Day', date: '2026-08-10' })]
+    const r2 = suggestKey({}, sessions2, 'malam')
+    expect(r2.key).toBe('easy')
+    expect(r2.isNightLight).toBe(true)
+  })
+  it('pagi → tidak lighten', () => {
+    const sessions = [{ id: 'x', date: '2026-08-10', planId: null, planName: 'Easy Day', note: '', startedAt: 1, endedAt: 2, sets: [] } as Session]
+    const r = suggestKey({}, sessions, 'pagi')
+    expect(r.isNightLight).toBe(false)
+    expect(r.key).toBe('push')
+  })
+  it('siang alias ke sore tidak memicu night-light', () => {
+    // shift siang should be treated as sore via shiftForDate, but suggestKey only checks 'malam'
+    const r = suggestKey({}, [], 'sore')
+    expect(r.isNightLight).toBe(false)
+  })
+})
