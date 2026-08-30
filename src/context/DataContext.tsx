@@ -128,27 +128,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [uid, exercises])
 
   // Migrasi sekali jalan: benerin stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
+  const cycleMigratedRef = useRef(false)
   useEffect(() => {
-    if (!uid || sessions.length === 0) return
-    const mismatched = sessions.filter((s) => s.cycleLabel && !s.cycleLabel.includes(s.planName))
-    if (mismatched.length === 0) return
-    import('../lib/progression').then(({ computePosition, getScheme, computeExcludedTypes }) => {
-      for (const s of mismatched) {
-        const before = sessions.filter(
-          (x) => x.endedAt !== null && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
-        )
-        try {
-          const ex = computeExcludedTypes(settings)
-          const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
-          const wave = getScheme(pos.sessionIndex, ex)?.label ?? s.scheme
-          const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${s.planName}${wave ? ` — ${wave}` : ''}`
-          updateSession(uid, s.id, { cycleLabel: correctLabel, cycle: pos.cycle, sessionIndex: pos.sessionIndex, scheme: wave ?? undefined }).catch((err) => {
-            console.warn('[DataContext] patch cycleLabel gagal:', s.id, err)
-          })
-        } catch { /* ignore */ }
-      }
+    if (!uid || !ready || sessions.length === 0 || cycleMigratedRef.current) return
+    // Exact: "[C?-S??] Nama Plan" harus diakhiri planName, bukan substring includes (Leg vs Leg Press)
+    const mismatched = sessions.filter((s) => {
+      if (!s.cycleLabel) return false
+      const labelPlan = s.cycleLabel.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0]?.trim().toLowerCase()
+      return labelPlan !== s.planName.trim().toLowerCase()
     })
-  }, [uid, sessions, settings])
+    if (mismatched.length === 0) return
+    cycleMigratedRef.current = true
+    import('../lib/progression').then(({ computePosition, getScheme, computeExcludedTypes }) => {
+      import('firebase/firestore').then(({ writeBatch, doc }) => {
+        import('../lib/db').then(({ getDb }) => {
+          const db = getDb()
+          const batch = writeBatch(db)
+          let count = 0
+          for (const s of mismatched) {
+            const before = sessions.filter(
+              (x) => x.endedAt !== null && !x.isExtra && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
+            )
+            try {
+              const ex = computeExcludedTypes(settings)
+              const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
+              const wave = getScheme(pos.sessionIndex, ex)?.label ?? s.scheme
+              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${s.planName}${wave ? ` — ${wave}` : ''}`
+              const fields: Record<string, unknown> = { cycleLabel: correctLabel, cycle: pos.cycle, sessionIndex: pos.sessionIndex }
+              if (wave) fields.scheme = wave
+              batch.update(doc(db, 'users', uid, 'sessions', s.id), fields as object)
+              count++
+            } catch { /* ignore */ }
+          }
+          if (count > 0) {
+            batch.commit().catch((err: unknown) => {
+              console.warn('[DataContext] patch cycleLabel gagal:', err)
+              cycleMigratedRef.current = false
+            })
+          } else {
+            cycleMigratedRef.current = false
+          }
+        })
+      })
+    })
+  }, [uid, ready, sessions, settings])
 
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
   // Idempoten & aman race: hanya jalan setelah data konfirmasi dari SERVER —
