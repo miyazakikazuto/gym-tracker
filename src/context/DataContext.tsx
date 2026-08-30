@@ -20,7 +20,7 @@ import {
   patchExerciseCategories,
   createExercise,
 } from '../lib/gymstore'
-import { categoryOfExercise } from '../lib/helpers'
+import { categoryOfExercise, isCountedSession } from '../lib/helpers'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
 import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
 
@@ -147,7 +147,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           let count = 0
           for (const s of mismatched) {
             const before = sessions.filter(
-              (x) => x.endedAt !== null && !x.isExtra && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
+              (x) => isCountedSession(x) && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
             )
             try {
               const ex = computeExcludedTypes(settings)

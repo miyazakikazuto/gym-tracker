@@ -11,6 +11,7 @@ import {
   suggestKey531,
   get531Sequence,
 } from './progression'
+import { isCountedSession } from './helpers'
 import type { Session, UserSettings } from '../types'
 
 const NO_EXCLUDED = new Set<string>()
@@ -172,5 +173,31 @@ describe('UserSettings default guard', () => {
   it('excludeEasyDay undefined → tidak exclude', () => {
     const s: Partial<UserSettings> = {}
     expect(computeExcludedTypes(s).has('easy')).toBe(false)
+  })
+})
+describe('isCountedSession parity (harus sinkron dengan rotation)', () => {
+  it('5 predikat identik: endedAt null, extra, rest, cardio, skip', () => {
+    function mk(over: Partial<Session>): Session {
+      return { id: 'x', date: '2026-08-20', planId: null, planName: 'Leg Day', note: '', startedAt: 1, endedAt: 2, sets: [], ...over } as Session
+    }
+    expect(isCountedSession(mk({ endedAt: null }))).toBe(false)
+    expect(isCountedSession(mk({ isExtra: true }))).toBe(false)
+    expect(isCountedSession(mk({ planName: 'Rest Day' }))).toBe(false)
+    expect(isCountedSession(mk({ planName: 'Cardio Run' }))).toBe(false)
+    expect(isCountedSession(mk({ planName: 'Skip — sakit' }))).toBe(false)
+    expect(isCountedSession(mk({ planName: 'Leg Day' }))).toBe(true)
+  })
+  it('dynamicCycleLength 16 vs 12 konsisten dengan computeExcludedTypes', () => {
+    expect(dynamicCycleLength(computeExcludedTypes({}))).toBe(16)
+    expect(dynamicCycleLength(computeExcludedTypes({ excludeEasyDay: true }))).toBe(12)
+  })
+  it('alignment scheme: week1 3x5 → week2 3x3 terjaga walau Easy Day diexclude', () => {
+    const exOff = computeExcludedTypes({ excludeEasyDay: true })
+    // tanpa exclude, index 0=3x5, index 4=3x3
+    expect(getScheme(0, NO_EXCLUDED)?.label).toBe('3×5')
+    expect(getScheme(4, NO_EXCLUDED)?.label).toBe('3×3')
+    // dengan exclude, index tetap map ke minggu yang benar via buildEffective
+    expect(getScheme(0, exOff)?.label).toBe('3×5')
+    expect(getScheme(3, exOff)?.label).toBe('3×3')
   })
 })

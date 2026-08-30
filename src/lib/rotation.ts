@@ -1,8 +1,8 @@
 import { parseKey } from './date'
-import { isRest, presetByName, presetByKey } from './templates'
+import { presetByName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
+import { isCountedSession } from './helpers'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
-
 // Urutan default: mulai dari Leg, lalu Easy (recovery), Push, Pull.
 // User bisa mengubah urutan di Pengaturan.
 const DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
@@ -21,13 +21,9 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
 
 // Sesi yang tidak dihitung sebagai latihan gym: Rest Day, Cardio, Skip lama
 // ("Skip — …") dan sesi tambahan manual. Disamakan dengan filter progression
-// agar cycle Wendler dan rotasi tidak divergen.
+// agar cycle Wendler dan rotasi tidak divergen — sumber tunggal di helpers.isCountedSession.
 function isNonCountingSession(s: Session): boolean {
-  if (s.isExtra) return true
-  if (isRest(s.planName)) return true
-  if (/cardio/i.test(s.planName)) return true
-  if (/^skip/i.test(s.planName.trim())) return true
-  return false
+  return !isCountedSession(s)
 }
 
 function isRestSession(s: Session): boolean {

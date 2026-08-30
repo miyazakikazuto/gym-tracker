@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
@@ -43,10 +43,10 @@ export default function Session() {
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastWrittenRef = useRef('')
+  const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
   // Perubahan yang belum sukses ditulis — dipakai untuk flush saat keluar halaman
   const dirtyRef = useRef<{ sets?: SessionSet[]; note?: string; rpes?: Record<string, number> }>({})
-
   // Lookup best e1RM per gerakan — dibangun sekali per data, bukan scan per render
   const bestE1RmMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -94,9 +94,20 @@ export default function Session() {
   const scheduleSync = useCallback(
     (nextSets: SessionSet[]) => {
       if (!id) return
+      // Fast-path: kesamaan referensi → tidak perlu stringify (mutateSets selalu buat array baru,
+      // jadi kasus ini hanya terjadi bila nextSets sudah pernah dijadwalkan dan belum berubah).
+      if (nextSets === lastWrittenSetsRef.current) {
+        delete dirtyRef.current.sets
+        return
+      }
+      if (dirtyRef.current.sets === nextSets) {
+        // Sudah pending dengan referensi yang sama — biarkan timer yang berjalan
+        return
+      }
       const json = JSON.stringify(nextSets)
       if (json === lastWrittenRef.current) {
         // Sudah tersimpan di server → tidak ada yang perlu ditulis
+        lastWrittenSetsRef.current = nextSets
         delete dirtyRef.current.sets
         return
       }
@@ -109,6 +120,7 @@ export default function Session() {
           await updateSession(uid, id, { sets: nextSets })
           // Ref baru di-update SETELAH write sukses — kalau gagal, edit tetap dicoba lagi
           lastWrittenRef.current = json
+          lastWrittenSetsRef.current = nextSets
           if (dirtyRef.current.sets === nextSets) delete dirtyRef.current.sets
         } catch {
           /* gagal: tetap dirty → ditulis ulang saat aksi berikutnya / keluar halaman */
@@ -406,7 +418,7 @@ export default function Session() {
           const mismatch = !!(label && !label.includes(session.planName))
           if (!label || mismatch) {
             const before = sessions.filter(
-              (x) => x.endedAt !== null && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)),
+              (x) => isCountedSession(x) && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)),
             )
             try {
               const ex = computeExcludedTypes(settings)

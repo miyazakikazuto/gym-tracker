@@ -105,3 +105,21 @@ describe('suggestExercises', () => {
     expect(['gap', 'baru', 'lupa', 'biasa']).toContain(bench.reason)
   })
 })
+describe('suggestExercises extra: gap threshold & ranking', () => {
+  it('gap bila volume <0.3*avgVol', () => {
+    // avgVol mis 10, gap jika volume <3
+    const s = mkSession('a', '2026-08-10', [{ id: 'x', exerciseId: 'bench', setNumber: 1, weightKg: 10, reps: 10 }])
+    // pool dengan Bench (push) sudah ada, tapi grup leg (kaki) 0 volume → gap
+    const pool2: Exercise[] = [
+      { id: 'bench', name: 'Bench', muscleGroup: 'Dada', equipment: 'Barbell', category: 'push' },
+      { id: 'squat', name: 'Squat', muscleGroup: 'Kaki', equipment: 'Barbell', category: 'leg' },
+    ]
+    const res = suggestExercises([s], pool2, pool2, new Set(), { weeks: 4, forgetDays: 21 })
+    const squat = res.find(r=>r.exercise.id==='squat')
+    expect(squat?.reason).toBe('gap')
+  })
+  it('currentSetIds exclusion', () => {
+    const res = suggestExercises([], pool, pool, new Set(['bench']))
+    expect(res.find(r=>r.exercise.id==='bench')).toBeUndefined()
+  })
+})

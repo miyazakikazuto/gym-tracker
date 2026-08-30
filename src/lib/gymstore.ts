@@ -31,9 +31,15 @@ export function bodyweightRef(uid: string) {
 }
 
 export function subscribeBodyweights(uid: string, cb: (list: Bodyweight[]) => void) {
-  return onSnapshot(bodyweightRef(uid), (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Bodyweight, 'id'>) })))
-  })
+  return onSnapshot(
+    bodyweightRef(uid),
+    (snap) => {
+      cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Bodyweight, 'id'>) })))
+    },
+    (err) => {
+      console.warn('[gymstore] subscribe bodyweight gagal:', err)
+    },
+  )
 }
 
 // 1 doc per tanggal (id = YYYY-MM-DD) — upsert otomatis saat tanggal sama
@@ -58,12 +64,18 @@ export function subscribeExercises(
   uid: string,
   cb: (list: Exercise[], meta?: { fromServer: boolean }) => void,
 ) {
-  return onSnapshot(userGymRef(uid, 'exercises'), (snap) => {
-    cb(
-      snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) })),
-      { fromServer: !snap.metadata.fromCache },
-    )
-  })
+  return onSnapshot(
+    userGymRef(uid, 'exercises'),
+    (snap) => {
+      cb(
+        snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exercise, 'id'>) })),
+        { fromServer: !snap.metadata.fromCache },
+      )
+    },
+    (err) => {
+      console.warn('[gymstore] subscribe exercises gagal:', err)
+    },
+  )
 }
 
 export async function createExercise(uid: string, data: Omit<Exercise, 'id'>) {
@@ -106,9 +118,15 @@ export async function fetchPlans(uid: string): Promise<WorkoutPlan[]> {
 }
 
 export function subscribePlans(uid: string, cb: (list: WorkoutPlan[]) => void) {
-  return onSnapshot(userGymRef(uid, 'plans'), (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<WorkoutPlan, 'id'>) })))
-  })
+  return onSnapshot(
+    userGymRef(uid, 'plans'),
+    (snap) => {
+      cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<WorkoutPlan, 'id'>) })))
+    },
+    (err) => {
+      console.warn('[gymstore] subscribe plans gagal:', err)
+    },
+  )
 }
 
 export async function createPlan(uid: string, data: Omit<WorkoutPlan, 'id'>) {
@@ -133,9 +151,15 @@ export async function fetchSessions(uid: string): Promise<Session[]> {
 }
 
 export function subscribeSessions(uid: string, cb: (list: Session[]) => void) {
-  return onSnapshot(userGymRef(uid, 'sessions'), (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Session, 'id'>) })))
-  })
+  return onSnapshot(
+    userGymRef(uid, 'sessions'),
+    (snap) => {
+      cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Session, 'id'>) })))
+    },
+    (err) => {
+      console.warn('[gymstore] subscribe sessions gagal:', err)
+    },
+  )
 }
 
 export async function createSession(uid: string, data: Omit<Session, 'id'>) {
@@ -211,9 +235,15 @@ export function settingsRef(uid: string) {
 }
 
 export function subscribeSettings(uid: string, cb: (s: Partial<UserSettings>) => void) {
-  return onSnapshot(settingsRef(uid), (snap) => {
-    cb((snap.data() ?? {}) as Partial<UserSettings>)
-  })
+  return onSnapshot(
+    settingsRef(uid),
+    (snap) => {
+      cb((snap.data() ?? {}) as Partial<UserSettings>)
+    },
+    (err) => {
+      console.warn('[gymstore] subscribe settings gagal:', err)
+    },
+  )
 }
 
 export function updateSettings(uid: string, patch: Partial<UserSettings>) {

@@ -1,9 +1,10 @@
 // Faktor kontribusi otot sekunder per gerakan (berdasarkan pola nama).
 // Volume satu set dibagi ke otot sekunder: volume × faktor (0..1).
-// Pencocokan: nama lowercase, first-match-wins — entri spesifik diletakkan
-// sebelum yang generik (mis. 'hack squat' sebelum 'squat', 'incline bench' sebelum 'bench press').
+// Pencocokan: nama lowercase, first-match-wins — entri spesifik WAJIB diletakkan
+// sebelum yang generik (mis. 'reverse hack squat' sebelum 'hack squat' sebelum 'squat',
+// 'incline bench' sebelum 'bench press'). Urutan TABLE adalah kontrak; pattern baru
+// harus ditempatkan sebelum match generik, jangan di akhir.
 // Otot primer tetap dari muscleGroup gerakan di Library — tabel ini hanya menambah otot sekunder.
-
 export interface SecondaryFactor {
   group: string
   factor: number

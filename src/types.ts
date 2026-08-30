@@ -25,9 +25,14 @@ export interface PlanItem {
   exerciseId: string
   order: number
   targetSets: number
-  // Catatan: untuk gerakan bertipe 'duration', field ini menyimpan DURASI dalam
-  // detik (bukan rep) — dipakai buildSession() sebagai durationSec awal set.
-  // Overloading disengaja supaya struktur plan lama tetap kompatibel.
+  /**
+   * Jumlah repetisi bila exercise.type !== 'duration'.
+   * Bila exercise bertipe 'duration', field ini menyimpan durationSec (detik),
+   * bukan rep — dipakai `gymstore.buildSession(typeOf)` untuk branch
+   * `typeOf(exId)==='duration' ? durationSec : reps`. Overloading disengaja
+   * agar dokumen Firestore lama tetap kompatibel; jangan rename.
+   * Lihat juga `helpers.exerciseIsDuration()` untuk pengecekan tipe.
+   */
   reps: number
   restSec: number
 }

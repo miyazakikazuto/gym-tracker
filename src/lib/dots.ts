@@ -3,8 +3,8 @@
 // Koefisien disesuaikan dengan standar publikasi resmi (verifikasi lintas sumber).
 // Catatan: app hanya mendukung koefisien pria — belum ada setting jenis kelamin.
 
+/** Koefisien pria saja — tidak ada `UserSettings.gender`; jangan pakai untuk BW wanita. */
 const DOTS_MALE = { a: -0.000001093, b: 0.0007391293, c: -0.1918759221, d: 24.0900756, e: -307.75076 }
-
 // Rentang valid bodyweight pria — di luar ini dijepret ke batas (polinomial tidak di-fit untuk BW ekstrem)
 const BW_MIN = 40
 const BW_MAX = 210

@@ -3,11 +3,10 @@
 // Default: 1 cycle = 16 sesi [Leg/Push/Pull/Easy] × 4 minggu.
 // Toggle Easy Day OFF: 1 cycle = 12 sesi [Leg/Push/Pull] × 4 minggu.
 
-import { isRest } from './templates'
+import { isCountedSession } from './helpers'
 import type { Session, UserSettings } from '../types'
 
 // ===== STATIC DATA (full — tanpa exclusion) =====
-
 const ALL_SESSION_TYPES: ('leg' | 'push' | 'pull' | 'easy')[] = [
   'leg', 'push', 'pull', 'easy',   // Week 1 — 3×5
   'leg', 'push', 'pull', 'easy',   // Week 2 — 3×3
@@ -100,19 +99,11 @@ function buildEffective(excluded: Set<string>) {
   return { types, labels, schemes, sbdKey: allSbdKey }
 }
 
-// ===== COUNTER LOGIC =====
-
 /** Hitung total sesi selesai yang dihitung dalam siklus 5/3/1. */
 function countCompletedSessions(sessions: Session[]): number {
   let count = 0
   for (const s of sessions) {
-    if (s.endedAt === null) continue
-    if (s.isExtra) continue
-    if (isRest(s.planName)) continue
-    if (/cardio/i.test(s.planName)) continue
-    // Sesi "Skip — …" (dibuat oleh versi lama tombol Skip) tidak dihitung —
-    // skip sekarang pakai counter skippedSessions, bukan sesi tersimpan.
-    if (/^skip/i.test(s.planName.trim())) continue
+    if (!isCountedSession(s)) continue
     count++
   }
   return count

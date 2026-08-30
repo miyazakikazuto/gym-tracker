@@ -151,4 +151,33 @@ describe('formatPeriodForAI', () => {
     out = formatPeriodForAI({ sessions: [s], exercises, bodyweights: [bw[0]], window: WIN })
     expect(out).toContain('Berat badan: 70,2 kg')
   })
+
+  it('berat badan: 1 entri dalam window + riwayat sebelum window → delta vs lastBefore', () => {
+    const bw: Bodyweight[] = [
+      { id: '2026-08-23', date: '2026-08-23', kg: 70.2 },
+      { id: '2026-08-29', date: '2026-08-29', kg: 69.8 },
+    ]
+    const s = mkSession('a', '2026-08-25', [{ id: 'x', exerciseId: 'squat', setNumber: 1, weightKg: 100, reps: 5 }])
+    const out = formatPeriodForAI({ sessions: [s], exercises, bodyweights: bw, window: WIN })
+    // sebelum fix: hanya "69,8 kg" tanpa delta; setelah fix harus 70,2 → 69,8 (−0,4)
+    expect(out).toContain('Berat badan: 70,2 → 69,8 kg (−0,4)')
+  })
+
+  it('berat badan: 1 entri tanpa riwayat → tetap nilai tunggal tanpa panah', () => {
+    const bw: Bodyweight[] = [{ id: '2026-08-29', date: '2026-08-29', kg: 69.8 }]
+    const s = mkSession('a', '2026-08-25', [{ id: 'x', exerciseId: 'squat', setNumber: 1, weightKg: 100, reps: 5 }])
+    const out = formatPeriodForAI({ sessions: [s], exercises, bodyweights: bw, window: WIN })
+    expect(out).toContain('Berat badan: 69,8 kg')
+    expect(out).not.toContain('→')
+  })
+
+  it('berat badan: 2 entri dalam window tanpa riwayat → delta internal (kompatibilitas)', () => {
+    const bw: Bodyweight[] = [
+      { id: '2026-08-24', date: '2026-08-24', kg: 71 },
+      { id: '2026-08-29', date: '2026-08-29', kg: 70.2 },
+    ]
+    const s = mkSession('a', '2026-08-25', [{ id: 'x', exerciseId: 'squat', setNumber: 1, weightKg: 100, reps: 5 }])
+    const out = formatPeriodForAI({ sessions: [s], exercises, bodyweights: bw, window: WIN })
+    expect(out).toContain('Berat badan: 71 → 70,2 kg')
+  })
 })
