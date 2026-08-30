@@ -154,8 +154,9 @@ export function getFullLabel(cycle: number, index: number, excluded: Set<string>
 }
 
 export function getScheme(index: number, excluded: Set<string> = new Set()): Scheme | null {
+  const cycleLen = dynamicCycleLength(excluded)
   const { schemes } = buildEffective(excluded)
-  return schemes.get(index % schemes.size) ?? null
+  return schemes.get(index % cycleLen) ?? null
 }
 
 // ===== PRESCRIBED WEIGHTS =====
@@ -179,10 +180,11 @@ export function getSbdLiftForSession(
   index: number,
   excluded: Set<string> = new Set(),
 ): 'squat' | 'bench' | 'deadlift' | undefined {
-  const { sbdKey } = buildEffective(excluded)
-  const keys = Object.keys(sbdKey).map(Number)
-  if (keys.length === 0) return undefined
-  return sbdKey[index % keys.length]
+  const { types, sbdKey } = buildEffective(excluded)
+  if (types.length === 0) return undefined
+  const idx = index % types.length
+  if (types[idx] === 'easy') return undefined
+  return sbdKey[idx]
 }
 
 // ===== 5/3/1 SUGGESTION KEY (dynamic) =====

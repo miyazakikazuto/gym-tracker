@@ -114,14 +114,15 @@ export default function History() {
     setError('')
     try {
       const wantExtra = isExtra ?? historyExtra
+      const startAt = parseKey(selKey).getTime() + 12 * 60 * 60 * 1000
       let payload: ReturnType<typeof buildSession>
       if (isRest(name)) {
-        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, false)
+        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
       } else if (wantExtra) {
-        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
+        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, true)
       } else {
         const ex = computeExcludedTypes(settings)
-        const before = sessions.filter((x) => x.endedAt !== null && !x.isExtra && (x.date < selKey || (x.date === selKey && x.startedAt < Date.now())))
+        const before = sessions.filter((x) => x.endedAt !== null && !x.isExtra && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
         const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
         const wave = getScheme(pos.sessionIndex, ex)?.label ?? null
         const stiker = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${name}${wave ? ` — ${wave}` : ''}`
@@ -129,7 +130,7 @@ export default function History() {
           plan,
           selKey,
           (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
-          Date.now(),
+          startAt,
           wave
             ? { cycle: pos.cycle, sessionIndex: pos.sessionIndex, cycleLabel: stiker, scheme: wave }
             : { cycle: pos.cycle, sessionIndex: pos.sessionIndex, cycleLabel: stiker },
