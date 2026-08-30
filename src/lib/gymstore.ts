@@ -167,7 +167,14 @@ export function buildSession(
     note: '',
     startedAt: start,
     endedAt: null,
-    ...(cycleSnapshot ? { cycle: cycleSnapshot.cycle, sessionIndex: cycleSnapshot.sessionIndex, cycleLabel: cycleSnapshot.cycleLabel, scheme: cycleSnapshot.scheme } : {}),
+    ...(cycleSnapshot
+      ? {
+          cycle: cycleSnapshot.cycle,
+          sessionIndex: cycleSnapshot.sessionIndex,
+          cycleLabel: cycleSnapshot.cycleLabel,
+          ...(cycleSnapshot.scheme ? { scheme: cycleSnapshot.scheme } : {}),
+        }
+      : {}),
     ...(isExtra ? { isExtra: true as const } : {}),
     sets: (plan?.items ?? [])
       .slice()
