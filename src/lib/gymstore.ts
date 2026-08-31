@@ -89,6 +89,14 @@ export async function deleteExercise(uid: string, id: string) {
   return deleteDoc(doc(getDb(), 'users', uid, 'exercises', id))
 }
 
+/**
+ * Restore exercise terhapus: buat ulang document dengan ID lama pakai setDoc
+ * (bukan addDoc) supaya semua session lama otomatis ter-link kembali.
+ */
+export async function restoreExercise(uid: string, id: string, data: Omit<Exercise, 'id'>) {
+  return setDoc(doc(getDb(), 'users', uid, 'exercises', id), data)
+}
+
 export function patchExerciseCategory(uid: string, id: string, category: string) {
   return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), { category })
 }

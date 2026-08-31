@@ -77,3 +77,40 @@ export function bestSetResult(
 export function fmtNumber(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1).replace('.', ',')
 }
+
+/**
+ * Cari exercise IDs yang ada di sessions tapi tidak ada di library (terhapus).
+ * Return Map<exerciseId, { totalSets, totalVolume, lastDate, sessionCount }>.
+ */
+export function findOrphanedExercises(
+  sessions: Session[],
+  exercises: Exercise[],
+): Map<string, { totalSets: number; totalVolume: number; lastDate: string; sessionCount: number; exerciseIds: string[] }> {
+  const knownIds = new Set(exercises.map((e) => e.id))
+  const map = new Map<string, { totalSets: number; totalVolume: number; lastDate: string; sessionCount: number; exerciseIds: string[] }>()
+
+  for (const s of sessions) {
+    const seen = new Set<string>()
+    for (const set of s.sets) {
+      if (knownIds.has(set.exerciseId)) continue
+      const existing = map.get(set.exerciseId)
+      const vol = set.weightKg * set.reps
+      if (existing) {
+        existing.totalSets++
+        existing.totalVolume += vol
+        if (s.date > existing.lastDate) existing.lastDate = s.date
+        if (!seen.has(set.exerciseId)) { existing.sessionCount++; seen.add(set.exerciseId) }
+      } else {
+        map.set(set.exerciseId, {
+          totalSets: 1,
+          totalVolume: vol,
+          lastDate: s.date,
+          sessionCount: seen.has(set.exerciseId) ? 0 : 1,
+          exerciseIds: [set.exerciseId],
+        })
+        seen.add(set.exerciseId)
+      }
+    }
+  }
+  return map
+}
