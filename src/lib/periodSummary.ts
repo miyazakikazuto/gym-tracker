@@ -230,13 +230,13 @@ export function formatPeriodForAI(input: {
   }
   lines.push('')
 
-  // Berat badan dalam periode — delta vs acuan sebelum window (lastBefore) bila ada
+  // Berat badan dalam periode — delta vs acuan: bila ≥2 timbang dalam window pakai first→last di window; bila 1 pakai lastBefore
   const bwIn = bodyweights.filter((b) => b.date >= w.start && b.date <= w.end).sort((a, b) => a.date.localeCompare(b.date))
   const bwBefore = bodyweights.filter((b) => b.date < w.start).sort((a, b) => a.date.localeCompare(b.date))
   const lastBefore = bwBefore.length ? bwBefore[bwBefore.length - 1] : null
   if (bwIn.length >= 1) {
     const cur = bwIn[bwIn.length - 1]
-    const startKg = lastBefore ? lastBefore.kg : bwIn.length >= 2 ? bwIn[0].kg : null
+    const startKg = bwIn.length >= 2 ? bwIn[0].kg : lastBefore ? lastBefore.kg : null
     const endKg = cur.kg
     if (startKg != null) {
       const d = endKg - startKg
