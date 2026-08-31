@@ -16,7 +16,6 @@ import type {
   Exercise,
   WorkoutPlan,
   Session,
-  SessionSet,
   Bodyweight,
   UserSettings,
 } from '../types'
@@ -217,16 +216,6 @@ export function buildSession(
 // sets are stored inline inside session.sets
 export function makeSetId() {
   return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-}
-
-export function makeSessionSet(partial: Partial<SessionSet> & { exerciseId: string }): SessionSet {
-  return {
-    id: partial.id ?? makeSetId(),
-    exerciseId: partial.exerciseId,
-    setNumber: partial.setNumber ?? 1,
-    weightKg: partial.weightKg ?? 0,
-    reps: partial.reps ?? 0,
-  }
 }
 
 // ===== USER SETTINGS =====
