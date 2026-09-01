@@ -1,5 +1,6 @@
 import type { Exercise, Session } from '../types'
 import { isRest } from './templates'
+import { volumeOf } from './date'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
   return exercises.find((e) => e.id === id)?.name ?? `[Terhapus ${id.slice(0, 6)}]`
@@ -94,7 +95,7 @@ export function findOrphanedExercises(
     for (const set of s.sets) {
       if (knownIds.has(set.exerciseId)) continue
       const existing = map.get(set.exerciseId)
-      const vol = set.weightKg * set.reps
+      const vol = volumeOf([set])
       if (existing) {
         existing.totalSets++
         existing.totalVolume += vol

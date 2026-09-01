@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
-import { parseKey, todayKey, formatDMYWIB, MONTHS } from '../lib/date'
+import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
@@ -13,8 +13,8 @@ import { exerciseIsDuration } from '../lib/helpers'
 import type { WorkoutPlan } from '../types'
 
 function monthGrid(year: number, month: number): (string | null)[] {
-  const first = new Date(Date.UTC(year, month, 1))
-  const startDow = first.getUTCDay()
+  const key = year + '-' + String(month + 1).padStart(2, '0') + '-01'
+  const startDow = dayOfWeek(key)
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells: (string | null)[] = []
   for (let i = 0; i < startDow; i++) cells.push(null)

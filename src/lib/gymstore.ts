@@ -299,7 +299,12 @@ export async function importBackup(
     for (const { ref, value } of writes.slice(i, i + CHUNK)) {
       batch.set(ref, value)
     }
-    await batch.commit()
+    try {
+      await batch.commit()
+    } catch (err) {
+      console.warn('[gymstore] importBackup chunk failed at', i, err)
+      throw err
+    }
   }
   return writes.length
 }

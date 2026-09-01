@@ -18,7 +18,6 @@ import {
   upsertBodyweight,
   deleteBodyweight,
   patchExerciseCategories,
-  createExercise,
 } from '../lib/gymstore'
 import { categoryOfExercise, isCountedSession } from '../lib/helpers'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
@@ -107,7 +106,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ]
     // Safety-net: kalau ada subscription yang tak kunjung memanggil balik
     // (mis. jaringan diblokir total), tetap tandai siap setelah 5 detik.
-    const t = setTimeout(() => setReady(true), 5000)
+    const t = setTimeout(() => {
+      if (remaining > 0) console.warn('[DataContext] ready safety-net triggered — remaining:', remaining)
+      setReady(true)
+    }, 5000)
     return () => {
       unsubs.forEach((u) => u())
       clearTimeout(t)
@@ -127,10 +129,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [uid, exercises])
 
-  // Migrasi sekali jalan: benerin stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
-  const cycleMigratedRef = useRef(false)
+  // Migrasi stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
+  // Per-session: cek tiap sessions change, bukan once-per-mount — supaya mismatch baru tetap ke-patch
+  const cycleMigratingRef = useRef(false)
   useEffect(() => {
-    if (!uid || !ready || sessions.length === 0 || cycleMigratedRef.current) return
+    if (!uid || !ready || sessions.length === 0 || cycleMigratingRef.current) return
     // Exact: "[C?-S??] Nama Plan" harus diakhiri planName, bukan substring includes (Leg vs Leg Press)
     const mismatched = sessions.filter((s) => {
       if (!s.cycleLabel) return false
@@ -138,7 +141,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return labelPlan !== s.planName.trim().toLowerCase()
     })
     if (mismatched.length === 0) return
-    cycleMigratedRef.current = true
+    cycleMigratingRef.current = true
     import('../lib/progression').then(({ computePosition, getScheme, computeExcludedTypes }) => {
       import('firebase/firestore').then(({ writeBatch, doc }) => {
         import('../lib/db').then(({ getDb }) => {
@@ -161,12 +164,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
             } catch { /* ignore */ }
           }
           if (count > 0) {
-            batch.commit().catch((err: unknown) => {
-              console.warn('[DataContext] patch cycleLabel gagal:', err)
-              cycleMigratedRef.current = false
-            })
+            batch.commit()
+              .then(() => { cycleMigratingRef.current = false })
+              .catch((err: unknown) => {
+                console.warn('[DataContext] patch cycleLabel gagal:', err)
+                cycleMigratingRef.current = false
+              })
           } else {
-            cycleMigratedRef.current = false
+            cycleMigratingRef.current = false
           }
         })
       })
@@ -176,18 +181,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
   // Idempoten & aman race: hanya jalan setelah data konfirmasi dari SERVER —
   // bukan sekadar cache lokal yang belum terisi (internet lambat / storage bersih).
+  // Batch 49 writes jadi 1 commit — jauh lebih cepat & atomik per batch.
   const seededRef = useRef(false)
   useEffect(() => {
     if (!uid || !ready || !exercisesFromServer || seededRef.current) return
     if (exercises.length > 0 || sessions.length > 0) return
     seededRef.current = true
-    for (const ex of DEFAULT_EXERCISES) {
-      createExercise(uid, ex).catch((err) => {
-        console.warn('[DataContext] seed gagal:', ex.name, err)
+    void (async () => {
+      try {
+        const { getDb } = await import('../lib/db')
+        const { writeBatch, collection, doc } = await import('firebase/firestore')
+        const db = getDb()
+        const batch = writeBatch(db)
+        for (const ex of DEFAULT_EXERCISES) {
+          const ref = doc(collection(db, 'users', uid, 'exercises'))
+          batch.set(ref, ex)
+        }
+        await batch.commit()
+      } catch (err) {
+        console.warn('[DataContext] seed batch gagal:', err)
         seededRef.current = false
         showToast('Gagal seed gerakan default — coba lagi', 'error')
-      })
-    }
+      }
+    })()
   }, [uid, ready, exercisesFromServer, exercises.length, sessions.length])
 
   // Auto-close: sesi berjalan yang ditinggalkan (>48 jam) ditandai selesai.

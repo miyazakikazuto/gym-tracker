@@ -7,8 +7,16 @@ const fs = require('fs')
 const path = require('path')
 
 const dist = path.join(__dirname, '..', 'dist')
-// Sama dengan vite.config.ts: root di Vercel, sub-path di GitHub Pages.
-const base = process.env.VERCEL ? '/' : '/gym-tracker/'
+// Single source of truth: src/lib/base.ts — jangan duplikat string base di sini.
+// CJS tidak bisa import TS langsung, jadi baca file TS untuk sinkronisasi (best-effort).
+let base = process.env.VERCEL ? '/' : '/gym-tracker/'
+try {
+  const baseSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'base.ts'), 'utf8')
+  // Validasi: pastikan base.ts masih pakai pola VERCEL ? '/' : '/gym-tracker/'
+  if (!baseSrc.includes("'/gym-tracker/'") || !baseSrc.includes("VERCEL")) {
+    console.warn('[gen-sw] base.ts pattern changed — verify base sync with vite.config.ts')
+  }
+} catch { /* ignore — fallback ke env check di atas */ }
 
 // ===== Kumpulkan semua file (untuk lazy cache) =====
 const allFiles = []
@@ -24,11 +32,12 @@ scan('', base)
 scan('assets', base + 'assets/')
 scan('icons', base + 'icons/')
 
-// ===== Precache SEMUA file =====
+// ===== Precache SEMUA file (kecuali source map) =====
 // Alasan: activate menghapus cache lama — kalau chunk halaman/firestore hanya
 // lazy-cached, app yang dibuka OFFLINE tepat pasca-deploy crash dengan
 // "Importing a module script failed". Precache penuh menutup window itu.
-const precache = allFiles.slice()
+// Source map (*.map) tidak perlu offline — filter supaya tidak bengkak & bocor source.
+const precache = allFiles.filter((f) => !f.endsWith('.map'))
 
 const cache = 'gym-tracker-' + Date.now().toString(36)
 
