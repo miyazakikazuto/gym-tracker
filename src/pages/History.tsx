@@ -29,9 +29,10 @@ export default function History() {
   const uid = useUid()
   const navigate = useNavigate()
 
-  const t = parseKey(todayKey())
-  const [viewYear, setViewYear] = useState(t.getUTCFullYear())
-  const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
+  // Ekstrak langsung dari todayKey() — parseKey() pakai WIB offset jadi getUTC*() salah
+  const [todayY, todayM] = todayKey().split('-').map(Number)
+  const [viewYear, setViewYear] = useState(todayY)
+  const [viewMonth, setViewMonth] = useState(todayM - 1) // 0-indexed
   // Preferensi tampilan kalender — tersimpan di localStorage (gt:calPrefs)
   const [expanded, setExpanded] = useState<boolean>(() => {
     try {
