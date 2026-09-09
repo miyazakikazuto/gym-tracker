@@ -42,9 +42,9 @@ describe('REHAB_CYCLE', () => {
     expect(REHAB_ISO_HOLD_SEC).toBe(30)
     expect(REHAB_PAIN_STOP).toBe(5)
   })
-  it('8 pertama = cycle lama (stiker lama tetap valid)', () => {
-    expect([...REHAB_CYCLE.slice(0, 8)]).toEqual([
-      'leg-iso', 'leg-light', 'upper-r', 'easy',
+  it('tanpa easy di cycle (diganti cardio santai)', () => {
+    expect(REHAB_CYCLE).not.toContain('easy')
+    expect([...REHAB_CYCLE.slice(0, 4)]).toEqual([
       'leg-iso', 'leg-light', 'upper-r', 'cardio',
     ])
   })

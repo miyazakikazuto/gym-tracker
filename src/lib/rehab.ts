@@ -36,13 +36,12 @@ export function isRehabSession(s: Session, exercises: Exercise[] = []): boolean 
   return hasIsoSet(s, exercises)
 }
 
-// 16 sesi: 8 pertama = cycle lama (stiker [R1-S01..S08] lama tetap valid),
-// 8 kedua = pengulangan pola yang sama untuk W3-W4.
+// 16 sesi: [iso, ringan, upper-kanan, cardio] x4.
+// Easy Day DIKELUARKAN dari siklus (keputusan user): preset easy berisi
+// Push-Up/Chin-Up/Dead Hang yang butuh grip tangan kiri — bukan "easy" buat
+// kondisi ini. Penggantinya cardio santai (jalan/sepeda statis, tanpa grip).
+// Stiker lama [R..S04/S12] Easy Day tetap valid sebagai riwayat.
 export const REHAB_CYCLE = [
-  'leg-iso',
-  'leg-light',
-  'upper-r',
-  'easy',
   'leg-iso',
   'leg-light',
   'upper-r',
@@ -50,7 +49,11 @@ export const REHAB_CYCLE = [
   'leg-iso',
   'leg-light',
   'upper-r',
-  'easy',
+  'cardio',
+  'leg-iso',
+  'leg-light',
+  'upper-r',
+  'cardio',
   'leg-iso',
   'leg-light',
   'upper-r',
