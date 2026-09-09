@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../context/DataContext'
-import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB } from '../lib/date'
+import { useUid } from '../context/AuthContext'
+import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB, parseKey } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
+import { createSession, updateSession, buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from '../lib/gymstore'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
@@ -19,12 +21,71 @@ import {
   CARDIO_WEEK_MAX_KM,
 } from '../lib/periodSummary'
 import StatCard from '../components/StatCard'
+import DecimalInput from '../components/DecimalInput'
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
   const { sessions, exercises, bodyweights, settings, showToast } = useData()
+  const uid = useUid()
 
   const today = todayKey()
+
+  // ===== Quick-log jalan kaki (lapangan/Strava) — gabung ke sesi cardio hari itu =====
+  const [walkDate, setWalkDate] = useState(today)
+  const [walkDist, setWalkDist] = useState(0)
+  const [walkMin, setWalkMin] = useState(0)
+  const [walkElev, setWalkElev] = useState(0)
+  const [walkBusy, setWalkBusy] = useState(false)
+  const [walkFormKey, setWalkFormKey] = useState(0) // remount input = bersihkan draf
+
+  async function saveQuickWalk() {
+    if (!(walkDist > 0)) {
+      showToast('Jarak harus lebih dari 0', 'error')
+      return
+    }
+    if (!(walkMin >= 0)) {
+      showToast('Durasi tidak valid', 'error')
+      return
+    }
+    const ex = findWalkExercise(exercises)
+    if (!ex) {
+      showToast('Belum ada gerakan cardio di library', 'error')
+      return
+    }
+    setWalkBusy(true)
+    try {
+      const durSec = Math.round(walkMin * 60)
+      const target = findTodayCardioSession(sessions, exercises, walkDate)
+      if (target) {
+        const maxNo = target.sets.reduce((m, s) => Math.max(m, s.setNumber), 0)
+        const set = buildQuickWalkSet(ex.id, maxNo + 1, walkDist, durSec, walkElev || undefined)
+        if (!set) throw new Error('invalid')
+        await updateSession(uid, target.id, { sets: [...target.sets, set] })
+      } else {
+        const set = buildQuickWalkSet(ex.id, 1, walkDist, durSec, walkElev || undefined)
+        if (!set) throw new Error('invalid')
+        const base = walkDate === today ? Date.now() - durSec * 1000 : parseKey(walkDate).getTime() + 12 * 3600 * 1000
+        await createSession(uid, {
+          date: walkDate,
+          planId: null,
+          planName: 'Cardio Day',
+          note: '',
+          startedAt: base,
+          endedAt: base + Math.max(durSec, 1) * 1000,
+          sets: [set],
+        })
+      }
+      setWalkDist(0)
+      setWalkMin(0)
+      setWalkElev(0)
+      setWalkFormKey((k) => k + 1)
+      showToast(`Jalan ${fmtNumber(walkDist)} km tersimpan`)
+    } catch {
+      showToast('Gagal menyimpan — cek koneksi internet', 'error')
+    } finally {
+      setWalkBusy(false)
+    }
+  }
 
   const weekOpts = useMemo(() => listWeekOptions(sessions, today), [sessions, today])
   const monthOpts = useMemo(() => listMonthOptions(sessions, today), [sessions, today])
@@ -403,6 +464,47 @@ export default function Progress() {
         <div className="card-title">Cardio</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
           Dari sesi Cardio Day — catat manual dari Strava (jarak, durasi, elevasi).
+        </div>
+        <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>＋ Catat jalan hari ini</div>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+          <input
+            type="date"
+            className="input"
+            value={walkDate}
+            max={today}
+            onChange={(e) => { if (e.target.value) setWalkDate(e.target.value) }}
+            style={{ width: 132, padding: '4px 6px', fontSize: 13 }}
+          />
+          <DecimalInput
+            key={`d${walkFormKey}`}
+            value={walkDist}
+            onCommit={setWalkDist}
+            placeholder="km"
+            className="input"
+            ariaLabel="Jarak km"
+            style={{ width: 76 }}
+          />
+          <DecimalInput
+            key={`m${walkFormKey}`}
+            value={walkMin}
+            onCommit={setWalkMin}
+            placeholder="mnt"
+            className="input"
+            ariaLabel="Durasi menit"
+            style={{ width: 76 }}
+          />
+          <DecimalInput
+            key={`e${walkFormKey}`}
+            value={walkElev}
+            onCommit={setWalkElev}
+            placeholder="m naik"
+            className="input"
+            ariaLabel="Elevasi meter"
+            style={{ width: 76 }}
+          />
+          <button className="btn sm primary" disabled={walkBusy} onClick={() => void saveQuickWalk()}>
+            {walkBusy ? 'Menyimpan…' : 'Simpan'}
+          </button>
         </div>
         {(() => {
           const win = weekWindow(today)

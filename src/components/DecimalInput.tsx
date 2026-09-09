@@ -5,7 +5,7 @@
 // DecimalInput memegang TEKS draf lokal: tampilan tidak pernah diformat ulang
 // saat mengetik; angka di-commit ke parent hanya bila teks tidak kosong dan
 // parse valid. Teks kosong saat blur → kembali ke nilai terakhir.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { parseDecimal } from '../lib/parse'
 import { fmtInput } from '../lib/helpers'
 
@@ -15,9 +15,10 @@ interface Props {
   placeholder?: string
   className?: string
   ariaLabel?: string
+  style?: CSSProperties
 }
 
-export default function DecimalInput({ value, onCommit, placeholder, className, ariaLabel }: Props) {
+export default function DecimalInput({ value, onCommit, placeholder, className, ariaLabel, style }: Props) {
   const [text, setText] = useState(value ? fmtInput(value) : '')
   const [dirty, setDirty] = useState(false)
   const lastExternal = useRef(value)
@@ -36,6 +37,7 @@ export default function DecimalInput({ value, onCommit, placeholder, className, 
       type="text"
       inputMode="decimal"
       autoComplete="off"
+      style={style}
       value={text}
       placeholder={placeholder}
       aria-label={ariaLabel}

@@ -16,6 +16,7 @@ import type {
   Exercise,
   WorkoutPlan,
   Session,
+  SessionSet,
   Bodyweight,
   UserSettings,
 } from '../types'
@@ -259,6 +260,55 @@ export function buildSession(
 // sets are stored inline inside session.sets
 export function makeSetId() {
   return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+}
+
+// ===== QUICK-LOG JALAN KAKI (catat lapangan/Strava tanpa buka halaman sesi) =====
+// Cari sesi tanggal tsb yang sudah berisi set cardio (selesai maupun berjalan)
+// untuk ditempeli set baru. Return undefined bila tidak ada.
+export function findTodayCardioSession(
+  sessions: Session[],
+  exercises: Exercise[],
+  dateKey: string,
+): Session | undefined {
+  const cardioIds = new Set(
+    exercises.filter((e) => e.muscleGroup === 'Cardio' || e.category === 'cardio').map((e) => e.id),
+  )
+  const sameDay = sessions.filter((s) => s.date === dateKey)
+  // Berjalan didahulukan (tempel ke sesi aktif), lalu yang terbaru selesai
+  const running = sameDay.find((s) => s.endedAt === null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
+  if (running) return running
+  const finished = sameDay
+    .filter((s) => s.endedAt !== null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
+    .sort((a, b) => b.startedAt - a.startedAt)
+  return finished[0]
+}
+
+// Bangun 1 set jalan kaki murni (testable): jarak > 0, durasi/elevasi opsional.
+export function buildQuickWalkSet(
+  exerciseId: string,
+  setNumber: number,
+  distanceKm: number,
+  durationSec: number,
+  elevationM?: number,
+): SessionSet | null {
+  if (!exerciseId || !(distanceKm > 0) || !(durationSec >= 0)) return null
+  return {
+    id: makeSetId(),
+    exerciseId,
+    setNumber,
+    weightKg: 0,
+    reps: 0,
+    durationSec: Math.round(durationSec),
+    distanceKm: Math.round(distanceKm * 100) / 100,
+    ...(elevationM != null && elevationM > 0 ? { elevationM } : {}),
+  }
+}
+
+// Cari exercise "Jalan Kaki" (case-insensitive), fallback gerakan cardio pertama.
+export function findWalkExercise(exercises: Exercise[]): Exercise | undefined {
+  const walk = exercises.find((e) => e.name.trim().toLowerCase() === 'jalan kaki')
+  if (walk) return walk
+  return exercises.find((e) => e.muscleGroup === 'Cardio' || e.category === 'cardio')
 }
 
 // ===== USER SETTINGS =====
