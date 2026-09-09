@@ -76,4 +76,5 @@ export const DEFAULT_EXERCISES: DefaultExercise[] = [
   { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight', category: 'cardio', type: 'duration' },
   { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Bodyweight', category: 'cardio' },
   { name: 'Easy Running', muscleGroup: 'Cardio', equipment: 'Bodyweight', category: 'cardio', type: 'duration' },
+  { name: 'Jalan Kaki', muscleGroup: 'Cardio', equipment: 'Bodyweight', category: 'cardio', type: 'duration' },
 ]

@@ -81,6 +81,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
       { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
       { name: 'Easy Running', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+      { name: 'Jalan Kaki', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
     ],
   },
   {

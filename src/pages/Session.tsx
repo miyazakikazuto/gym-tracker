@@ -400,6 +400,11 @@ export default function Session() {
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 
+  // Dihitung SEKALI per render (dulu 3× via IIFE) — dipakai blok saran di bawah
+  const rankedSuggestions = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
+  const suggestBadge = (ex: { muscleGroup: string }, r: string) =>
+    r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
+
   return (
     <div className="page">
       <div className="row spread">
@@ -564,11 +569,8 @@ export default function Session() {
         ) : (
           <>
             {(() => {
-              const ranked = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-              const top = ranked.slice(0, 5)
-              const rest = ranked.slice(5)
-              const badge = (ex: { muscleGroup: string }, r: string) =>
-                r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
+              const top = rankedSuggestions.slice(0, 5)
+              const rest = rankedSuggestions.slice(5)
               if (top.length === 0) return null
               return (
                 <>
@@ -576,27 +578,20 @@ export default function Session() {
                   <div className="row wrap" style={{ marginBottom: rest.length > 0 ? 10 : 0 }}>
                     {top.map(({ exercise: ex, reason }) => (
                       <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                        + {ex.name}{badge(ex, reason)}
+                        + {ex.name}{suggestBadge(ex, reason)}
                       </button>
                     ))}
                   </div>
                 </>
               )
             })()}
-            <div className="small muted" style={{ marginBottom: 6 }}>{(() => {
-              const ranked = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-              return ranked.length > 5 ? 'Semua gerakan' : ''
-            })()}</div>
+            <div className="small muted" style={{ marginBottom: 6 }}>{rankedSuggestions.length > 5 ? 'Semua gerakan' : ''}</div>
             <div className="row wrap">
-              {(() => {
-                const ranked = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-                const rest = ranked.length > 5 ? ranked.slice(5) : ranked
-                return rest.map(({ exercise: ex }) => (
-                  <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                    + {ex.name}
-                  </button>
-                ))
-              })()}
+              {rankedSuggestions.slice(5).map(({ exercise: ex }) => (
+                <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                  + {ex.name}
+                </button>
+              ))}
             </div>
           </>
         )}
