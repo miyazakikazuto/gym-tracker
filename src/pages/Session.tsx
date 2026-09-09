@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, fmtInput, isCountedSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
@@ -736,7 +736,7 @@ const SetRow = memo(function SetRow({
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
+            value={s.distanceKm ? fmtInput(s.distanceKm) : ''}
             placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
             onChange={(e) => {
               const n = parseDecimal(e.target.value)
@@ -764,7 +764,7 @@ const SetRow = memo(function SetRow({
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            value={s.weightKg ? fmtNumber(s.weightKg) : ''}
+            value={s.weightKg ? fmtInput(s.weightKg) : ''}
             placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
             onChange={(e) => {
               const n = parseDecimal(e.target.value)

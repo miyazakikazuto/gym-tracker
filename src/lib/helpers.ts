@@ -79,6 +79,14 @@ export function fmtNumber(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1).replace('.', ',')
 }
 
+// Format untuk VALUE input — tampilkan apa adanya TANPA toFixed.
+// fmtNumber membulatkan 1 desimal sehingga round-trip display merusak data
+// (2.29 → "2,3" → parse → 2.3). fmtInput dipakai di value= input saja;
+// label/badge tampilan tetap pakai fmtNumber yang ringkas.
+export function fmtInput(n: number): string {
+  return String(n).replace('.', ',')
+}
+
 /**
  * Cari exercise IDs yang ada di sessions tapi tidak ada di library (terhapus).
  * Return Map<exerciseId, { totalSets, totalVolume, lastDate, sessionCount }>.
