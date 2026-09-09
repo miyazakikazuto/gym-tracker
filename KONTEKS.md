@@ -99,7 +99,24 @@ merge main --no-edit → GH Pages → cek HP
 
 ## 8. Status Terakhir
 
-- `freebuff` di `ba74944` (P1: base sync, seed batch, WIB calendar, node 24), `main` di `c70021a` (P1 belum di-merge).
-- PWA `sw.js` precache 31/31 (~1046 KB, filter .map).
-- Test 195 pass (16 file, termasuk `rehab.test.ts` 10 test), lint 0 error (warning fast-refresh saja), typecheck 0.
-- **Mode Rehab (uncommitted, di working tree `freebuff`):** `rehabMode` di settings, cycle 8 sesi `[leg-iso, leg-light, upper-r, easy]×2`, isometrik default 3×30 dtk, stop-rule nyeri >5, Leg Curl tetap, stiker `[R1-S01]`, 5/3/1+TM off saat ON. File: `lib/rehab.ts` (baru), `types.ts`, `templates.ts` (9 preset), `defaults.ts` (+5 gerakan), `Settings/Today/Session/History.tsx`.
+- `freebuff` di **`546471f`** (LANJUTAN di bawah), `main` di `c70021a` (P1 dst BELUM di-merge ke main — merge tertunda).
+- PWA `sw.js` precache **33/33** (~1055 KB, filter .map).
+- Test **232 pass (17 file)**, lint 0 error (warning fast-refresh saja), typecheck 0.
+- **Mode Rehab FINAL (committed):** `rehabMode` di settings, cycle **16 sesi** `[leg-iso, leg-light, upper-r, cardio]×4` + wave W1 3×30s → W2 3×35s → W3 3×40s → W4 deload 2×30s, stiker `[R1-S01] .. — Wx`, deteksi iso gabungan `hasIsoSet` (leg day isi hold ikut kehitung), grid 16 kotak di beranda (hanya ronde berjalan), hitung sesi rehab saja, tombol tambah Riwayat disaring, mode Mingguan dihapus (Rotasi+Rehab saja). Lutut 60° + stop-rule nyeri/panas >5/10, Leg Curl tetap.
+- **Cardio FINAL (committed):** card Cardio terpisah di Progress + total mingguan vs target fix **15–25 km/minggu** (minggu berjalan, bukan rata-rata 4 minggu), `Jalan Kaki` di library + sinkron preset ke akun lama (`syncPresetExercises`), status 1 baris, `DecimalInput` (koma aman, style prop), quick-log jalan gabung ke sesi cardio hari itu (cari sesi cardio tanggal tsb → tambah set, else bikin `Cardio Day`).
+- **Kondisi user:** tangan kiri cedera grip (grip off) + lutut kanan patellar fase isometrik. Gaya bicara: santai "bre".
+- ⚠️ **Token terekspos di chat, WAJIB revoke + JANGAN tulis full di repo:** `VERCEL_TOKEN` (prefix `vcp_6mp…`, full ada di chat session 09 Sep 2026) + `GH_TOKEN` (prefix `ghp_e7P…`, full ada di chat). Revoke di Vercel dashboard + GitHub settings, lalu generate baru.
+
+### Komit `freebuff` setelah `ba74944` (kronologis, semua pushed → Vercel prod)
+
+1. `bbbe4d5` Mode Rehab 8 sesi awal → `d984089` 16 sesi + waves → `a194306` grid 16 kotak → `a5f9138` hitung rehab-only + grid ronde berjalan → `1a97837` `hasIsoSet` → `1940699` saring Riwayat → `22ed704` easy→cardio → `6b5e937` pool rehab + form cerdas + input detik → `25b6a67` hapus Mingguan.
+2. `b0b4edf` rekap cap 300 mnt + iso tanpa e1RM → `21c9f5e` total hold → `0193129` badge e1RM hidden durasi → `97a2fcb` hapus Jarak iso → `4e4d539` input durasi 46px.
+3. `b589257` saran tidak dobel + Jalan Kaki → `ff71733` `syncPresetExercises` → `bdc5876` `fmtInput` anti-bulat → `59aa291` card Cardio → `16acf58` total mingguan → `bbd070b` label 1 baris → `bc1725d` `DecimalInput` → `06b1dc7` quick-log gabung.
+4. `546471f` (TERBARU) quick-log tanggal teks `HH/BB/TTTT` + `[Hari ini] [Kemarin]`: popup `input type=date` macet di desktop user (jalan di HP) → teks + `parseDMY`/`formatDMYInput` di `date.ts` (validasi kabisat/bulan/tahun, tolak masa depan), test `date.test.ts` 4 case.
+
+## 9. Next Move (update 09 Sep 2026)
+
+1. **Merge `freebuff` → `main`** (tertinggal jauh: P1 + rehab + cardio semua belum di main): `checkout main && pull && merge freebuff --no-edit && npm test && push` → cek 2 URL.
+2. **Revoke token terekspos** (Vercel + GH) lalu ganti baru.
+3. Lanjut issue kecil bila ada (contoh: card volume `(Lainnya)` bila gerakan dihapus dari Library).
+4. Tiap langkah: `npm test && npm run lint && npm run build` → `push freebuff` → `merge main` → cek HP + desktop.
