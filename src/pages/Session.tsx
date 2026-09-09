@@ -4,15 +4,15 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, fmtInput, isCountedSession } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
-import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
+import DecimalInput from '../components/DecimalInput'
 import type { SessionSet } from '../types'
 
 interface SetResult {
@@ -731,17 +731,12 @@ const SetRow = memo(function SetRow({
       {isCardio ? (
         <>
           <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} />
-          <input
-            className="wt dist"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={s.distanceKm ? fmtInput(s.distanceKm) : ''}
+          <DecimalInput
+            value={s.distanceKm ?? 0}
+            onCommit={(n) => onPatch(s.id, { distanceKm: n })}
             placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
-            onChange={(e) => {
-              const n = parseDecimal(e.target.value)
-              if (n !== null) onPatch(s.id, { distanceKm: n })
-            }}
+            className="wt dist"
+            ariaLabel="Jarak km"
           />
           <input
             className="wt"
@@ -759,17 +754,11 @@ const SetRow = memo(function SetRow({
       ) : (
         <>
           <button className="step-btn" onClick={() => onStep(s.id, -0.5)} disabled={!s.weightKg}>−</button>
-          <input
-            className="wt"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={s.weightKg ? fmtInput(s.weightKg) : ''}
+          <DecimalInput
+            value={s.weightKg}
+            onCommit={(n) => onPatch(s.id, { weightKg: n })}
             placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
-            onChange={(e) => {
-              const n = parseDecimal(e.target.value)
-              if (n !== null) onPatch(s.id, { weightKg: n })
-            }}
+            ariaLabel="Beban kg"
           />
           <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
           {dur ? (
