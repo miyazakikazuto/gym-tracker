@@ -7,6 +7,7 @@ import {
   REHAB_PAIN_STOP,
   REHAB_WAVES,
   shouldStopRehabSet,
+  isRehabSession,
   rehabPosition,
   rehabKeyAt,
   rehabSuggestKey,
@@ -65,10 +66,34 @@ describe('shouldStopRehabSet', () => {
   })
 })
 
+describe('isRehabSession', () => {
+  it('stiker [R..] dihitung walau preset umum (easy/cardio era rehab)', () => {
+    expect(isRehabSession(sess({ id: 'a', planName: 'Easy Day', cycleLabel: '[R1-S04] Easy Day — W1' }))).toBe(true)
+  })
+  it('preset khusus rehab tanpa stiker tetap dihitung', () => {
+    expect(isRehabSession(sess({ id: 'a', planName: 'Leg Rehab Iso' }))).toBe(true)
+    expect(isRehabSession(sess({ id: 'b', planName: 'Upper Kanan' }))).toBe(true)
+  })
+  it('sesi era 5/3/1 (Push/Pull/Leg/Cardio tanpa [R..]) TIDAK dihitung', () => {
+    expect(isRehabSession(sess({ id: 'a', planName: 'Pull Day' }))).toBe(false)
+    expect(isRehabSession(sess({ id: 'b', planName: 'Cardio Day' }))).toBe(false)
+    expect(isRehabSession(sess({ id: 'c', planName: 'Leg Day', cycleLabel: '[C1-S01] Leg Day — 3×5' }))).toBe(false)
+  })
+})
+
 describe('rehabPosition / rehabSuggestKey', () => {
   it('akun kosong → index 0', () => {
     expect(rehabPosition([])).toEqual({ sessionIndex: 0, totalCompleted: 0 })
     expect(rehabSuggestKey([])).toBe('leg-iso')
+  })
+  it('riwayat 5/3/1 tidak majuin rehab (mulai R1-S01)', () => {
+    const sessions = [
+      sess({ id: 'a', planName: 'Pull Day' }),
+      sess({ id: 'b', planName: 'Push Day' }),
+      sess({ id: 'c', planName: 'Leg Day' }),
+    ]
+    expect(rehabPosition(sessions)).toEqual({ sessionIndex: 0, totalCompleted: 0 })
+    expect(rehabSuggestKey(sessions)).toBe('leg-iso')
   })
   it('sesi extra/rest/belum selesai tidak majuin siklus', () => {
     const sessions = [
@@ -81,9 +106,11 @@ describe('rehabPosition / rehabSuggestKey', () => {
     expect(pos.totalCompleted).toBe(1)
     expect(pos.sessionIndex).toBe(1)
   })
-  it('cardio DIHITUNG dalam rehab (beda dari 5/3/1)', () => {
-    const sessions = [sess({ id: 'a', planName: 'Cardio Day' })]
-    expect(rehabPosition(sessions).totalCompleted).toBe(1)
+  it('cardio era rehab (stiker [R..]) DIHITUNG; cardio lama tidak', () => {
+    expect(rehabPosition([sess({ id: 'a', planName: 'Cardio Day' })]).totalCompleted).toBe(0)
+    expect(
+      rehabPosition([sess({ id: 'b', planName: 'Cardio Day', cycleLabel: '[R1-S08] Cardio Day — W2' })]).totalCompleted,
+    ).toBe(1)
   })
   it('wrap-around setelah 16 sesi', () => {
     const sessions = Array.from({ length: 16 }, (_, i) => sess({ id: `s${i}`, planName: 'Leg Rehab Iso' }))

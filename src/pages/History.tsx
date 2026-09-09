@@ -7,7 +7,7 @@ import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
-import { rehabFullLabel, REHAB_CYCLE_LENGTH } from '../lib/rehab'
+import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
 import Modal from '../components/Modal'
 import SessionRow from '../components/SessionRow'
 import { exerciseIsDuration } from '../lib/helpers'
@@ -123,8 +123,8 @@ export default function History() {
       } else if (wantExtra) {
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, true)
       } else if (settings.rehabMode === true) {
-        // Rehab: stiker [R..-S..] tanpa wave/scheme TM
-        const before = sessions.filter((x) => x.endedAt !== null && !x.isExtra && !isRest(x.planName) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
+        // Rehab: stiker [R..-S..] tanpa wave/scheme TM (hitung sesi rehab saja)
+        const before = sessions.filter((x) => isRehabSession(x) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
         const idx = before.length % REHAB_CYCLE_LENGTH
         const stiker = rehabFullLabel(idx, name)
         payload = buildSession(

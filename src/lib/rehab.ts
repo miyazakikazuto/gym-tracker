@@ -8,8 +8,19 @@
 // Standar riset (Rio 2015, van Ark 2016) memakai 5x45s @70-80% MVIC — terlalu
 // berat untuk fase awal, jadi wave disepakati: 3x30s → 3x35s → 3x40s → deload 2x30s.
 
-import { isRest } from './templates'
+import { isRest, presetByName } from './templates'
 import type { Session } from '../types'
+
+// Sesi rehab = berstiker [R..] ATAU pakai preset khusus rehab.
+// Easy/Cardio TANPA stiker [R..] (era lama) tidak dihitung — easy/cardio era
+// rehab selalu berstiker [R..] lewat createAndOpen/handleCreate.
+const REHAB_ONLY_KEYS = new Set(['leg-iso', 'leg-light', 'upper-r'])
+
+export function isRehabSession(s: Session): boolean {
+  if (s.endedAt === null || s.isExtra || isRest(s.planName)) return false
+  if (s.cycleLabel?.startsWith('[R')) return true
+  return REHAB_ONLY_KEYS.has(presetByName(s.planName)?.key ?? '')
+}
 
 // 16 sesi: 8 pertama = cycle lama (stiker [R1-S01..S08] lama tetap valid),
 // 8 kedua = pengulangan pola yang sama untuk W3-W4.
@@ -70,14 +81,15 @@ export function shouldStopRehabSet(pain0to10: number): boolean {
   return pain0to10 > REHAB_PAIN_STOP
 }
 
-// Posisi rehab dari jumlah sesi selesai (tanpa skipped — rehab jalan pelan,
+// Posisi rehab dari jumlah sesi REHAB selesai (tanpa skipped — rehab jalan pelan,
 // skip tidak menambah hitungan agar tidak lompat).
-// Beda dari progression: sesi Cardio DIHITUNG (cardio bagian dari siklus rehab),
-// yang dikecualikan hanya: belum selesai, extra, dan Rest Day.
+// Hanya sesi rehab yang dihitung (isRehabSession) — sesi era 5/3/1 (Push/Pull/Leg
+// tanpa stiker [R..]) tidak ikut, jadi rehab selalu mulai dari R1-S01.
+// Easy/Cardio era rehab ikut karena berstiker [R..].
 export function rehabPosition(sessions: Session[]): { sessionIndex: number; totalCompleted: number } {
   let completed = 0
   for (const s of sessions) {
-    if (s.endedAt === null || s.isExtra || isRest(s.planName)) continue
+    if (!isRehabSession(s)) continue
     completed++
   }
   return { sessionIndex: completed % REHAB_CYCLE_LENGTH, totalCompleted: completed }
