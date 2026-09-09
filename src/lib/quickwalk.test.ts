@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from './gymstore'
+import { buildQuickWalkSet, combineMinSec, findTodayCardioSession, findWalkExercise } from './gymstore'
 import type { Exercise, Session } from '../types'
 
 const exs: Exercise[] = [
@@ -57,6 +57,23 @@ describe('findTodayCardioSession', () => {
     const leg = sess('leg', { planName: 'Leg Day', sets: [{ id: 'x', exerciseId: 'sq', setNumber: 1, weightKg: 10, reps: 10 }] })
     const other = sess('other', { date: '2026-09-11', sets: [runSet('jk')] })
     expect(findTodayCardioSession([leg, other], exs, '2026-09-12')).toBeUndefined()
+  })
+})
+
+describe('combineMinSec', () => {
+  it('mnt + dtk → total detik (carry otomatis)', () => {
+    expect(combineMinSec(10, 30)).toBe(630)
+    expect(combineMinSec(0, 75)).toBe(75) // 75 dtk tetap 75 (carry saat ditampilkan)
+    expect(combineMinSec(1, 90)).toBe(150) // 1 mnt 90 dtk = 150 dtk
+  })
+  it('mnt desimal: 1,5 mnt = 90 dtk', () => {
+    expect(combineMinSec(1.5, 0)).toBe(90)
+    expect(combineMinSec(0.5, 30)).toBe(60)
+  })
+  it('negatif/NaN → null', () => {
+    expect(combineMinSec(-1, 0)).toBeNull()
+    expect(combineMinSec(0, -5)).toBeNull()
+    expect(combineMinSec(NaN, 0)).toBeNull()
   })
 })
 

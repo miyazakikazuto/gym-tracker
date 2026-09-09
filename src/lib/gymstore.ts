@@ -283,6 +283,13 @@ export function findTodayCardioSession(
   return finished[0]
 }
 
+// Gabung input menit + detik quick-log jadi total detik (normalisasi otomatis:
+// 75 dtk → carry 1 mnt 15 dtk; 1,5 mnt → 90 dtk). Return null bila input negatif/NaN.
+export function combineMinSec(min: number, sec: number): number | null {
+  if (!Number.isFinite(min) || !Number.isFinite(sec) || min < 0 || sec < 0) return null
+  return Math.round(min * 60 + sec)
+}
+
 // Bangun 1 set jalan kaki murni (testable): jarak > 0, durasi/elevasi opsional.
 export function buildQuickWalkSet(
   exerciseId: string,

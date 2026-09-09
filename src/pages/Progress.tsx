@@ -3,7 +3,7 @@ import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB, formatDMYInput, parseDMY, parseKey } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
-import { createSession, updateSession, buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from '../lib/gymstore'
+import { combineMinSec, createSession, updateSession, buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from '../lib/gymstore'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
@@ -35,7 +35,7 @@ export default function Progress() {
   const [walkDateText, setWalkDateText] = useState(formatDMYInput(today))
   const [walkDist, setWalkDist] = useState(0)
   const [walkMin, setWalkMin] = useState(0)
-  const [walkElev, setWalkElev] = useState(0)
+  const [walkSec, setWalkSec] = useState(0)
   const [walkBusy, setWalkBusy] = useState(false)
   const [walkFormKey, setWalkFormKey] = useState(0) // remount input = bersihkan draf
 
@@ -53,7 +53,8 @@ export default function Progress() {
       showToast('Jarak harus lebih dari 0', 'error')
       return
     }
-    if (!(walkMin >= 0)) {
+    const durSec = combineMinSec(walkMin, walkSec)
+    if (durSec === null) {
       showToast('Durasi tidak valid', 'error')
       return
     }
@@ -64,15 +65,14 @@ export default function Progress() {
     }
     setWalkBusy(true)
     try {
-      const durSec = Math.round(walkMin * 60)
       const target = findTodayCardioSession(sessions, exercises, walkDate)
       if (target) {
         const maxNo = target.sets.reduce((m, s) => Math.max(m, s.setNumber), 0)
-        const set = buildQuickWalkSet(ex.id, maxNo + 1, walkDist, durSec, walkElev || undefined)
+        const set = buildQuickWalkSet(ex.id, maxNo + 1, walkDist, durSec)
         if (!set) throw new Error('invalid')
         await updateSession(uid, target.id, { sets: [...target.sets, set] })
       } else {
-        const set = buildQuickWalkSet(ex.id, 1, walkDist, durSec, walkElev || undefined)
+        const set = buildQuickWalkSet(ex.id, 1, walkDist, durSec)
         if (!set) throw new Error('invalid')
         const base = walkDate === today ? Date.now() - durSec * 1000 : parseKey(walkDate).getTime() + 12 * 3600 * 1000
         await createSession(uid, {
@@ -87,7 +87,7 @@ export default function Progress() {
       }
       setWalkDist(0)
       setWalkMin(0)
-      setWalkElev(0)
+      setWalkSec(0)
       setWalkFormKey((k) => k + 1)
       showToast(`Jalan ${fmtNumber(walkDist)} km tersimpan`)
     } catch {
@@ -473,7 +473,7 @@ export default function Progress() {
       <div className="card">
         <div className="card-title">Cardio</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
-          Dari sesi Cardio Day — catat manual dari Strava (jarak, durasi, elevasi).
+          Dari sesi Cardio Day — catat manual dari Strava (jarak + durasi — elevasi isi manual di sesi).
         </div>
         <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>＋ Catat jalan hari ini</div>
         <div className="row wrap" style={{ gap: 6, marginBottom: 6 }}>
@@ -511,12 +511,12 @@ export default function Progress() {
             style={{ width: 76 }}
           />
           <DecimalInput
-            key={`e${walkFormKey}`}
-            value={walkElev}
-            onCommit={setWalkElev}
-            placeholder="m naik"
+            key={`s${walkFormKey}`}
+            value={walkSec}
+            onCommit={setWalkSec}
+            placeholder="dtk"
             className="input"
-            ariaLabel="Elevasi meter"
+            ariaLabel="Durasi detik"
             style={{ width: 76 }}
           />
           <button className="btn sm primary" disabled={walkBusy} onClick={() => void saveQuickWalk()}>
