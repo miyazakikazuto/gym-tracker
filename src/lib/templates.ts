@@ -89,6 +89,47 @@ export const PLAN_PRESETS: PlanPreset[] = [
     shortLabel: 'REST',
     exercises: [],
   },
+  // ===== REHAB (Mode Rehab: tangan kiri rest, lutut kanan isometrik) =====
+  // Nama preset disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts)
+  // supaya templatePlan() menemukan gerakan yang sudah ada di library.
+  {
+    key: 'leg-iso',
+    name: 'Leg Rehab Iso',
+    shortLabel: 'ISO',
+    dotColor: '#7ee787',
+    exercises: [
+      { name: 'Isometrik Quad 60°', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Leg Extension Unilateral', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Adductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Abductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+    ],
+  },
+  {
+    key: 'leg-light',
+    name: 'Leg Ringan',
+    shortLabel: 'LRING',
+    dotColor: '#44cc88',
+    exercises: [
+      // Leg Curl TETAP ada (keputusan user) — ringan 2x6-8, stop bila panas >5/10
+      { name: 'Leg Extension Unilateral', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Leg Curl Unilateral', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Adductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Abductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+    ],
+  },
+  {
+    key: 'upper-r',
+    name: 'Upper Kanan',
+    shortLabel: 'UKAN',
+    dotColor: '#6699ff',
+    exercises: [
+      { name: 'Single-Arm DB Press Kanan', muscleGroup: 'Dada', equipment: 'Dumbbell' },
+      { name: 'Single-Arm Cable Row Kanan', muscleGroup: 'Punggung', equipment: 'Kabel' },
+      { name: 'Single-Arm Lateral Raise Kanan', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Single-Arm Curl Kanan', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+    ],
+  },
 ]
 
 export function presetByKey(key: string): PlanPreset | undefined {

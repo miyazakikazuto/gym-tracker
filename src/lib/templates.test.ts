@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { PLAN_PRESETS, presetByKey, presetByName, isRest, shortLabelFor, dotColorFor } from './templates'
 
 describe('PLAN_PRESETS', () => {
-  it('memiliki 6 preset: leg/push/pull/easy/cardio/rest', () => {
+  it('memiliki 9 preset: leg/push/pull/easy/cardio/rest + rehab (leg-iso/leg-light/upper-r)', () => {
     const keys = PLAN_PRESETS.map(p => p.key).sort()
-    expect(keys).toEqual(['cardio','easy','leg','pull','push','rest'])
+    expect(keys).toEqual(['cardio','easy','leg','leg-iso','leg-light','pull','push','rest','upper-r'])
   })
 })
 

@@ -99,7 +99,7 @@ merge main --no-edit → GH Pages → cek HP
 
 ## 8. Status Terakhir
 
-- `freebuff` di `6ecacca`, `main` di `c70021a` (sinkron).
-- `ready` via 5 subscription + safety 5s.
-- PWA `sw.js` cache `gym-tracker-mtfk8a7r` precache 29/29 (~1037 KB).
-- Semua test 76 pass, lint 0 error (warning fast-refresh contexts saja), typecheck 0.
+- `freebuff` di `ba74944` (P1: base sync, seed batch, WIB calendar, node 24), `main` di `c70021a` (P1 belum di-merge).
+- PWA `sw.js` precache 31/31 (~1046 KB, filter .map).
+- Test 195 pass (16 file, termasuk `rehab.test.ts` 10 test), lint 0 error (warning fast-refresh saja), typecheck 0.
+- **Mode Rehab (uncommitted, di working tree `freebuff`):** `rehabMode` di settings, cycle 8 sesi `[leg-iso, leg-light, upper-r, easy]×2`, isometrik default 3×30 dtk, stop-rule nyeri >5, Leg Curl tetap, stiker `[R1-S01]`, 5/3/1+TM off saat ON. File: `lib/rehab.ts` (baru), `types.ts`, `templates.ts` (9 preset), `defaults.ts` (+5 gerakan), `Settings/Today/Session/History.tsx`.

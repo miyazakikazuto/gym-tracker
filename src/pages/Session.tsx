@@ -10,6 +10,7 @@ import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
+import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP } from '../lib/rehab'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
@@ -259,7 +260,8 @@ export default function Session() {
     const setNo = maxNo + 1
     let w = 0
     let r = 0
-    let d: number | undefined = dur ? 0 : undefined
+    // Rehab: gerakan durasi (isometrik) pre-fill 30 dtk, bukan 0
+    let d: number | undefined = dur ? (settings.rehabMode === true ? REHAB_ISO_HOLD_SEC : 0) : undefined
     let d2: number | undefined = undefined
     let elev: number | undefined = undefined
     if (prev) {
@@ -606,6 +608,26 @@ export default function Session() {
           placeholder="Cara badan hari ini, PR, dll…"
         />
       </div>
+
+      {settings.rehabMode === true && (
+        <div className="card">
+          <div className="card-title">Nyeri / panas (0–10)</div>
+          <div className="row wrap" style={{ gap: 6 }}>
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+              <button
+                key={v}
+                className={'rpe-chip' + (v > REHAB_PAIN_STOP ? ' danger' : '')}
+                onClick={() => patchNote((note.replace(/\s*nyeri:\d+/g, '').trim() + ` nyeri:${v}`).trim())}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <div className="small muted" style={{ marginTop: 6 }}>
+            Stop gerakan bila &gt;{REHAB_PAIN_STOP} (aturan rehab). Tercatat di note sesi.
+          </div>
+        </div>
+      )}
 
       <div className="form-actions">
         {isActive ? (

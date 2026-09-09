@@ -327,6 +327,27 @@ export default function Settings() {
         )}
       </div>
 
+      {/* ===== Mode Rehab ===== */}
+      <div className="card">
+        <div className="card-title">Mode Rehab</div>
+        <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <label className="small" style={{ fontWeight: 700, flex: 1 }}>
+            Rehab aktif (tangan kiri rest, lutut kanan isometrik 3×30 dtk)
+          </label>
+          <button
+            className={'btn sm ' + (settings.rehabMode ? 'primary' : 'ghost')}
+            onClick={() => saveSettings({ rehabMode: !settings.rehabMode })}
+          >
+            {settings.rehabMode ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <div className="small muted">
+          {settings.rehabMode
+            ? 'ON — 5/3/1 & Training Max dimatikan. Saran ikut siklus rehab 8 sesi (iso → ringan → upper kanan → easy). Leg Curl tetap ada, stop bila nyeri/panas >5/10.'
+            : 'OFF — jadwal normal 5/3/1 + rotasi.'}
+        </div>
+      </div>
+
       {/* ===== 5/3/1 Training Max ===== */}
       <div className="card">
         <div className="card-title">5/3/1 Training Max</div>

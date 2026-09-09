@@ -16,6 +16,7 @@ import {
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
+import { rehabPosition, rehabKeyAt, rehabFullLabel } from '../lib/rehab'
 import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -125,9 +126,14 @@ export default function Today() {
   const prescribedSummary = prescribed.length > 0
     ? prescribed.map((p) => `${p.weight}kg×${p.reps}`).join(' · ') : ''
 
-  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0)
-  const is531Active = !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
-  const effectiveKey = is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
+  // Mode Rehab: 5/3/1 & TM dimatikan — saran ikut siklus rehab 8 sesi
+  const rehabMode = settings.rehabMode === true
+  const rehabPos = rehabPosition(sessions)
+  const rehabKey = rehabKeyAt(rehabPos.sessionIndex)
+  const rehabLbl = rehabFullLabel(rehabPos.sessionIndex, presetByKey(rehabKey)?.name ?? rehabKey)
+  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab
+  const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
+  const effectiveKey = rehabMode ? rehabKey : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
   const effectivePreset = presetByKey(effectiveKey)
   const effectivePlan = planForKey(plans, effectiveKey)
 
@@ -167,7 +173,7 @@ export default function Today() {
     ? 'Lanjutkan sesi hari ini'
     : rotationMode
       ? effectivePlan
-        ? `Mulai ${cycleLabel}`
+        ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
         : 'Buat plan saran dulu'
       : todayPlan
         ? 'Mulai sesi hari ini'
@@ -206,6 +212,19 @@ export default function Today() {
     if (isExtra) {
       payload = buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
       if (name) payload.planName = name
+    } else if (rehabMode) {
+      // Rehab: stiker [R..-S..] tanpa wave/scheme TM
+      const chosenName = name ?? plan?.name ?? presetByKey(rehabKey)?.name ?? rehabKey
+      const snapLabel = rehabFullLabel(rehabPos.sessionIndex, chosenName)
+      payload = buildSession(
+        plan,
+        base,
+        (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+        Date.now(),
+        { cycle: 0, sessionIndex: rehabPos.sessionIndex, cycleLabel: snapLabel },
+        false,
+      )
+      if (chosenName) payload.planName = chosenName
     } else {
       // Stiker ngikut plan yang dipilih: wave tetap dari siklus, nama ikut plan
       const chosenName = name ?? plan?.name ?? null
@@ -383,8 +402,13 @@ export default function Today() {
                   <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
-                  {cycleLabel}
+                  {rehabMode ? rehabLbl : cycleLabel}
                 </div>
+                {rehabMode && (
+                  <div className="small muted" style={{ marginBottom: 4 }}>
+                    Mode Rehab — tanpa target TM · stop bila nyeri/panas &gt;5/10
+                  </div>
+                )}
                 {prescribedSummary && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
                     {cycleScheme?.label} · {tmForLift && cycleTM ? `${tmForLift.charAt(0).toUpperCase() + tmForLift.slice(1)} TM ${cycleTM[tmForLift]}kg` : ''} · {prescribedSummary}
@@ -421,7 +445,7 @@ export default function Today() {
                   <>
                     <div className="action-row">
                       <button className="btn primary" disabled={creating} onClick={handleStart}>
-                        {effectivePlan ? `Mulai ${cycleLabel}` : 'Buat plan dulu'}
+                        {effectivePlan ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}` : 'Buat plan dulu'}
                       </button>
                       <button className="btn ghost" onClick={() => { setPickExtra(todayDone || !!activeSession); setShowPick(true) }}>Pilih plan lain</button>
                       <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>

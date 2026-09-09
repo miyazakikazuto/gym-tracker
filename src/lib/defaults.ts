@@ -61,6 +61,13 @@ export const DEFAULT_EXERCISES: DefaultExercise[] = [
   { name: 'Dead Hang', muscleGroup: 'Forearm', equipment: 'Bodyweight', category: 'pull', extraCategories: ['easy'], type: 'duration' },
   { name: 'Farmer hold', muscleGroup: 'Forearm', equipment: 'Dumbbell', category: 'pull', extraCategories: ['easy'], type: 'duration' },
 
+  // ===== REHAB (unilateral kanan + isometrik — tangan kiri rest) =====
+  { name: 'Isometrik Quad 60°', muscleGroup: 'Kaki', equipment: 'Machine', category: 'leg', type: 'duration' },
+  { name: 'Single-Arm DB Press Kanan', muscleGroup: 'Dada', equipment: 'Dumbbell', category: 'push' },
+  { name: 'Single-Arm Cable Row Kanan', muscleGroup: 'Punggung', equipment: 'Kabel', category: 'pull' },
+  { name: 'Single-Arm Lateral Raise Kanan', muscleGroup: 'Bahu', equipment: 'Dumbbell', category: 'push' },
+  { name: 'Single-Arm Curl Kanan', muscleGroup: 'Bisep', equipment: 'Dumbbell', category: 'pull' },
+
   // ===== EASY / HOME =====
   { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight', category: 'home' },
   { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight', category: 'easy', extraCategories: ['pull'] },
