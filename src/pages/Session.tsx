@@ -488,7 +488,8 @@ export default function Session() {
             <div className="card-title">
               <span>
                 {getExerciseName(exercises, exId)}
-                {!cardio && e1RmRef > 0 && (
+                {/* e1RM Epley tidak valid untuk hold isometrik (durasi) — badge disembunyikan */}
+                {!cardio && !dur && e1RmRef > 0 && (
                   <span className="badge accent" style={{ marginLeft: 8 }}>e1RM ~{fmtNumber(e1RmRef)} kg</span>
                 )}
               </span>
