@@ -51,20 +51,29 @@ function weightMarker(currentMax: number, prevMax: number): string {
   return '→ sama dengan sebelumnya'
 }
 
+// Total hold: detik bila <2 menit (isometrik 30-90 dtk), menit bila lebih.
+export function formatHoldTotal(totalSec: number): string {
+  if (totalSec < 120) return `${fmtNumber(totalSec)} dtk`
+  return `${fmtNumber(Math.round((totalSec / 60) * 10) / 10)} mnt`
+}
+
 function formatSetList(sets: SessionSet[], isDuration: boolean, isCardio: boolean): string {
   if (isDuration) {
-    return sets
-      .map((s) => {
-        if ((s.durationSec ?? 0) > 0) {
-          return `${fmtNumber(Math.round((s.durationSec! / 60) * 10) / 10)} mnt`
-        }
-        // Data lama: dicatat sebagai reps sebelum tipe diganti durasi —
-        // tampilkan jujur, jangan "0 mnt".
-        if (s.weightKg > 0) return `${fmtNumber(s.weightKg)}kg×${s.reps} (catatan reps lama)`
-        if (s.reps > 0) return `BW×${s.reps} (catatan reps lama)`
-        return '—'
-      })
-      .join(', ')
+    const bits = sets.map((s) => {
+      if ((s.durationSec ?? 0) > 0) {
+        return `${fmtNumber(Math.round((s.durationSec! / 60) * 10) / 10)} mnt`
+      }
+      // Data lama: dicatat sebagai reps sebelum tipe diganti durasi —
+      // tampilkan jujur, jangan "0 mnt".
+      if (s.weightKg > 0) return `${fmtNumber(s.weightKg)}kg×${s.reps} (catatan reps lama)`
+      if (s.reps > 0) return `BW×${s.reps} (catatan reps lama)`
+      return '—'
+    })
+    // Total hold time di depan vol — metrik yang bermakna buat isometrik
+    // (vol-kg = beban×menit tidak nangkap progres hold 30→40 dtk dengan jujur).
+    const totalSec = sets.reduce((a, s) => a + (s.durationSec ?? 0), 0)
+    if (sets.length > 1 && totalSec > 0) bits.push(`total ${formatHoldTotal(totalSec)}`)
+    return bits.join(', ')
   }
   if (isCardio) {
     return sets

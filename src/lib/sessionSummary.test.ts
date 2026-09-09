@@ -88,6 +88,17 @@ describe('formatSessionForAI', () => {
     expect(out).not.toContain('e1RM')
   })
 
+  it('iso multi-set → total hold time (detik bila <2 mnt)', () => {
+    const s = mkSession({
+      sets: [
+        { id: 'a', exerciseId: 'plank', setNumber: 1, weightKg: 0, reps: 0, durationSec: 30 },
+        { id: 'b', exerciseId: 'plank', setNumber: 2, weightKg: 0, reps: 0, durationSec: 30 },
+        { id: 'c', exerciseId: 'plank', setNumber: 3, weightKg: 0, reps: 0, durationSec: 30 },
+      ],
+    })
+    expect(formatSessionForAI(s, exercises)).toContain('Plank — 0,5 mnt, 0,5 mnt, 0,5 mnt, total 90 dtk')
+  })
+
   it('catatan kosong tidak memunculkan baris Catatan', () => {
     const out = formatSessionForAI(mkSession(), exercises)
     expect(out).not.toContain('Catatan:')
