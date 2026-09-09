@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
-import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB, parseKey } from '../lib/date'
+import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB, formatDMYInput, parseDMY, parseKey } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { createSession, updateSession, buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from '../lib/gymstore'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
@@ -31,7 +31,8 @@ export default function Progress() {
   const today = todayKey()
 
   // ===== Quick-log jalan kaki (lapangan/Strava) — gabung ke sesi cardio hari itu =====
-  const [walkDate, setWalkDate] = useState(today)
+  // Tanggal = teks DD/MM/YYYY + tombol cepat (popup date bawaan rewel di desktop)
+  const [walkDateText, setWalkDateText] = useState(formatDMYInput(today))
   const [walkDist, setWalkDist] = useState(0)
   const [walkMin, setWalkMin] = useState(0)
   const [walkElev, setWalkElev] = useState(0)
@@ -39,6 +40,15 @@ export default function Progress() {
   const [walkFormKey, setWalkFormKey] = useState(0) // remount input = bersihkan draf
 
   async function saveQuickWalk() {
+    const walkDate = parseDMY(walkDateText)
+    if (!walkDate) {
+      showToast('Tanggal tidak valid (format HH/BB/TTTT)', 'error')
+      return
+    }
+    if (walkDate > today) {
+      showToast('Tanggal tidak boleh masa depan', 'error')
+      return
+    }
     if (!(walkDist > 0)) {
       showToast('Jarak harus lebih dari 0', 'error')
       return
@@ -466,15 +476,22 @@ export default function Progress() {
           Dari sesi Cardio Day — catat manual dari Strava (jarak, durasi, elevasi).
         </div>
         <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>＋ Catat jalan hari ini</div>
-        <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 6 }}>
           <input
-            type="date"
             className="input"
-            value={walkDate}
-            max={today}
-            onChange={(e) => { if (e.target.value) setWalkDate(e.target.value) }}
-            style={{ width: 132, padding: '4px 6px', fontSize: 13 }}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={walkDateText}
+            onChange={(e) => setWalkDateText(e.target.value)}
+            placeholder="HH/BB/TTTT"
+            aria-label="Tanggal DD/MM/YYYY"
+            style={{ width: 104 }}
           />
+          <button className="btn sm ghost" onClick={() => setWalkDateText(formatDMYInput(today))}>Hari ini</button>
+          <button className="btn sm ghost" onClick={() => setWalkDateText(formatDMYInput(addDays(today, -1)))}>Kemarin</button>
+        </div>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
           <DecimalInput
             key={`d${walkFormKey}`}
             value={walkDist}

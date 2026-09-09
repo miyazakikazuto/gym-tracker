@@ -45,6 +45,28 @@ export function formatDMYWIB(key: string): string {
   return `${d} ${MONTHS[Number(m) - 1]} ${y}`
 }
 
+// Parse input tanggal gaya app "DD/MM/YYYY" (terima - . / spasi sebagai pemisah)
+// → key YYYY-MM-DD, atau null bila tidak valid (tgl/bln di luar jangkauan,
+// Februari 29 non-kabisat, tahun < 2000 atau > 2100).
+// Dipakai form yang tidak bisa mengandalkan popup date bawaan browser.
+export function parseDMY(raw: string): string | null {
+  const parts = raw.trim().split(/[\s./-]+/).filter(Boolean)
+  if (parts.length !== 3) return null
+  const [d, m, y] = parts.map(Number)
+  if (![d, m, y].every((n) => Number.isInteger(n))) return null
+  if (y < 2000 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  if (d > lastDay) return null
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+// Key YYYY-MM-DD → teks input "DD/MM/YYYY" (kebalikan parseDMY).
+export function formatDMYInput(key: string): string {
+  const [y, m, d] = key.split('-')
+  if (!y || !m || !d) return ''
+  return `${d}/${m}/${y}`
+}
+
 // volume helpers
 export function volumeOf(sets: { weightKg: number; reps: number; durationSec?: number }[]): number {
   return sets.reduce(
