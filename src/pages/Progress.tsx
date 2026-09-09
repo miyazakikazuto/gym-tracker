@@ -185,7 +185,6 @@ export default function Progress() {
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
-  const [volTab, setVolTab] = useState<'muscle' | 'cardio'>('muscle')
   const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false })
 
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
@@ -361,21 +360,11 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="row spread" style={{ alignItems: 'center', marginBottom: 8 }}>
-          <div className="card-title" style={{ margin: 0 }}>Volume per grup otot (kg)</div>
-          <div className="cal-toggle" style={{ margin: 0 }}>
-            <button className={volTab === 'muscle' ? 'active' : ''} onClick={() => setVolTab('muscle')}>Volume otot</button>
-            <button className={volTab === 'cardio' ? 'active' : ''} onClick={() => setVolTab('cardio')}>Cardio</button>
-          </div>
+        <div className="card-title">Volume per grup otot (kg)</div>
+        <div className="cal-toggle" style={{ marginBottom: 10 }}>
+          <button className={!inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(false)}>Primary only</button>
+          <button className={inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(true)}>Include secondary</button>
         </div>
-        {volTab === 'muscle' && (
-          <div className="cal-toggle" style={{ marginBottom: 10 }}>
-            <button className={!inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(false)}>Primary only</button>
-            <button className={inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(true)}>Include secondary</button>
-          </div>
-        )}
-        {volTab === 'muscle' ? (
-        <>
         {muscleList.map(([m, v]) => (
           <div key={m} className="row" style={{ marginTop: 6 }}>
             <span className="small muted" style={{ width: 96 }}>{m}</span>
@@ -404,9 +393,13 @@ export default function Progress() {
             Termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3 · Squat → Punggung 0.3, Core 0.4).
           </div>
         )}
-        </>
-        ) : (
-        <>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Cardio</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Dari sesi Cardio Day — catat manual dari Strava (jarak, durasi, elevasi).
+        </div>
         {cardioList.length === 0 ? (
           <div className="small muted">Belum ada data cardio. Isi durasi & jarak (km) di sesi Cardio Day.</div>
         ) : (
@@ -428,8 +421,6 @@ export default function Progress() {
               )
             })}
           </div>
-        )}
-        </>
         )}
       </div>
 
