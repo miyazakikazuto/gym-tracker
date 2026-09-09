@@ -16,7 +16,7 @@ import {
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
-import { rehabPosition, rehabKeyAt, rehabFullLabel } from '../lib/rehab'
+import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt } from '../lib/rehab'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
 
@@ -92,6 +92,14 @@ export default function Today() {
   const rehabPos = rehabPosition(sessions)
   const rehabKey = rehabKeyAt(rehabPos.sessionIndex)
   const rehabLbl = rehabFullLabel(rehabPos.sessionIndex, presetByKey(rehabKey)?.name ?? rehabKey)
+  const rehabWave = rehabWaveAt(rehabPos.sessionIndex)
+  const rehabRx = rehabKey === 'leg-iso'
+    ? `iso ${rehabWave.isoSets}×${rehabWave.isoHoldSec} dtk`
+    : rehabKey === 'leg-light'
+      ? `${rehabWave.lightSets} set ringan`
+      : rehabKey === 'upper-r'
+        ? 'ringan bebas'
+        : 'santai'
   // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab
   const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
   const effectiveKey = rehabMode ? rehabKey : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
@@ -352,7 +360,7 @@ export default function Today() {
                 </div>
                 {rehabMode && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
-                    Mode Rehab — tanpa target TM · stop bila nyeri/panas &gt;5/10
+                    {rehabWave.label} {rehabWave.name} · {rehabRx} · {rehabWave.note} · stop bila nyeri/panas &gt;5/10
                   </div>
                 )}
                 {prescribedSummary && (

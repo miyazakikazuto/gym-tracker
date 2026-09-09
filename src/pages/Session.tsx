@@ -10,7 +10,7 @@ import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
-import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP } from '../lib/rehab'
+import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt } from '../lib/rehab'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
@@ -260,8 +260,9 @@ export default function Session() {
     const setNo = maxNo + 1
     let w = 0
     let r = 0
-    // Rehab: gerakan durasi (isometrik) pre-fill 30 dtk, bukan 0
-    let d: number | undefined = dur ? (settings.rehabMode === true ? REHAB_ISO_HOLD_SEC : 0) : undefined
+    // Rehab: gerakan durasi (isometrik) pre-fill ikut wave sesi (W1 30s → W2 35s → W3 40s → W4 30s)
+    const rehabHold = settings.rehabMode === true ? rehabWaveAt(session?.sessionIndex ?? 0).isoHoldSec : REHAB_ISO_HOLD_SEC
+    let d: number | undefined = dur ? (settings.rehabMode === true ? rehabHold : 0) : undefined
     let d2: number | undefined = undefined
     let elev: number | undefined = undefined
     if (prev) {

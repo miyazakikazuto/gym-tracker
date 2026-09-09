@@ -5,11 +5,13 @@ import {
   REHAB_ISO_SETS,
   REHAB_ISO_HOLD_SEC,
   REHAB_PAIN_STOP,
+  REHAB_WAVES,
   shouldStopRehabSet,
   rehabPosition,
   rehabKeyAt,
   rehabSuggestKey,
   rehabFullLabel,
+  rehabWaveAt,
 } from './rehab'
 import { presetByKey } from './templates'
 import type { Session } from '../types'
@@ -28,12 +30,18 @@ function sess(over: Partial<Session> & { id: string }): Session {
 }
 
 describe('REHAB_CYCLE', () => {
-  it('panjang 8 sesi, iso 3x30s, stop-rule nyeri >5', () => {
-    expect(REHAB_CYCLE_LENGTH).toBe(8)
-    expect(REHAB_CYCLE).toHaveLength(8)
+  it('panjang 16 sesi (1 bulan), iso default 3x30s, stop-rule nyeri >5', () => {
+    expect(REHAB_CYCLE_LENGTH).toBe(16)
+    expect(REHAB_CYCLE).toHaveLength(16)
     expect(REHAB_ISO_SETS).toBe(3)
     expect(REHAB_ISO_HOLD_SEC).toBe(30)
     expect(REHAB_PAIN_STOP).toBe(5)
+  })
+  it('8 pertama = cycle lama (stiker lama tetap valid)', () => {
+    expect([...REHAB_CYCLE.slice(0, 8)]).toEqual([
+      'leg-iso', 'leg-light', 'upper-r', 'easy',
+      'leg-iso', 'leg-light', 'upper-r', 'cardio',
+    ])
   })
   it('semua key rehab ada preset-nya di templates', () => {
     for (const key of REHAB_CYCLE) {
@@ -75,8 +83,8 @@ describe('rehabPosition / rehabSuggestKey', () => {
     const sessions = [sess({ id: 'a', planName: 'Cardio Day' })]
     expect(rehabPosition(sessions).totalCompleted).toBe(1)
   })
-  it('wrap-around setelah 8 sesi', () => {
-    const sessions = Array.from({ length: 8 }, (_, i) => sess({ id: `s${i}`, planName: 'Leg Rehab Iso' }))
+  it('wrap-around setelah 16 sesi', () => {
+    const sessions = Array.from({ length: 16 }, (_, i) => sess({ id: `s${i}`, planName: 'Leg Rehab Iso' }))
     expect(rehabPosition(sessions).sessionIndex).toBe(0)
     expect(rehabSuggestKey(sessions)).toBe('leg-iso')
   })
@@ -85,10 +93,23 @@ describe('rehabPosition / rehabSuggestKey', () => {
 describe('rehabKeyAt / rehabFullLabel', () => {
   it('keyAt wrap', () => {
     expect(rehabKeyAt(0)).toBe('leg-iso')
-    expect(rehabKeyAt(8)).toBe('leg-iso')
+    expect(rehabKeyAt(16)).toBe('leg-iso')
   })
-  it('label prefix R biar beda dari cycle 5/3/1 [C..]', () => {
-    expect(rehabFullLabel(0, 'Leg Rehab Iso')).toBe('[R1-S01] Leg Rehab Iso')
-    expect(rehabFullLabel(8, 'Leg Rehab Iso')).toBe('[R2-S01] Leg Rehab Iso')
+  it('label prefix R + wave (beda dari cycle 5/3/1 [C..])', () => {
+    expect(rehabFullLabel(0, 'Leg Rehab Iso')).toBe('[R1-S01] Leg Rehab Iso — W1')
+    expect(rehabFullLabel(4, 'Leg Rehab Iso')).toBe('[R1-S05] Leg Rehab Iso — W2')
+    expect(rehabFullLabel(16, 'Leg Rehab Iso')).toBe('[R2-S01] Leg Rehab Iso — W1')
+  })
+})
+
+describe('REHAB_WAVES', () => {
+  it('4 wave: hold 30→35→40→deload 30', () => {
+    expect(REHAB_WAVES.map((w) => w.label)).toEqual(['W1', 'W2', 'W3', 'W4'])
+    expect(rehabWaveAt(0).isoHoldSec).toBe(30)
+    expect(rehabWaveAt(4).isoHoldSec).toBe(35)
+    expect(rehabWaveAt(8).isoHoldSec).toBe(40)
+    expect(rehabWaveAt(12).isoHoldSec).toBe(30)
+    expect(rehabWaveAt(12).isoSets).toBe(2)
+    expect(rehabWaveAt(15).label).toBe('W4')
   })
 })
