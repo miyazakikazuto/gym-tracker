@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
-import { parseKey, todayKey, formatDMYWIB, MONTHS } from '../lib/date'
+import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
 import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
+import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
 import Modal from '../components/Modal'
 import SessionRow from '../components/SessionRow'
 import { exerciseIsDuration } from '../lib/helpers'
 import type { WorkoutPlan } from '../types'
 
 function monthGrid(year: number, month: number): (string | null)[] {
-  const first = new Date(Date.UTC(year, month, 1))
-  const startDow = first.getUTCDay()
+  const key = year + '-' + String(month + 1).padStart(2, '0') + '-01'
+  const startDow = dayOfWeek(key)
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells: (string | null)[] = []
   for (let i = 0; i < startDow; i++) cells.push(null)
@@ -29,9 +30,10 @@ export default function History() {
   const uid = useUid()
   const navigate = useNavigate()
 
-  const t = parseKey(todayKey())
-  const [viewYear, setViewYear] = useState(t.getUTCFullYear())
-  const [viewMonth, setViewMonth] = useState(t.getUTCMonth())
+  // Ekstrak langsung dari todayKey() — parseKey() pakai WIB offset jadi getUTC*() salah
+  const [todayY, todayM] = todayKey().split('-').map(Number)
+  const [viewYear, setViewYear] = useState(todayY)
+  const [viewMonth, setViewMonth] = useState(todayM - 1) // 0-indexed
   // Preferensi tampilan kalender — tersimpan di localStorage (gt:calPrefs)
   const [expanded, setExpanded] = useState<boolean>(() => {
     try {
@@ -99,7 +101,12 @@ export default function History() {
   const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
   const usedPlanNames = daySessions.map((s) => s.planName)
   const presetNames = PLAN_PRESETS.map((p) => p.name)
+  // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
+  // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.
+  const REHAB_PRESET_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio', 'rest']
+  const rehabMode = settings.rehabMode === true
   const addOptions = PLAN_PRESETS
+    .filter(({ key }) => !rehabMode || REHAB_PRESET_KEYS.includes(key))
     .map((preset) => ({
       preset,
       plan: plans.find((p) => p.name === preset.name),
@@ -120,6 +127,19 @@ export default function History() {
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
       } else if (wantExtra) {
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, true)
+      } else if (settings.rehabMode === true) {
+        // Rehab: stiker [R..-S..] tanpa wave/scheme TM (hitung sesi rehab saja)
+        const before = sessions.filter((x) => isRehabSession(x, exercises) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
+        const idx = before.length % REHAB_CYCLE_LENGTH
+        const stiker = rehabFullLabel(idx, name)
+        payload = buildSession(
+          plan,
+          selKey,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          startAt,
+          { cycle: 0, sessionIndex: idx, cycleLabel: stiker },
+          false,
+        )
       } else {
         const ex = computeExcludedTypes(settings)
         const before = sessions.filter((x) => x.endedAt !== null && !x.isExtra && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))

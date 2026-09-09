@@ -59,6 +59,46 @@ describe('formatSessionForAI', () => {
     expect(formatSessionForAI(s, exercises)).toContain('Bench Press — BW×12')
   })
 
+  it('sesi lupa ditutup (23 jam) → cap 300 menit + tandai', () => {
+    const s = mkSession({
+      startedAt: Date.UTC(2026, 7, 26, 5, 0),
+      endedAt: Date.UTC(2026, 7, 27, 4, 0),
+    })
+    expect(formatSessionForAI(s, exercises)).toContain('(300 menit — lupa tombol selesai?)')
+  })
+
+  it('iso tercatat reps (data lama) → fallback jujur + tanpa e1RM', () => {
+    const s = mkSession({
+      sets: [
+        { id: 'a', exerciseId: 'plank', setNumber: 1, weightKg: 30, reps: 10 },
+        { id: 'b', exerciseId: 'plank', setNumber: 2, weightKg: 30, reps: 10 },
+      ],
+    })
+    const out = formatSessionForAI(s, exercises)
+    expect(out).toContain('Plank — 30kg×10 (catatan reps lama), 30kg×10 (catatan reps lama)')
+    expect(out).not.toContain('e1RM')
+  })
+
+  it('iso hold durasi → tanpa e1RM (Epley tidak valid untuk hold)', () => {
+    const s = mkSession({
+      sets: [{ id: 'a', exerciseId: 'plank', setNumber: 1, weightKg: 20, reps: 0, durationSec: 30 }],
+    })
+    const out = formatSessionForAI(s, exercises)
+    expect(out).toContain('Plank — 0,5 mnt')
+    expect(out).not.toContain('e1RM')
+  })
+
+  it('iso multi-set → total hold time (detik bila <2 mnt)', () => {
+    const s = mkSession({
+      sets: [
+        { id: 'a', exerciseId: 'plank', setNumber: 1, weightKg: 0, reps: 0, durationSec: 30 },
+        { id: 'b', exerciseId: 'plank', setNumber: 2, weightKg: 0, reps: 0, durationSec: 30 },
+        { id: 'c', exerciseId: 'plank', setNumber: 3, weightKg: 0, reps: 0, durationSec: 30 },
+      ],
+    })
+    expect(formatSessionForAI(s, exercises)).toContain('Plank — 0,5 mnt, 0,5 mnt, 0,5 mnt, total 90 dtk')
+  })
+
   it('catatan kosong tidak memunculkan baris Catatan', () => {
     const out = formatSessionForAI(mkSession(), exercises)
     expect(out).not.toContain('Catatan:')

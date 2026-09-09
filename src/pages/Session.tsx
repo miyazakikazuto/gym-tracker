@@ -6,12 +6,13 @@ import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB } from '../lib/date'
 import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
-import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
+import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
+import DecimalInput from '../components/DecimalInput'
 import type { SessionSet } from '../types'
 
 interface SetResult {
@@ -259,7 +260,9 @@ export default function Session() {
     const setNo = maxNo + 1
     let w = 0
     let r = 0
-    let d: number | undefined = dur ? 0 : undefined
+    // Rehab: gerakan durasi (isometrik) pre-fill ikut wave sesi (W1 30s → W2 35s → W3 40s → W4 30s)
+    const rehabHold = settings.rehabMode === true ? rehabWaveAt(session?.sessionIndex ?? 0).isoHoldSec : REHAB_ISO_HOLD_SEC
+    let d: number | undefined = dur ? (settings.rehabMode === true ? rehabHold : 0) : undefined
     let d2: number | undefined = undefined
     let elev: number | undefined = undefined
     if (prev) {
@@ -391,8 +394,16 @@ export default function Session() {
 
   const addPool = (() => {
     const cat = presetByName(session.planName)?.key
-    return cat ? exercises.filter((e) => categoryKeysOfExercise(e).includes(cat)) : exercises
+    if (!cat) return exercises
+    // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
+    const keys = rehabPoolKeys(cat)
+    return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
+
+  // Dihitung SEKALI per render (dulu 3× via IIFE) — dipakai blok saran di bawah
+  const rankedSuggestions = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
+  const suggestBadge = (ex: { muscleGroup: string }, r: string) =>
+    r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
 
   return (
     <div className="page">
@@ -482,7 +493,8 @@ export default function Session() {
             <div className="card-title">
               <span>
                 {getExerciseName(exercises, exId)}
-                {!cardio && e1RmRef > 0 && (
+                {/* e1RM Epley tidak valid untuk hold isometrik (durasi) — badge disembunyikan */}
+                {!cardio && !dur && e1RmRef > 0 && (
                   <span className="badge accent" style={{ marginLeft: 8 }}>e1RM ~{fmtNumber(e1RmRef)} kg</span>
                 )}
               </span>
@@ -500,8 +512,7 @@ export default function Session() {
               </>
             ) : (
               <>
-                <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·mnt)' : 'Rep'}</span>
-                {dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
+                <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·m·d)' : 'Rep'}</span>
                 <span className="int">Int</span>
               </>
             )}
@@ -558,11 +569,8 @@ export default function Session() {
         ) : (
           <>
             {(() => {
-              const ranked = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-              const top = ranked.slice(0, 5)
-              const rest = ranked.slice(5)
-              const badge = (ex: { muscleGroup: string }, r: string) =>
-                r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
+              const top = rankedSuggestions.slice(0, 5)
+              const rest = rankedSuggestions.slice(5)
               if (top.length === 0) return null
               return (
                 <>
@@ -570,27 +578,20 @@ export default function Session() {
                   <div className="row wrap" style={{ marginBottom: rest.length > 0 ? 10 : 0 }}>
                     {top.map(({ exercise: ex, reason }) => (
                       <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                        + {ex.name}{badge(ex, reason)}
+                        + {ex.name}{suggestBadge(ex, reason)}
                       </button>
                     ))}
                   </div>
                 </>
               )
             })()}
-            <div className="small muted" style={{ marginBottom: 6 }}>{(() => {
-              const ranked = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-              return ranked.length > 5 ? 'Semua gerakan' : ''
-            })()}</div>
+            <div className="small muted" style={{ marginBottom: 6 }}>{rankedSuggestions.length > 5 ? 'Semua gerakan' : ''}</div>
             <div className="row wrap">
-              {(() => {
-                const ranked = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-                const rest = ranked.length > 5 ? ranked.slice(5) : ranked
-                return rest.map(({ exercise: ex }) => (
-                  <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                    + {ex.name}
-                  </button>
-                ))
-              })()}
+              {rankedSuggestions.slice(5).map(({ exercise: ex }) => (
+                <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                  + {ex.name}
+                </button>
+              ))}
             </div>
           </>
         )}
@@ -606,6 +607,26 @@ export default function Session() {
           placeholder="Cara badan hari ini, PR, dll…"
         />
       </div>
+
+      {settings.rehabMode === true && (
+        <div className="card">
+          <div className="card-title">Nyeri / panas (0–10)</div>
+          <div className="row wrap" style={{ gap: 6 }}>
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+              <button
+                key={v}
+                className={'rpe-chip' + (v > REHAB_PAIN_STOP ? ' danger' : '')}
+                onClick={() => patchNote((note.replace(/\s*nyeri:\d+/g, '').trim() + ` nyeri:${v}`).trim())}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <div className="small muted" style={{ marginTop: 6 }}>
+            Stop gerakan bila &gt;{REHAB_PAIN_STOP} (aturan rehab). Tercatat di note sesi.
+          </div>
+        </div>
+      )}
 
       <div className="form-actions">
         {isActive ? (
@@ -628,6 +649,59 @@ export default function Session() {
           </div>
         </Modal>
       )}
+    </div>
+  )
+}
+
+// Input durasi jam·menit·DETIK — detik wajib ada untuk hold isometrik 30-45 dtk.
+// Tanpa kolom detik, hold 30 dtk tampil kosong dan ke-wipe jadi 0 saat diedit.
+function DurInputs({ value, onChange }: { value: number; onChange: (sec: number) => void }) {
+  const h = Math.floor(value / 3600)
+  const m = Math.floor((value % 3600) / 60)
+  const sec = value % 60
+  const num = (v: string, min: number, max?: number) => {
+    const n = Math.floor(Number(v) || 0)
+    return Math.max(min, max === undefined ? n : Math.min(max, n))
+  }
+  // Lebar via CSS .wt.dur (46px, tanpa spinner) — JANGAN inline width kecil,
+  // spinner desktop memakan tempat sehingga digit tidak kelihatan di web.
+  return (
+    <div className="row" style={{ gap: 2, alignItems: 'center' }}>
+      <input
+        className="wt dur"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={h || ''}
+        placeholder="0"
+        aria-label="Jam"
+        onChange={(e) => onChange(num(e.target.value, 0) * 3600 + m * 60 + sec)}
+      />
+      <span className="small muted">j</span>
+      <input
+        className="wt dur"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={59}
+        value={m || ''}
+        placeholder="0"
+        aria-label="Menit"
+        onChange={(e) => onChange(h * 3600 + num(e.target.value, 0, 59) * 60 + sec)}
+      />
+      <span className="small muted">mnt</span>
+      <input
+        className="wt dur"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={59}
+        value={sec || ''}
+        placeholder="0"
+        aria-label="Detik"
+        onChange={(e) => onChange(h * 3600 + m * 60 + num(e.target.value, 0, 59))}
+      />
+      <span className="small muted">dtk</span>
     </div>
   )
 }
@@ -656,50 +730,13 @@ const SetRow = memo(function SetRow({
       <span className="num">{s.setNumber}</span>
       {isCardio ? (
         <>
-          <div className="row" style={{ gap: 2, alignItems: 'center' }}>
-            <input
-              className="wt"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              style={{ width: 32, textAlign: 'center' }}
-              value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
-              placeholder="0"
-              onChange={(e) => {
-                const h = Number(e.target.value) || 0
-                const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
-                onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-              }}
-            />
-            <span className="small muted">j</span>
-            <input
-              className="wt"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={59}
-              style={{ width: 32, textAlign: 'center' }}
-              value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
-              placeholder="0"
-              onChange={(e) => {
-                const m = Number(e.target.value) || 0
-                const h = Math.floor((s.durationSec ?? 0) / 3600)
-                onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-              }}
-            />
-            <span className="small muted">mnt</span>
-          </div>
-          <input
-            className="wt dist"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
+          <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} />
+          <DecimalInput
+            value={s.distanceKm ?? 0}
+            onCommit={(n) => onPatch(s.id, { distanceKm: n })}
             placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
-            onChange={(e) => {
-              const n = parseDecimal(e.target.value)
-              if (n !== null) onPatch(s.id, { distanceKm: n })
-            }}
+            className="wt dist"
+            ariaLabel="Jarak km"
           />
           <input
             className="wt"
@@ -717,54 +754,17 @@ const SetRow = memo(function SetRow({
       ) : (
         <>
           <button className="step-btn" onClick={() => onStep(s.id, -0.5)} disabled={!s.weightKg}>−</button>
-          <input
-            className="wt"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={s.weightKg ? fmtNumber(s.weightKg) : ''}
+          <DecimalInput
+            value={s.weightKg}
+            onCommit={(n) => onPatch(s.id, { weightKg: n })}
             placeholder={prev ? fmtNumber(prev.weightKg) : '0'}
-            onChange={(e) => {
-              const n = parseDecimal(e.target.value)
-              if (n !== null) onPatch(s.id, { weightKg: n })
-            }}
+            ariaLabel="Beban kg"
           />
           <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
           {dur ? (
-            // Durasi pakai jam + menit (bukan detik mentah) — konsisten dengan
-            // baris cardio. Backend tetap simpan durationSec.
-            <div className="row" style={{ gap: 2, alignItems: 'center', width: 76 }}>
-              <input
-                className="wt"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                style={{ width: 30, textAlign: 'center' }}
-                value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
-                placeholder="0"
-                onChange={(e) => {
-                  const h = Number(e.target.value) || 0
-                  const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
-                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-                }}
-              />
-              <span className="small muted">j</span>
-              <input
-                className="wt"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={59}
-                style={{ width: 30, textAlign: 'center' }}
-                value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
-                placeholder="0"
-                onChange={(e) => {
-                  const m = Number(e.target.value) || 0
-                  const h = Math.floor((s.durationSec ?? 0) / 3600)
-                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-                }}
-              />
-            </div>
+            // Durasi pakai jam·menit·detik — detik wajib untuk hold isometrik.
+            // Backend tetap simpan durationSec.
+            <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} />
           ) : (
             <input
               className="wt"
@@ -774,20 +774,6 @@ const SetRow = memo(function SetRow({
               value={s.reps || ''}
               placeholder={prev ? String(prev.reps) : '0'}
               onChange={(e) => onPatch(s.id, { reps: Number(e.target.value) })}
-            />
-          )}
-          {dur && (
-            <input
-              className="wt dist"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
-              placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
-              onChange={(e) => {
-                const n = parseDecimal(e.target.value)
-                if (n !== null) onPatch(s.id, { distanceKm: n })
-              }}
             />
           )}
           {pct !== null ? (

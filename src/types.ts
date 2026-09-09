@@ -81,7 +81,7 @@ export interface Bodyweight {
 
 // Pengaturan user — disimpan di users/{uid}/settings/prefs
 export interface UserSettings {
-  rotationMode: boolean // true = saran rotasi (default), false = jadwal mingguan
+  rotationMode?: boolean // LEGACY (mode Mingguan dihapus): true/absen = rotasi, field tidak dibaca lagi
   rotation: string[] // urutan rotasi — key preset (default: leg → easy → push → pull)
   shiftAnchor: string // tanggal patokan siklus shift — hari ke-1 blok Sore (default '2026-08-12')
   weightTarget: number | null // target berat badan (kg) — null = tanpa target
@@ -98,6 +98,7 @@ export interface UserSettings {
   }
   excludeEasyDay?: boolean // true = Easy Day dihapus dari siklus 5/3/1 (cycle jadi 12 sesi)
   skippedSessions?: number // jumlah sesi yang di-skip (posisi tetap maju)
+  rehabMode?: boolean // true = Mode Rehab: 5/3/1 & TM dimatikan, saran ikut REHAB_CYCLE (lib/rehab.ts)
 }
 
 export const MUSCLE_GROUPS = [

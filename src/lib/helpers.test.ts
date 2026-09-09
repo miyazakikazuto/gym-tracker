@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, bestSetResult, fmtNumber } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, bestSetResult, fmtNumber, fmtInput } from './helpers'
+import { parseDecimal } from './parse'
 import type { Exercise, Session } from '../types'
 
 function mkSession(over: Partial<Session>): Session {
@@ -152,4 +153,14 @@ describe('fmtNumber', () => {
   it('bulat → tanpa desimal', () => { expect(fmtNumber(10)).toBe('10') })
   it('pecahan → koma', () => { expect(fmtNumber(10.5)).toBe('10,5') })
   it('0,5 rounding bukan di fmtNumber (sudah di e1rmStr) → tampil apa adanya', () => { expect(fmtNumber(10.25)).toBe('10,3') })
+})
+
+describe('fmtInput', () => {
+  it('tidak membulatkan: 2.29 tetap 2,29', () => { expect(fmtInput(2.29)).toBe('2,29') })
+  it('bulat tetap polos', () => { expect(fmtInput(10)).toBe('10') })
+  it('round-trip via parseDecimal tidak merusak data', () => {
+    for (const n of [2.29, 10.5, 27.5, 0.5]) {
+      expect(parseDecimal(fmtInput(n))).toBe(n)
+    }
+  })
 })

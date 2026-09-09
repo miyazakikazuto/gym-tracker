@@ -1,5 +1,6 @@
 import type { Exercise, Session } from '../types'
 import { isRest } from './templates'
+import { volumeOf } from './date'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
   return exercises.find((e) => e.id === id)?.name ?? `[Terhapus ${id.slice(0, 6)}]`
@@ -76,4 +77,49 @@ export function bestSetResult(
 
 export function fmtNumber(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1).replace('.', ',')
+}
+
+// Format untuk VALUE input — tampilkan apa adanya TANPA toFixed.
+// fmtNumber membulatkan 1 desimal sehingga round-trip display merusak data
+// (2.29 → "2,3" → parse → 2.3). fmtInput dipakai di value= input saja;
+// label/badge tampilan tetap pakai fmtNumber yang ringkas.
+export function fmtInput(n: number): string {
+  return String(n).replace('.', ',')
+}
+
+/**
+ * Cari exercise IDs yang ada di sessions tapi tidak ada di library (terhapus).
+ * Return Map<exerciseId, { totalSets, totalVolume, lastDate, sessionCount }>.
+ */
+export function findOrphanedExercises(
+  sessions: Session[],
+  exercises: Exercise[],
+): Map<string, { totalSets: number; totalVolume: number; lastDate: string; sessionCount: number; exerciseIds: string[] }> {
+  const knownIds = new Set(exercises.map((e) => e.id))
+  const map = new Map<string, { totalSets: number; totalVolume: number; lastDate: string; sessionCount: number; exerciseIds: string[] }>()
+
+  for (const s of sessions) {
+    const seen = new Set<string>()
+    for (const set of s.sets) {
+      if (knownIds.has(set.exerciseId)) continue
+      const existing = map.get(set.exerciseId)
+      const vol = volumeOf([set])
+      if (existing) {
+        existing.totalSets++
+        existing.totalVolume += vol
+        if (s.date > existing.lastDate) existing.lastDate = s.date
+        if (!seen.has(set.exerciseId)) { existing.sessionCount++; seen.add(set.exerciseId) }
+      } else {
+        map.set(set.exerciseId, {
+          totalSets: 1,
+          totalVolume: vol,
+          lastDate: s.date,
+          sessionCount: seen.has(set.exerciseId) ? 0 : 1,
+          exerciseIds: [set.exerciseId],
+        })
+        seen.add(set.exerciseId)
+      }
+    }
+  }
+  return map
 }

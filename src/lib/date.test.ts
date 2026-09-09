@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dateKey, parseKey, addDays, weekStart, formatDMYWIB, volumeOf, MONTHS } from './date'
+import { dateKey, parseKey, addDays, weekStart, formatDMYWIB, formatDMYInput, parseDMY, volumeOf, MONTHS } from './date'
 
 describe('dateKey / parseKey round-trip WIB', () => {
   it('round-trip', () => {
@@ -34,6 +34,30 @@ describe('formatDMYWIB', () => {
   })
   it('MONTHS 12 bulan', () => {
     expect(MONTHS).toEqual(['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'])
+  })
+})
+
+describe('parseDMY / formatDMYInput', () => {
+  it('format valid → key', () => {
+    expect(parseDMY('12/09/2026')).toBe('2026-09-12')
+    expect(parseDMY('1/2/2026')).toBe('2026-02-01')
+    expect(parseDMY('12-09-2026')).toBe('2026-09-12')
+    expect(parseDMY(' 12.09.2026 ')).toBe('2026-09-12')
+  })
+  it('kabisat: 29/02/2024 ok, 29/02/2025 nolak', () => {
+    expect(parseDMY('29/02/2024')).toBe('2024-02-29')
+    expect(parseDMY('29/02/2025')).toBeNull()
+  })
+  it('nolak tanggal mustahil', () => {
+    expect(parseDMY('32/01/2026')).toBeNull()
+    expect(parseDMY('12/13/2026')).toBeNull()
+    expect(parseDMY('12/09')).toBeNull()
+    expect(parseDMY('asal')).toBeNull()
+    expect(parseDMY('12/09/1999')).toBeNull()
+  })
+  it('round-trip key → teks → key', () => {
+    expect(parseDMY(formatDMYInput('2026-09-12'))).toBe('2026-09-12')
+    expect(formatDMYInput('2026-09-12')).toBe('12/09/2026')
   })
 })
 

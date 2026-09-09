@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { createExercise, updateExercise, deleteExercise, updateSession } from '../lib/gymstore'
+import { createExercise, updateExercise, deleteExercise, restoreExercise, updateSession } from '../lib/gymstore'
 import { MUSCLE_GROUPS, EQUIPMENTS, EXERCISE_CATEGORIES, EXERCISE_TYPES, type Exercise, type Session, type WorkoutPlan } from '../types'
-import { categoryOfExercise, categoryKeysOfExercise } from '../lib/helpers'
+import { categoryOfExercise, categoryKeysOfExercise, findOrphanedExercises, fmtNumber } from '../lib/helpers'
 import Modal from '../components/Modal'
 
 export default function Library() {
@@ -15,6 +15,8 @@ export default function Library() {
   const [query, setQuery] = useState('')
   const [confirmDel, setConfirmDel] = useState<Exercise | null>(null)
   const [showDuplicates, setShowDuplicates] = useState(false)
+  const [showOrphans, setShowOrphans] = useState(false)
+  const [restoringOrphan, setRestoringOrphan] = useState<{ id: string; stats: { totalSets: number; totalVolume: number; lastDate: string; sessionCount: number } } | null>(null)
 
   // --- Duplicate detection ---
   function normalizeForDup(name: string): string {
@@ -120,6 +122,45 @@ export default function Library() {
         style={{ marginBottom: 10 }}
       />
 
+      {/* --- Orphaned (deleted) exercises --- */}
+      {(() => {
+        const orphans = findOrphanedExercises(sessions, exercises)
+        if (orphans.size === 0) return null
+        return (
+          <div className="card" style={{ marginBottom: 12, border: '1px solid var(--warn, #f59e0b33)', background: 'var(--surface, #1a163080)' }}>
+            <div className="row spread" style={{ marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>🔄 Exercise Terhapus ({orphans.size})</div>
+              <button className="btn sm ghost" onClick={() => setShowOrphans(!showOrphans)}>
+                {showOrphans ? 'Tutup' : 'Lihat'}
+              </button>
+            </div>
+            <div className="small muted" style={{ marginBottom: showOrphans ? 8 : 0 }}>
+              {orphans.size} gerakan ada di riwayat tapi tidak di library.
+            </div>
+            {showOrphans && (
+              <div>
+                {[...orphans.entries()].map(([exId, stats]) => (
+                  <div key={exId} className="row spread" style={{ padding: '6px 0', borderTop: '1px solid var(--border, #ffffff10)' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>[{exId.slice(0, 6)}]</div>
+                      <div className="small muted">
+                        {stats.totalSets} set · {fmtNumber(stats.totalVolume)} kg · {stats.sessionCount} sesi
+                      </div>
+                    </div>
+                    <button
+                      className="btn sm primary"
+                      onClick={() => setRestoringOrphan({ id: exId, stats })}
+                    >
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {list.length === 0 && (
         <div className="card empty">
           {query.trim()
@@ -189,8 +230,36 @@ export default function Library() {
           }}
         />
       )}
+
+      {restoringOrphan && (
+        <RestoreOrphanModal
+          exerciseId={restoringOrphan.id}
+          stats={restoringOrphan.stats}
+          onClose={() => setRestoringOrphan(null)}
+          onRestored={() => { setRestoringOrphan(null); showToast('Exercise dipulihkan! Sesi lama otomatis terhubung.') }}
+        />
+      )}
     </div>
   )
+}
+
+// Default cerdas ngikut kategori — biar gerakan kaki nggak kesimpen Dada+Barbell.
+// Nama berbau iso/hold/plank → cara pencatatan durasi.
+function smartDefaults(category: string, name: string): { muscleGroup: string; equipment: string; type: 'reps' | 'duration' } {
+  const muscle =
+    category === 'leg' ? 'Kaki'
+    : category === 'push' ? 'Dada'
+    : category === 'pull' ? 'Punggung'
+    : category === 'cardio' ? 'Cardio'
+    : 'Core'
+  const equipment =
+    category === 'leg' ? 'Machine'
+    : category === 'push' ? 'Dumbbell'
+    : category === 'pull' ? 'Kabel'
+    : 'Bodyweight'
+  const type: 'reps' | 'duration' =
+    category === 'cardio' || /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
+  return { muscleGroup: muscle, equipment, type }
 }
 
 function ExerciseForm({
@@ -206,16 +275,19 @@ function ExerciseForm({
 }) {
   const uid = useUid()
   const [name, setName] = useState(initial?.name ?? '')
-  const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? MUSCLE_GROUPS[0])
-  const [equipment, setEquipment] = useState<string>(initial?.equipment ?? EQUIPMENTS[0])
   const initCat = initial?.category
       ? categoryOfExercise({ category: initial.category, muscleGroup: initial.muscleGroup })
       : defaultCategory
+  const initSmart = smartDefaults(initCat, initial?.name ?? '')
+  const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? initSmart.muscleGroup)
+  const [equipment, setEquipment] = useState<string>(initial?.equipment ?? initSmart.equipment)
   const [category, setCategory] = useState<string>(initCat)
   const [extra, setExtra] = useState<string[]>(initial?.extraCategories ?? [])
-  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? (initCat === 'cardio' ? 'duration' : 'reps'))
+  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? initSmart.type)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // Peringatan non-blokir: nama isometrik tapi dicatat reps
+  const isoMismatch = !busy && /iso|isometr|hold|plank/i.test(name) && type === 'reps'
 
   async function save() {
     setError('')
@@ -257,7 +329,16 @@ function ExerciseForm({
           <select className="input" value={category} onChange={(e) => {
             const c = e.target.value
             setCategory(c)
-            if (c === 'cardio') setType('duration')
+            // Gerakan baru: default otot/alat/cara catat ngikut kategori.
+            // Edit existing: hanya auto-cara-catat (jangan timpa pilihan user).
+            if (!initial) {
+              const s = smartDefaults(c, name)
+              setMuscleGroup(s.muscleGroup)
+              setEquipment(s.equipment)
+              setType(s.type)
+            } else if (c === 'cardio') {
+              setType('duration')
+            }
           }}>
             {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
           </select>
@@ -266,7 +347,7 @@ function ExerciseForm({
         <div className="field">
           <label>Juga tampil di hari lain</label>
           <div className="row wrap" style={{ gap: 6 }}>
-            {EXERCISE_CATEGORIES.filter((c) => c.key !== category && c.key !== 'cardio').map((c) => {
+            {EXERCISE_CATEGORIES.filter((c) => c.key !== category && c.key !== 'cardio' && !(category === 'leg' && (c.key === 'push' || c.key === 'pull'))).map((c) => {
               const on = extra.includes(c.key)
               return (
                 <button
@@ -288,6 +369,12 @@ function ExerciseForm({
             {EXERCISE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
           </select>
         </div>
+
+        {isoMismatch && (
+          <div className="small" style={{ color: 'var(--warn, #f59e0b)', marginBottom: 10 }}>
+            Namanya berbau isometrik — biasanya dicatat Durasi (hold detik), bukan Reps.
+          </div>
+        )}
 
         <div className="field">
           <label>Grup otot</label>
@@ -374,6 +461,93 @@ function DuplicatesModal({
       ))}
       <div className="form-actions">
         <button className="btn ghost" onClick={onClose}>Tutup</button>
+      </div>
+    </Modal>
+  )
+}
+
+function RestoreOrphanModal({
+  exerciseId,
+  stats,
+  onClose,
+  onRestored,
+}: {
+  exerciseId: string
+  stats: { totalSets: number; totalVolume: number; lastDate: string; sessionCount: number }
+  onClose: () => void
+  onRestored: () => void
+}) {
+  const uid = useUid()
+  const { showToast } = useData()
+  const [name, setName] = useState('')
+  const [muscleGroup, setMuscleGroup] = useState<string>(MUSCLE_GROUPS[0])
+  const [equipment, setEquipment] = useState<string>(EQUIPMENTS[0])
+  const [category, setCategory] = useState<string>('push')
+  const [type, setType] = useState<'reps' | 'duration'>('reps')
+  const [busy, setBusy] = useState(false)
+
+  async function handleRestore() {
+    if (!name.trim()) { showToast('Nama wajib diisi', 'error'); return }
+    setBusy(true)
+    try {
+      await restoreExercise(uid, exerciseId, {
+        name: name.trim(),
+        muscleGroup,
+        equipment,
+        category,
+        type,
+      })
+      onRestored()
+    } catch {
+      showToast('Gagal restore — cek koneksi', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} label="Pulihkan exercise">
+      <h3>Pulihkan Exercise</h3>
+      <div className="small muted" style={{ marginBottom: 10 }}>
+        ID: <code>{exerciseId.slice(0, 8)}</code>… — {stats.totalSets} set · {fmtNumber(stats.totalVolume)} kg · {stats.sessionCount} sesi
+      </div>
+
+      <div className="field">
+        <label>Nama gerakan</label>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="mis. Barbell Row" autoFocus />
+      </div>
+
+      <div className="field">
+        <label>Kategori</label>
+        <select className="input" value={category} onChange={(e) => {
+          const c = e.target.value
+          setCategory(c)
+          if (c === 'cardio') setType('duration')
+        }}>
+          {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+        </select>
+      </div>
+
+      <div className="field">
+        <label>Grup otot</label>
+        <select className="input" value={muscleGroup} onChange={(e) => setMuscleGroup(e.target.value)}>
+          {MUSCLE_GROUPS.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
+
+      <div className="field">
+        <label>Alat</label>
+        <select className="input" value={equipment} onChange={(e) => setEquipment(e.target.value)}>
+          {!(EQUIPMENTS as readonly string[]).includes(equipment) && <option value={equipment}>{equipment}</option>}
+          {EQUIPMENTS.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
+
+      <div className="form-actions">
+        <button className="btn primary" disabled={busy} onClick={() => void handleRestore()}>
+          {busy ? 'Memulihkan…' : 'Pulihkan'}
+        </button>
+        <button className="btn ghost" onClick={onClose}>Batal</button>
       </div>
     </Modal>
   )

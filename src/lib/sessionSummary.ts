@@ -51,11 +51,29 @@ function weightMarker(currentMax: number, prevMax: number): string {
   return '→ sama dengan sebelumnya'
 }
 
+// Total hold: detik bila <2 menit (isometrik 30-90 dtk), menit bila lebih.
+export function formatHoldTotal(totalSec: number): string {
+  if (totalSec < 120) return `${fmtNumber(totalSec)} dtk`
+  return `${fmtNumber(Math.round((totalSec / 60) * 10) / 10)} mnt`
+}
+
 function formatSetList(sets: SessionSet[], isDuration: boolean, isCardio: boolean): string {
   if (isDuration) {
-    return sets
-      .map((s) => `${fmtNumber(Math.round(((s.durationSec ?? 0) / 60) * 10) / 10)} mnt`)
-      .join(', ')
+    const bits = sets.map((s) => {
+      if ((s.durationSec ?? 0) > 0) {
+        return `${fmtNumber(Math.round((s.durationSec! / 60) * 10) / 10)} mnt`
+      }
+      // Data lama: dicatat sebagai reps sebelum tipe diganti durasi —
+      // tampilkan jujur, jangan "0 mnt".
+      if (s.weightKg > 0) return `${fmtNumber(s.weightKg)}kg×${s.reps} (catatan reps lama)`
+      if (s.reps > 0) return `BW×${s.reps} (catatan reps lama)`
+      return '—'
+    })
+    // Total hold time di depan vol — metrik yang bermakna buat isometrik
+    // (vol-kg = beban×menit tidak nangkap progres hold 30→40 dtk dengan jujur).
+    const totalSec = sets.reduce((a, s) => a + (s.durationSec ?? 0), 0)
+    if (sets.length > 1 && totalSec > 0) bits.push(`total ${formatHoldTotal(totalSec)}`)
+    return bits.join(', ')
   }
   if (isCardio) {
     return sets
@@ -78,11 +96,15 @@ export function formatSessionForAI(
 ): string {
   const lines: string[] = []
 
-  const durasiMenit =
+  // Cap 5 jam (sama kayak periodSummary) — sesi yang lupa ditutup (mis. 1380
+  // menit = 23 jam) ditandai biar tidak dikira latihan beneran.
+  const rawMenit =
     session.endedAt != null ? Math.max(1, Math.round((session.endedAt - session.startedAt) / 60000)) : null
+  const cappedMenit = rawMenit != null ? Math.min(rawMenit, 5 * 60) : null
+  const lupaTutup = rawMenit != null && rawMenit > 5 * 60
   const cycleLine = session.cycleLabel ? `Siklus: ${session.cycleLabel}` : null
   lines.push(
-    `Latihan ${formatDMYWIB(session.date)} — ${session.planName}${durasiMenit ? ` (${durasiMenit} menit)` : ''}`,
+    `Latihan ${formatDMYWIB(session.date)} — ${session.planName}${cappedMenit ? ` (${cappedMenit} menit${lupaTutup ? ' — lupa tombol selesai?' : ''})` : ''}`,
     ...(cycleLine ? [cycleLine] : []),
     '',
   )
@@ -96,7 +118,9 @@ export function formatSessionForAI(
 
     const vol = volumeOf(sets)
     if (vol > 0) parts.push(`vol ${fmtNumber(Math.round(vol))} kg`)
-    if (!isCardio) {
+    // e1RM Epley hanya valid untuk set beban×reps — hold isometrik (durasi)
+    // tidak bisa diestimasi 1RM, jadi dilewati agar tidak menyesatkan.
+    if (!isCardio && !isDuration) {
       const bestE1 = sets.reduce((m, s) => (s.weightKg > 0 ? Math.max(m, e1rm(s.weightKg, s.reps)) : m), 0)
       if (bestE1 > 0) parts.push(`e1RM ~${e1rmStr(bestE1)} kg`)
     }

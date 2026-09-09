@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../context/DataContext'
-import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB } from '../lib/date'
+import { useUid } from '../context/AuthContext'
+import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB, formatDMYInput, parseDMY, parseKey } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
+import { createSession, updateSession, buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from '../lib/gymstore'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
@@ -13,14 +15,87 @@ import {
   prevMonthWindow,
   listWeekOptions,
   listMonthOptions,
+  cardioWeekTotal,
+  cardioWeekStatus,
+  CARDIO_WEEK_MIN_KM,
+  CARDIO_WEEK_MAX_KM,
 } from '../lib/periodSummary'
 import StatCard from '../components/StatCard'
+import DecimalInput from '../components/DecimalInput'
 import type { Exercise, Session } from '../types'
 
 export default function Progress() {
   const { sessions, exercises, bodyweights, settings, showToast } = useData()
+  const uid = useUid()
 
   const today = todayKey()
+
+  // ===== Quick-log jalan kaki (lapangan/Strava) — gabung ke sesi cardio hari itu =====
+  // Tanggal = teks DD/MM/YYYY + tombol cepat (popup date bawaan rewel di desktop)
+  const [walkDateText, setWalkDateText] = useState(formatDMYInput(today))
+  const [walkDist, setWalkDist] = useState(0)
+  const [walkMin, setWalkMin] = useState(0)
+  const [walkElev, setWalkElev] = useState(0)
+  const [walkBusy, setWalkBusy] = useState(false)
+  const [walkFormKey, setWalkFormKey] = useState(0) // remount input = bersihkan draf
+
+  async function saveQuickWalk() {
+    const walkDate = parseDMY(walkDateText)
+    if (!walkDate) {
+      showToast('Tanggal tidak valid (format HH/BB/TTTT)', 'error')
+      return
+    }
+    if (walkDate > today) {
+      showToast('Tanggal tidak boleh masa depan', 'error')
+      return
+    }
+    if (!(walkDist > 0)) {
+      showToast('Jarak harus lebih dari 0', 'error')
+      return
+    }
+    if (!(walkMin >= 0)) {
+      showToast('Durasi tidak valid', 'error')
+      return
+    }
+    const ex = findWalkExercise(exercises)
+    if (!ex) {
+      showToast('Belum ada gerakan cardio di library', 'error')
+      return
+    }
+    setWalkBusy(true)
+    try {
+      const durSec = Math.round(walkMin * 60)
+      const target = findTodayCardioSession(sessions, exercises, walkDate)
+      if (target) {
+        const maxNo = target.sets.reduce((m, s) => Math.max(m, s.setNumber), 0)
+        const set = buildQuickWalkSet(ex.id, maxNo + 1, walkDist, durSec, walkElev || undefined)
+        if (!set) throw new Error('invalid')
+        await updateSession(uid, target.id, { sets: [...target.sets, set] })
+      } else {
+        const set = buildQuickWalkSet(ex.id, 1, walkDist, durSec, walkElev || undefined)
+        if (!set) throw new Error('invalid')
+        const base = walkDate === today ? Date.now() - durSec * 1000 : parseKey(walkDate).getTime() + 12 * 3600 * 1000
+        await createSession(uid, {
+          date: walkDate,
+          planId: null,
+          planName: 'Cardio Day',
+          note: '',
+          startedAt: base,
+          endedAt: base + Math.max(durSec, 1) * 1000,
+          sets: [set],
+        })
+      }
+      setWalkDist(0)
+      setWalkMin(0)
+      setWalkElev(0)
+      setWalkFormKey((k) => k + 1)
+      showToast(`Jalan ${fmtNumber(walkDist)} km tersimpan`)
+    } catch {
+      showToast('Gagal menyimpan — cek koneksi internet', 'error')
+    } finally {
+      setWalkBusy(false)
+    }
+  }
 
   const weekOpts = useMemo(() => listWeekOptions(sessions, today), [sessions, today])
   const monthOpts = useMemo(() => listMonthOptions(sessions, today), [sessions, today])
@@ -185,7 +260,6 @@ export default function Progress() {
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
-  const [volTab, setVolTab] = useState<'muscle' | 'cardio'>('muscle')
   const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false })
 
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
@@ -361,21 +435,11 @@ export default function Progress() {
       </div>
 
       <div className="card">
-        <div className="row spread" style={{ alignItems: 'center', marginBottom: 8 }}>
-          <div className="card-title" style={{ margin: 0 }}>Volume per grup otot (kg)</div>
-          <div className="cal-toggle" style={{ margin: 0 }}>
-            <button className={volTab === 'muscle' ? 'active' : ''} onClick={() => setVolTab('muscle')}>Volume otot</button>
-            <button className={volTab === 'cardio' ? 'active' : ''} onClick={() => setVolTab('cardio')}>Cardio</button>
-          </div>
+        <div className="card-title">Volume per grup otot (kg)</div>
+        <div className="cal-toggle" style={{ marginBottom: 10 }}>
+          <button className={!inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(false)}>Primary only</button>
+          <button className={inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(true)}>Include secondary</button>
         </div>
-        {volTab === 'muscle' && (
-          <div className="cal-toggle" style={{ marginBottom: 10 }}>
-            <button className={!inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(false)}>Primary only</button>
-            <button className={inclSecondary ? 'active' : ''} onClick={() => setInclSecondary(true)}>Include secondary</button>
-          </div>
-        )}
-        {volTab === 'muscle' ? (
-        <>
         {muscleList.map(([m, v]) => (
           <div key={m} className="row" style={{ marginTop: 6 }}>
             <span className="small muted" style={{ width: 96 }}>{m}</span>
@@ -404,9 +468,90 @@ export default function Progress() {
             Termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3 · Squat → Punggung 0.3, Core 0.4).
           </div>
         )}
-        </>
-        ) : (
-        <>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Cardio</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Dari sesi Cardio Day — catat manual dari Strava (jarak, durasi, elevasi).
+        </div>
+        <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>＋ Catat jalan hari ini</div>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 6 }}>
+          <input
+            className="input"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={walkDateText}
+            onChange={(e) => setWalkDateText(e.target.value)}
+            placeholder="HH/BB/TTTT"
+            aria-label="Tanggal DD/MM/YYYY"
+            style={{ width: 104 }}
+          />
+          <button className="btn sm ghost" onClick={() => setWalkDateText(formatDMYInput(today))}>Hari ini</button>
+          <button className="btn sm ghost" onClick={() => setWalkDateText(formatDMYInput(addDays(today, -1)))}>Kemarin</button>
+        </div>
+        <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+          <DecimalInput
+            key={`d${walkFormKey}`}
+            value={walkDist}
+            onCommit={setWalkDist}
+            placeholder="km"
+            className="input"
+            ariaLabel="Jarak km"
+            style={{ width: 76 }}
+          />
+          <DecimalInput
+            key={`m${walkFormKey}`}
+            value={walkMin}
+            onCommit={setWalkMin}
+            placeholder="mnt"
+            className="input"
+            ariaLabel="Durasi menit"
+            style={{ width: 76 }}
+          />
+          <DecimalInput
+            key={`e${walkFormKey}`}
+            value={walkElev}
+            onCommit={setWalkElev}
+            placeholder="m naik"
+            className="input"
+            ariaLabel="Elevasi meter"
+            style={{ width: 76 }}
+          />
+          <button className="btn sm primary" disabled={walkBusy} onClick={() => void saveQuickWalk()}>
+            {walkBusy ? 'Menyimpan…' : 'Simpan'}
+          </button>
+        </div>
+        {(() => {
+          const win = weekWindow(today)
+          const t = cardioWeekTotal(sessions, exercises, win)
+          const st = cardioWeekStatus(t.dist)
+          const pct = Math.min(100, (t.dist / CARDIO_WEEK_MAX_KM) * 100)
+          const markPct = (CARDIO_WEEK_MIN_KM / CARDIO_WEEK_MAX_KM) * 100
+          const statusText =
+            st.status === 'kurang'
+              ? `kurang ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
+              : st.status === 'pas'
+                ? 'pas ✓'
+                : `lebih ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
+          return (
+            <>
+              <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
+                Minggu ini ({formatDMYWIB(win.start)} – {formatDMYWIB(win.end)})
+              </div>
+              <div className="row" style={{ marginTop: 6, alignItems: 'center' }}>
+                <div className="bar-track grow" style={{ position: 'relative' }}>
+                  <div className="bar-fill" style={{ width: `${pct}%` }} />
+                  <div style={{ position: 'absolute', left: `${markPct}%`, top: 0, bottom: 0, width: 2, background: 'var(--warn, #f59e0b)' }} />
+                </div>
+              </div>
+              <div className="small muted" style={{ marginTop: 4, marginBottom: 8 }}>
+                {fmtNumber(Math.round(t.dist * 10) / 10)} km / {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km · {statusText} · {fmtHM(t.dur)} · {t.sessions} sesi
+              </div>
+            </>
+          )
+        })()}
         {cardioList.length === 0 ? (
           <div className="small muted">Belum ada data cardio. Isi durasi & jarak (km) di sesi Cardio Day.</div>
         ) : (
@@ -428,8 +573,6 @@ export default function Progress() {
               )
             })}
           </div>
-        )}
-        </>
         )}
       </div>
 

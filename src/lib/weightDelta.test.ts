@@ -6,42 +6,49 @@ function bw(date: string, kg: number): Bodyweight {
   return { id: date, date, kg }
 }
 
-describe('deltaKg (anchor latest)', () => {
-  it('sparse: latest 2026-08-27 70.5 vs 2026-08-20 71 → delta7 -0.5', () => {
-    const entries = [bw('2026-08-20', 71), bw('2026-08-27', 70.5)]
-    expect(deltaKg(entries, 7)).toBe(-0.5)
+// Delta = selisih entry terlama dalam jendela [today-N, today] vs latest.
+// today = 2026-08-31.
+const TODAY = '2026-08-31'
+
+describe('deltaKg (window logic)', () => {
+  it('Δ7: tidak ada entry dalam window (08-24 tepat di batas) → null', () => {
+    // window (08-24, 08-31]; 08-24 tidak termasuk (tepat di batas)
+    const entries = [bw('2026-08-24', 71), bw('2026-08-31', 70)]
+    expect(deltaKg(entries, 7, TODAY)).toBe(null)
   })
 
-  it('exact 7 hari: latest 2026-08-30 70 vs 2026-08-23 71 → -1', () => {
-    const entries = [bw('2026-08-23', 71), bw('2026-08-30', 70)]
-    expect(deltaKg(entries, 7)).toBe(-1)
+  it('Δ7: entry 08-25 (6 hari lalu) dipakai, bukan 08-24', () => {
+    // window [08-24, 08-31]; oldest in window = 08-25 (53.4), bukan 08-24 (52.9)
+    // Seperti kasus user: 54 - 53.4 = 0.6
+    const entries = [bw('2026-08-24', 52.9), bw('2026-08-25', 53.4), bw('2026-08-31', 54)]
+    expect(deltaKg(entries, 7, TODAY)).toBe(0.6)
   })
 
-  it('tidak ada prev dalam jangkauan → null', () => {
-    const entries = [bw('2026-08-28', 71), bw('2026-08-30', 70.5)]
-    // target latest-7 = 2026-08-23, tidak ada entri <=2026-08-23 selain maybe? 2026-08-28 > target jadi null
-    expect(deltaKg(entries, 7)).toBe(null)
+  it('Δ30: entry terawal dalam window (08-01, 08-31]', () => {
+    // latest=08-28 (bukan today); window (08-01, 08-31]; oldest > 08-01 = 08-20 (71)
+    const entries = [bw('2026-07-25', 72), bw('2026-08-20', 71), bw('2026-08-28', 70.5)]
+    expect(deltaKg(entries, 30, TODAY)).toBe(-0.5)
   })
 
-  it('sparse 10-hari gap tetap pakai target 7-hari (bukan today-7)', () => {
-    // entries: 2026-08-22 71, latest 2026-08-27 70.5 → target=2026-08-20 → tidak ada <=2026-08-20 → null (bukan -0.5)
-    // ini kasus C dari repro: bila anchor today akan pick 2026-08-22 (5 hari gap) salah
-    const entries = [bw('2026-08-22', 71), bw('2026-08-27', 70.5)]
-    expect(deltaKg(entries, 7)).toBe(null)
-
-    // dengan riwayat lebih lama, pick benar:
-    const entries2 = [bw('2026-08-20', 71), bw('2026-08-22', 70.8), bw('2026-08-27', 70.5)]
-    // target 2026-08-20 → pick 2026-08-20 (exact)
-    expect(deltaKg(entries2, 7)).toBe(-0.5)
-  })
-
-  it('delta30 sparse', () => {
-    const entries = [bw('2026-07-25', 72), bw('2026-08-27', 70.5)]
-    // latest-30 = 2026-07-28 → prev <=2026-07-28 adalah 2026-07-25
-    expect(deltaKg(entries, 30)).toBe(-1.5)
+  it('Δ30: ada entry dalam window', () => {
+    // Δ30 window (08-01, 08-31]; 08-05 > 08-01 ✓; delta = 70.5 - 71 = -0.5
+    const entries = [bw('2026-08-05', 71), bw('2026-08-28', 70.5)]
+    expect(deltaKg(entries, 30, TODAY)).toBe(-0.5)
   })
 
   it('hanya 1 entri → null (butuh >=2)', () => {
-    expect(deltaKg([bw('2026-08-27', 70)], 7)).toBe(null)
+    expect(deltaKg([bw('2026-08-28', 70)], 7, TODAY)).toBe(null)
+  })
+
+  it('Δ30: tidak ada entry dalam window → null', () => {
+    // window (08-01, 08-31]; 07-20 < 08-01 → tidak ada entry > 08-01
+    const entries = [bw('2026-07-20', 73), bw('2026-08-31', 70)]
+    expect(deltaKg(entries, 30, TODAY)).toBe(null)
+  })
+
+  it('Δ30: entry tepat di batas window → null (tidak termasuk)', () => {
+    // window (08-01, 08-31]; 08-01 tidak termasuk (> bukan >=)
+    const entries = [bw('2026-08-01', 75), bw('2026-08-31', 70)]
+    expect(deltaKg(entries, 30, TODAY)).toBe(null)
   })
 })

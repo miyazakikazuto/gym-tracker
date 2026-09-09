@@ -81,6 +81,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
       { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
       { name: 'Easy Running', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+      { name: 'Jalan Kaki', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
     ],
   },
   {
@@ -89,10 +90,78 @@ export const PLAN_PRESETS: PlanPreset[] = [
     shortLabel: 'REST',
     exercises: [],
   },
+  // ===== REHAB (Mode Rehab: tangan kiri rest, lutut kanan isometrik) =====
+  // Nama preset disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts)
+  // supaya templatePlan() menemukan gerakan yang sudah ada di library.
+  {
+    key: 'leg-iso',
+    name: 'Leg Rehab Iso',
+    shortLabel: 'ISO',
+    dotColor: '#7ee787',
+    exercises: [
+      { name: 'Isometrik Quad 60°', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Leg Extension Unilateral', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Adductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Abductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+    ],
+  },
+  {
+    key: 'leg-light',
+    name: 'Leg Ringan',
+    shortLabel: 'LRING',
+    dotColor: '#44cc88',
+    exercises: [
+      // Leg Curl TETAP ada (keputusan user) — ringan 2x6-8, stop bila panas >5/10
+      { name: 'Leg Extension Unilateral', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Leg Curl Unilateral', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Adductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Abductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+    ],
+  },
+  {
+    key: 'upper-r',
+    name: 'Upper Kanan',
+    shortLabel: 'UKAN',
+    dotColor: '#6699ff',
+    exercises: [
+      { name: 'Single-Arm DB Press Kanan', muscleGroup: 'Dada', equipment: 'Dumbbell' },
+      { name: 'Single-Arm Cable Row Kanan', muscleGroup: 'Punggung', equipment: 'Kabel' },
+      { name: 'Single-Arm Lateral Raise Kanan', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Single-Arm Curl Kanan', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+    ],
+  },
 ]
 
 export function presetByKey(key: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.key === key)
+}
+
+// Kategori library untuk gerakan preset — key preset rehab (leg-iso/upper-r)
+// BUKAN kategori valid (tab Library: leg/push/pull/easy/cardio), jadi petakan
+// ke kategori dasar. Tanpa ini gerakan auto-create tidak muncul di tab mana pun.
+const MUSCLE_TO_BASE: Record<string, string> = {
+  Dada: 'push',
+  Trisep: 'push',
+  Bahu: 'push',
+  Punggung: 'pull',
+  Bisep: 'pull',
+  Forearm: 'pull',
+  Kaki: 'leg',
+  Cardio: 'cardio',
+  Core: 'easy',
+  Lainnya: 'easy',
+}
+
+export function baseCategoryForPresetKey(key: string, muscleGroup: string): string {
+  if (['leg', 'push', 'pull', 'easy', 'cardio'].includes(key)) return key
+  return MUSCLE_TO_BASE[muscleGroup] ?? 'leg'
+}
+
+// Isometrik/hold/plank + seluruh cardio dicatat durasi, sisanya reps.
+export function typeForPresetExercise(name: string, muscleGroup: string): 'reps' | 'duration' {
+  if (muscleGroup === 'Cardio') return 'duration'
+  return /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
 }
 
 export function presetByName(name: string): PlanPreset | undefined {

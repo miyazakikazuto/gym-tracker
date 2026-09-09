@@ -71,8 +71,8 @@ export default function Weight() {
   })()
 
   // Ringkasan: delta & min/max 30 hari
-  const delta7 = deltaKg(sortedBw, 7)
-  const delta30 = deltaKg(sortedBw, 30)
+  const delta7 = deltaKg(sortedBw, 7, today)
+  const delta30 = deltaKg(sortedBw, 30, today)
   // window kalender dari today, bukan dari latest entry (sesuai ekspektasi "30 hari terakhir" di UI)
   const win30 = sortedBw.filter((b) => b.date >= addDays(today, -29))
   const min30 = win30.length > 0 ? Math.min(...win30.map((b) => b.kg)) : null

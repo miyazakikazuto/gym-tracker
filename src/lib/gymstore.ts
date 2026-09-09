@@ -82,12 +82,55 @@ export async function createExercise(uid: string, data: Omit<Exercise, 'id'>) {
   return addDoc(userGymRef(uid, 'exercises'), data)
 }
 
+// Sinkronisasi gerakan preset ke library (sekali jalan per akun lama):
+// preset baru (mis. Jalan Kaki, Isometrik Quad) tidak masuk akun lama lewat
+// seed (seed hanya akun kosong) maupun templatePlan (bypass bila plan sudah
+// ada). Fungsi ini membuat yang HILANG saja via 1 batch — tidak pernah
+// menghapus/mengubah yang sudah ada. Return jumlah yang dibuat.
+export async function syncPresetExercises(uid: string, exercises: Exercise[]): Promise<number> {
+  const { PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise } = await import('./templates')
+  const known = new Set(exercises.map((e) => e.name.trim().toLowerCase()))
+  const missing: Array<Omit<Exercise, 'id'>> = []
+  for (const preset of PLAN_PRESETS) {
+    if (preset.key === 'rest') continue
+    for (const pe of preset.exercises) {
+      const key = pe.name.trim().toLowerCase()
+      if (known.has(key)) continue
+      known.add(key)
+      const type = typeForPresetExercise(pe.name, pe.muscleGroup)
+      missing.push({
+        name: pe.name,
+        muscleGroup: pe.muscleGroup,
+        equipment: pe.equipment,
+        category: baseCategoryForPresetKey(preset.key, pe.muscleGroup),
+        ...(type === 'duration' ? { type } : {}),
+      })
+    }
+  }
+  if (missing.length === 0) return 0
+  const db = getDb()
+  const batch = writeBatch(db)
+  for (const m of missing) {
+    batch.set(doc(collection(db, 'users', uid, 'exercises')), m)
+  }
+  await batch.commit()
+  return missing.length
+}
+
 export async function updateExercise(uid: string, id: string, data: Omit<Exercise, 'id'>) {
   return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), data as object)
 }
 
 export async function deleteExercise(uid: string, id: string) {
   return deleteDoc(doc(getDb(), 'users', uid, 'exercises', id))
+}
+
+/**
+ * Restore exercise terhapus: buat ulang document dengan ID lama pakai setDoc
+ * (bukan addDoc) supaya semua session lama otomatis ter-link kembali.
+ */
+export async function restoreExercise(uid: string, id: string, data: Omit<Exercise, 'id'>) {
+  return setDoc(doc(getDb(), 'users', uid, 'exercises', id), data)
 }
 
 export function patchExerciseCategory(uid: string, id: string, category: string) {
@@ -219,14 +262,53 @@ export function makeSetId() {
   return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 }
 
-export function makeSessionSet(partial: Partial<SessionSet> & { exerciseId: string }): SessionSet {
+// ===== QUICK-LOG JALAN KAKI (catat lapangan/Strava tanpa buka halaman sesi) =====
+// Cari sesi tanggal tsb yang sudah berisi set cardio (selesai maupun berjalan)
+// untuk ditempeli set baru. Return undefined bila tidak ada.
+export function findTodayCardioSession(
+  sessions: Session[],
+  exercises: Exercise[],
+  dateKey: string,
+): Session | undefined {
+  const cardioIds = new Set(
+    exercises.filter((e) => e.muscleGroup === 'Cardio' || e.category === 'cardio').map((e) => e.id),
+  )
+  const sameDay = sessions.filter((s) => s.date === dateKey)
+  // Berjalan didahulukan (tempel ke sesi aktif), lalu yang terbaru selesai
+  const running = sameDay.find((s) => s.endedAt === null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
+  if (running) return running
+  const finished = sameDay
+    .filter((s) => s.endedAt !== null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
+    .sort((a, b) => b.startedAt - a.startedAt)
+  return finished[0]
+}
+
+// Bangun 1 set jalan kaki murni (testable): jarak > 0, durasi/elevasi opsional.
+export function buildQuickWalkSet(
+  exerciseId: string,
+  setNumber: number,
+  distanceKm: number,
+  durationSec: number,
+  elevationM?: number,
+): SessionSet | null {
+  if (!exerciseId || !(distanceKm > 0) || !(durationSec >= 0)) return null
   return {
-    id: partial.id ?? makeSetId(),
-    exerciseId: partial.exerciseId,
-    setNumber: partial.setNumber ?? 1,
-    weightKg: partial.weightKg ?? 0,
-    reps: partial.reps ?? 0,
+    id: makeSetId(),
+    exerciseId,
+    setNumber,
+    weightKg: 0,
+    reps: 0,
+    durationSec: Math.round(durationSec),
+    distanceKm: Math.round(distanceKm * 100) / 100,
+    ...(elevationM != null && elevationM > 0 ? { elevationM } : {}),
   }
+}
+
+// Cari exercise "Jalan Kaki" (case-insensitive), fallback gerakan cardio pertama.
+export function findWalkExercise(exercises: Exercise[]): Exercise | undefined {
+  const walk = exercises.find((e) => e.name.trim().toLowerCase() === 'jalan kaki')
+  if (walk) return walk
+  return exercises.find((e) => e.muscleGroup === 'Cardio' || e.category === 'cardio')
 }
 
 // ===== USER SETTINGS =====
@@ -302,7 +384,12 @@ export async function importBackup(
     for (const { ref, value } of writes.slice(i, i + CHUNK)) {
       batch.set(ref, value)
     }
-    await batch.commit()
+    try {
+      await batch.commit()
+    } catch (err) {
+      console.warn('[gymstore] importBackup chunk failed at', i, err)
+      throw err
+    }
   }
   return writes.length
 }
