@@ -422,17 +422,13 @@ export default function Progress() {
                 Minggu ini ({formatDMYWIB(win.start)} – {formatDMYWIB(win.end)})
               </div>
               <div className="row" style={{ marginTop: 6, alignItems: 'center' }}>
-                <span className="small muted" style={{ width: 96 }}>
-                  {fmtNumber(Math.round(t.dist * 10) / 10)} / {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km
-                </span>
                 <div className="bar-track grow" style={{ position: 'relative' }}>
                   <div className="bar-fill" style={{ width: `${pct}%` }} />
                   <div style={{ position: 'absolute', left: `${markPct}%`, top: 0, bottom: 0, width: 2, background: 'var(--warn, #f59e0b)' }} />
                 </div>
-                <span className="small" style={{ width: 60, textAlign: 'right' }}>{statusText}</span>
               </div>
               <div className="small muted" style={{ marginTop: 4, marginBottom: 8 }}>
-                {fmtHM(t.dur)} · {t.sessions} sesi
+                {fmtNumber(Math.round(t.dist * 10) / 10)} km / {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km · {statusText} · {fmtHM(t.dur)} · {t.sessions} sesi
               </div>
             </>
           )
