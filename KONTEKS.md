@@ -99,7 +99,7 @@ merge main --no-edit → GH Pages → cek HP
 
 ## 8. Status Terakhir
 
-- `freebuff` di **`546471f`** (LANJUTAN di bawah), `main` di `c70021a` (P1 dst BELUM di-merge ke main — merge tertunda).
+- `freebuff` = `main` = **`4212e81`** (merge 09 Sep 2026 — sinkron penuh, P1 + rehab + cardio + fix tanggal semua di dua-duanya).
 - PWA `sw.js` precache **33/33** (~1055 KB, filter .map).
 - Test **232 pass (17 file)**, lint 0 error (warning fast-refresh saja), typecheck 0.
 - **Mode Rehab FINAL (committed):** `rehabMode` di settings, cycle **16 sesi** `[leg-iso, leg-light, upper-r, cardio]×4` + wave W1 3×30s → W2 3×35s → W3 3×40s → W4 deload 2×30s, stiker `[R1-S01] .. — Wx`, deteksi iso gabungan `hasIsoSet` (leg day isi hold ikut kehitung), grid 16 kotak di beranda (hanya ronde berjalan), hitung sesi rehab saja, tombol tambah Riwayat disaring, mode Mingguan dihapus (Rotasi+Rehab saja). Lutut 60° + stop-rule nyeri/panas >5/10, Leg Curl tetap.
@@ -114,9 +114,9 @@ merge main --no-edit → GH Pages → cek HP
 3. `b589257` saran tidak dobel + Jalan Kaki → `ff71733` `syncPresetExercises` → `bdc5876` `fmtInput` anti-bulat → `59aa291` card Cardio → `16acf58` total mingguan → `bbd070b` label 1 baris → `bc1725d` `DecimalInput` → `06b1dc7` quick-log gabung.
 4. `546471f` (TERBARU) quick-log tanggal teks `HH/BB/TTTT` + `[Hari ini] [Kemarin]`: popup `input type=date` macet di desktop user (jalan di HP) → teks + `parseDMY`/`formatDMYInput` di `date.ts` (validasi kabisat/bulan/tahun, tolak masa depan), test `date.test.ts` 4 case.
 
-## 9. Next Move (update 09 Sep 2026)
+## 9. Next Move (update 09 Sep 2026, post-merge)
 
-1. **Merge `freebuff` → `main`** (tertinggal jauh: P1 + rehab + cardio semua belum di main): `checkout main && pull && merge freebuff --no-edit && npm test && push` → cek 2 URL.
-2. **Revoke token terekspos** (Vercel + GH) lalu ganti baru.
+1. **Cek 2 URL:** Vercel prod `https://gym-tracker-inky-rho.vercel.app` + GH Pages `https://miyazakikazuto.github.io/gym-tracker/` (tunggu deploy Pages selesai).
+2. **Revoke token terekspos** (Vercel dashboard + GitHub settings) lalu generate baru — full token hanya ada di chat session 09 Sep 2026, jangan tulis di repo (push protection nolak).
 3. Lanjut issue kecil bila ada (contoh: card volume `(Lainnya)` bila gerakan dihapus dari Library).
 4. Tiap langkah: `npm test && npm run lint && npm run build` → `push freebuff` → `merge main` → cek HP + desktop.
