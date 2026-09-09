@@ -12,6 +12,8 @@ import {
   rehabSuggestKey,
   rehabFullLabel,
   rehabWaveAt,
+  rehabRound,
+  rehabCellStatus,
 } from './rehab'
 import { presetByKey } from './templates'
 import type { Session } from '../types'
@@ -99,6 +101,26 @@ describe('rehabKeyAt / rehabFullLabel', () => {
     expect(rehabFullLabel(0, 'Leg Rehab Iso')).toBe('[R1-S01] Leg Rehab Iso — W1')
     expect(rehabFullLabel(4, 'Leg Rehab Iso')).toBe('[R1-S05] Leg Rehab Iso — W2')
     expect(rehabFullLabel(16, 'Leg Rehab Iso')).toBe('[R2-S01] Leg Rehab Iso — W1')
+  })
+})
+
+describe('rehabRound / rehabCellStatus', () => {
+  it('mulai R1, semua todo kecuali S1 current', () => {
+    expect(rehabRound(0)).toBe(1)
+    expect(rehabCellStatus(0, 0)).toBe('current')
+    expect(rehabCellStatus(0, 15)).toBe('todo')
+  })
+  it('selesai 3 sesi → S1-S3 done, S4 current', () => {
+    expect(rehabCellStatus(3, 0)).toBe('done')
+    expect(rehabCellStatus(3, 2)).toBe('done')
+    expect(rehabCellStatus(3, 3)).toBe('current')
+    expect(rehabCellStatus(3, 4)).toBe('todo')
+  })
+  it('selesai 16 → R2, semua terang lagi kecuali S1 current', () => {
+    expect(rehabRound(16)).toBe(2)
+    expect(rehabCellStatus(16, 15)).toBe('done')
+    expect(rehabCellStatus(16, 16)).toBe('current')
+    expect(rehabCellStatus(16, 17)).toBe('todo')
   })
 })
 

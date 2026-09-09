@@ -16,13 +16,79 @@ import {
 } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
-import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt } from '../lib/rehab'
+import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, rehabCellStatus, REHAB_WAVES } from '../lib/rehab'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: string }>
+}
+
+// Grid 16 kotak program rehab sebulan (4 baris W1-W4).
+// Gelap = sudah dilakukan, garis ungu = sesi saat ini, terang = jadwal ke depan.
+function RehabProgramGrid({ totalCompleted }: { totalCompleted: number }) {
+  const round = rehabRound(totalCompleted)
+  return (
+    <div className="card">
+      <div className="card-title">
+        <span>Program Rehab 1 Bulan</span>
+        <span className="badge accent">R{round}</span>
+      </div>
+      {[0, 1, 2, 3].map((w) => {
+        const wave = REHAB_WAVES[w]
+        return (
+          <div key={wave.label} style={{ marginTop: 8 }}>
+            <div className="small muted" style={{ fontWeight: 800, letterSpacing: 1, marginBottom: 4 }}>
+              {wave.label} {wave.name}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+              {[0, 1, 2, 3].map((i) => {
+                const idx = w * 4 + i
+                const key = rehabKeyAt(idx)
+                const st = rehabCellStatus(totalCompleted, idx)
+                const preset = presetByKey(key)
+                const tag = key === 'leg-iso' ? `${wave.isoHoldSec}d` : wave.label
+                return (
+                  <div
+                    key={idx}
+                    className={'shift-week-cell' + (st === 'current' ? ' today' : '')}
+                    style={
+                      st === 'current'
+                        ? { borderColor: 'var(--accent)', background: 'rgba(99,102,241,0.1)' }
+                        : st === 'done'
+                          ? { opacity: 0.4 }
+                          : undefined
+                    }
+                  >
+                    <div className="sw-dow" style={{ fontSize: 10 }}>
+                      S{idx + 1}
+                    </div>
+                    <div className="sw-dnum" style={{ fontSize: 11 }}>
+                      {preset?.shortLabel ?? key.toUpperCase()}
+                    </div>
+                    <span
+                      className="sw-shift"
+                      style={{
+                        background: dotColorFor(preset?.name ?? '') ?? 'var(--muted)',
+                        fontSize: 10,
+                        padding: '1px 4px',
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+      <div className="small muted" style={{ marginTop: 8 }}>
+        Gelap = sudah dilakukan · garis ungu = sesi saat ini
+      </div>
+    </div>
+  )
 }
 
 export default function Today() {
@@ -416,6 +482,9 @@ export default function Today() {
             )}
           </div>
 
+          {rehabMode ? (
+            <RehabProgramGrid totalCompleted={rehabPos.totalCompleted} />
+          ) : (
           <div className="card">
             <div className="card-title">
               {is531Active ? (
@@ -492,6 +561,7 @@ export default function Today() {
               </>
             )}
           </div>
+          )}
 
           {restToday && (
             <div className="card">

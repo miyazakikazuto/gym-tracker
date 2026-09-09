@@ -91,6 +91,23 @@ export function rehabSuggestKey(sessions: Session[]): RehabKey {
   return rehabKeyAt(rehabPosition(sessions).sessionIndex)
 }
 
+export type RehabCellStatus = 'done' | 'current' | 'todo'
+
+// Status tiap kotak grid program: sel global = round*16 + index.
+// done = sudah dilewati, current = posisi sekarang, todo = jadwal ke depan.
+export function rehabRound(totalCompleted: number): number {
+  return Math.floor(totalCompleted / REHAB_CYCLE_LENGTH) + 1
+}
+
+export function rehabCellStatus(totalCompleted: number, cellIndex: number): RehabCellStatus {
+  const pos = totalCompleted % REHAB_CYCLE_LENGTH
+  const round = Math.floor(totalCompleted / REHAB_CYCLE_LENGTH)
+  const cellRound = Math.floor(cellIndex / REHAB_CYCLE_LENGTH)
+  if (cellRound < round || (cellRound === round && (cellIndex % REHAB_CYCLE_LENGTH) < pos)) return 'done'
+  if (cellRound === round && (cellIndex % REHAB_CYCLE_LENGTH) === pos) return 'current'
+  return 'todo'
+}
+
 // Label stiker rehab — prefix R biar beda dari cycle 5/3/1 [C..],
 // wave W1-W4 nempel kayak scheme 5/3/1 (mis. "[R1-S05] Leg Rehab Iso — W2")
 export function rehabLabel(index: number): string {
