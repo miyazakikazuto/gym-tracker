@@ -7,6 +7,8 @@ import {
   prevMonthWindow,
   listWeekOptions,
   listMonthOptions,
+  cardioWeekTotal,
+  cardioWeekStatus,
 } from './periodSummary'
 import type { Bodyweight, Exercise, Session } from '../types'
 
@@ -32,6 +34,31 @@ function mkSession(id: string, date: string, sets: Session['sets'], over: Partia
 
 const WIN = { start: '2026-08-24', end: '2026-08-30' }
 const PREV = { start: '2026-08-17', end: '2026-08-23' }
+
+describe('cardioWeekTotal / cardioWeekStatus', () => {
+  const set = (exerciseId: string, distanceKm: number, durationSec: number) => ({
+    id: `${exerciseId}-${distanceKm}`, exerciseId, setNumber: 1, weightKg: 0, reps: 0, durationSec, distanceKm,
+  })
+  it('jumlah 2 sesi seminggu; sesi minggu lain & berjalan dikecualikan', () => {
+    const sessions = [
+      mkSession('a', '2026-08-25', [set('tread', 5, 1800)]),
+      mkSession('b', '2026-08-27', [set('tread', 7.4, 2400)]),
+      mkSession('c', '2026-08-20', [set('tread', 100, 9999)]),
+      mkSession('d', '2026-08-26', [set('tread', 50, 9999)], { endedAt: null }),
+      mkSession('e', '2026-08-26', [set('squat', 0, 0)]),
+    ]
+    const t = cardioWeekTotal(sessions, exercises, WIN)
+    expect(t.dist).toBeCloseTo(12.4)
+    expect(t.dur).toBe(4200)
+    expect(t.sessions).toBe(2)
+  })
+  it('status kurang/pas/lebih vs 15-25 km', () => {
+    expect(cardioWeekStatus(12.4)).toEqual({ status: 'kurang', diff: expect.closeTo(2.6) })
+    expect(cardioWeekStatus(15).status).toBe('pas')
+    expect(cardioWeekStatus(25).status).toBe('pas')
+    expect(cardioWeekStatus(30)).toEqual({ status: 'lebih', diff: 5 })
+  })
+})
 
 describe('listWeekOptions / listMonthOptions', () => {
   it('tanpa data → hanya periode berjalan', () => {

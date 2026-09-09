@@ -19,6 +19,50 @@ export function weekWindow(today?: string): PeriodWindow {
   return { start, end: addDays(start, 6) }
 }
 
+// ===== TARGET MINGGUAN CARDIO (fixed — jadikan setting bila kepakai) =====
+export const CARDIO_WEEK_MIN_KM = 15
+export const CARDIO_WEEK_MAX_KM = 25
+
+export interface CardioWeekTotal {
+  dist: number // km
+  dur: number // detik
+  sessions: number // sesi unik selesai
+}
+
+// Total jarak + durasi cardio dalam window — hanya sesi SELESAI.
+// Filter gerakan sama kayak cardioMap di Progress (muscleGroup/Cardio atau category cardio).
+export function cardioWeekTotal(
+  sessions: Session[],
+  exercises: Exercise[],
+  w: PeriodWindow,
+): CardioWeekTotal {
+  const ids = new Set<string>()
+  let dist = 0
+  let dur = 0
+  for (const s of sessions) {
+    if (s.endedAt === null) continue
+    if (s.date < w.start || s.date > w.end) continue
+    let counted = false
+    for (const set of s.sets) {
+      const ex = exercises.find((e) => e.id === set.exerciseId)
+      if (!ex || (ex.muscleGroup !== 'Cardio' && ex.category !== 'cardio')) continue
+      dist += set.distanceKm ?? 0
+      dur += set.durationSec ?? 0
+      counted = true
+    }
+    if (counted) ids.add(s.id)
+  }
+  return { dist, dur, sessions: ids.size }
+}
+
+export type CardioWeekStatus = 'kurang' | 'pas' | 'lebih'
+
+export function cardioWeekStatus(dist: number): { status: CardioWeekStatus; diff: number } {
+  if (dist < CARDIO_WEEK_MIN_KM) return { status: 'kurang', diff: CARDIO_WEEK_MIN_KM - dist }
+  if (dist <= CARDIO_WEEK_MAX_KM) return { status: 'pas', diff: dist - CARDIO_WEEK_MIN_KM }
+  return { status: 'lebih', diff: dist - CARDIO_WEEK_MAX_KM }
+}
+
 export function monthWindow(today?: string): PeriodWindow {
   const key = today ?? todayKey()
   const [y, m] = key.split('-').map(Number)

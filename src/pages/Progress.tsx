@@ -13,6 +13,10 @@ import {
   prevMonthWindow,
   listWeekOptions,
   listMonthOptions,
+  cardioWeekTotal,
+  cardioWeekStatus,
+  CARDIO_WEEK_MIN_KM,
+  CARDIO_WEEK_MAX_KM,
 } from '../lib/periodSummary'
 import StatCard from '../components/StatCard'
 import type { Exercise, Session } from '../types'
@@ -400,6 +404,39 @@ export default function Progress() {
         <div className="small muted" style={{ marginBottom: 8 }}>
           Dari sesi Cardio Day — catat manual dari Strava (jarak, durasi, elevasi).
         </div>
+        {(() => {
+          const win = weekWindow(today)
+          const t = cardioWeekTotal(sessions, exercises, win)
+          const st = cardioWeekStatus(t.dist)
+          const pct = Math.min(100, (t.dist / CARDIO_WEEK_MAX_KM) * 100)
+          const markPct = (CARDIO_WEEK_MIN_KM / CARDIO_WEEK_MAX_KM) * 100
+          const statusText =
+            st.status === 'kurang'
+              ? `kurang ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
+              : st.status === 'pas'
+                ? 'pas ✓'
+                : `lebih ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
+          return (
+            <>
+              <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
+                Minggu ini ({formatDMYWIB(win.start)} – {formatDMYWIB(win.end)})
+              </div>
+              <div className="row" style={{ marginTop: 6, alignItems: 'center' }}>
+                <span className="small muted" style={{ width: 96 }}>
+                  {fmtNumber(Math.round(t.dist * 10) / 10)} / {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km
+                </span>
+                <div className="bar-track grow" style={{ position: 'relative' }}>
+                  <div className="bar-fill" style={{ width: `${pct}%` }} />
+                  <div style={{ position: 'absolute', left: `${markPct}%`, top: 0, bottom: 0, width: 2, background: 'var(--warn, #f59e0b)' }} />
+                </div>
+                <span className="small" style={{ width: 60, textAlign: 'right' }}>{statusText}</span>
+              </div>
+              <div className="small muted" style={{ marginTop: 4, marginBottom: 8 }}>
+                {fmtHM(t.dur)} · {t.sessions} sesi
+              </div>
+            </>
+          )
+        })()}
         {cardioList.length === 0 ? (
           <div className="small muted">Belum ada data cardio. Isi durasi & jarak (km) di sesi Cardio Day.</div>
         ) : (
