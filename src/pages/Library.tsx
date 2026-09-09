@@ -243,6 +243,25 @@ export default function Library() {
   )
 }
 
+// Default cerdas ngikut kategori — biar gerakan kaki nggak kesimpen Dada+Barbell.
+// Nama berbau iso/hold/plank → cara pencatatan durasi.
+function smartDefaults(category: string, name: string): { muscleGroup: string; equipment: string; type: 'reps' | 'duration' } {
+  const muscle =
+    category === 'leg' ? 'Kaki'
+    : category === 'push' ? 'Dada'
+    : category === 'pull' ? 'Punggung'
+    : category === 'cardio' ? 'Cardio'
+    : 'Core'
+  const equipment =
+    category === 'leg' ? 'Machine'
+    : category === 'push' ? 'Dumbbell'
+    : category === 'pull' ? 'Kabel'
+    : 'Bodyweight'
+  const type: 'reps' | 'duration' =
+    category === 'cardio' || /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
+  return { muscleGroup: muscle, equipment, type }
+}
+
 function ExerciseForm({
   initial,
   defaultCategory,
@@ -256,16 +275,19 @@ function ExerciseForm({
 }) {
   const uid = useUid()
   const [name, setName] = useState(initial?.name ?? '')
-  const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? MUSCLE_GROUPS[0])
-  const [equipment, setEquipment] = useState<string>(initial?.equipment ?? EQUIPMENTS[0])
   const initCat = initial?.category
       ? categoryOfExercise({ category: initial.category, muscleGroup: initial.muscleGroup })
       : defaultCategory
+  const initSmart = smartDefaults(initCat, initial?.name ?? '')
+  const [muscleGroup, setMuscleGroup] = useState<string>(initial?.muscleGroup ?? initSmart.muscleGroup)
+  const [equipment, setEquipment] = useState<string>(initial?.equipment ?? initSmart.equipment)
   const [category, setCategory] = useState<string>(initCat)
   const [extra, setExtra] = useState<string[]>(initial?.extraCategories ?? [])
-  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? (initCat === 'cardio' ? 'duration' : 'reps'))
+  const [type, setType] = useState<'reps' | 'duration'>(initial?.type ?? initSmart.type)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // Peringatan non-blokir: nama isometrik tapi dicatat reps
+  const isoMismatch = !busy && /iso|isometr|hold|plank/i.test(name) && type === 'reps'
 
   async function save() {
     setError('')
@@ -307,7 +329,16 @@ function ExerciseForm({
           <select className="input" value={category} onChange={(e) => {
             const c = e.target.value
             setCategory(c)
-            if (c === 'cardio') setType('duration')
+            // Gerakan baru: default otot/alat/cara catat ngikut kategori.
+            // Edit existing: hanya auto-cara-catat (jangan timpa pilihan user).
+            if (!initial) {
+              const s = smartDefaults(c, name)
+              setMuscleGroup(s.muscleGroup)
+              setEquipment(s.equipment)
+              setType(s.type)
+            } else if (c === 'cardio') {
+              setType('duration')
+            }
           }}>
             {EXERCISE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
           </select>
@@ -316,7 +347,7 @@ function ExerciseForm({
         <div className="field">
           <label>Juga tampil di hari lain</label>
           <div className="row wrap" style={{ gap: 6 }}>
-            {EXERCISE_CATEGORIES.filter((c) => c.key !== category && c.key !== 'cardio').map((c) => {
+            {EXERCISE_CATEGORIES.filter((c) => c.key !== category && c.key !== 'cardio' && !(category === 'leg' && (c.key === 'push' || c.key === 'pull'))).map((c) => {
               const on = extra.includes(c.key)
               return (
                 <button
@@ -338,6 +369,12 @@ function ExerciseForm({
             {EXERCISE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
           </select>
         </div>
+
+        {isoMismatch && (
+          <div className="small" style={{ color: 'var(--warn, #f59e0b)', marginBottom: 10 }}>
+            Namanya berbau isometrik — biasanya dicatat Durasi (hold detik), bukan Reps.
+          </div>
+        )}
 
         <div className="field">
           <label>Grup otot</label>

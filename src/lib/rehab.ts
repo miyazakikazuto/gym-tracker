@@ -117,6 +117,21 @@ export function rehabSuggestKey(sessions: Session[], exercises: Exercise[] = [])
   return rehabKeyAt(rehabPosition(sessions, exercises).sessionIndex)
 }
 
+// Pool "Tambahkan gerakan" di halaman Sesi difilter per key preset — key rehab
+// (leg-iso/leg-light/upper-r) tidak match kategori library (leg/push/pull),
+// jadi pool kosong. Mapping ini menerjemahkan key rehab ke kategori dasar.
+export function rehabPoolKeys(key: string): string[] {
+  switch (key) {
+    case 'leg-iso':
+    case 'leg-light':
+      return ['leg']
+    case 'upper-r':
+      return ['push', 'pull']
+    default:
+      return [key]
+  }
+}
+
 export type RehabCellStatus = 'done' | 'current' | 'todo'
 
 // Status tiap kotak grid program: sel global = round*16 + index.

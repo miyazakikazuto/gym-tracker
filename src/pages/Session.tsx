@@ -10,7 +10,7 @@ import { parseDecimal } from '../lib/parse'
 import { presetByName } from '../lib/templates'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
-import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt } from '../lib/rehab'
+import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
 import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
 import type { SessionSet } from '../types'
@@ -394,7 +394,10 @@ export default function Session() {
 
   const addPool = (() => {
     const cat = presetByName(session.planName)?.key
-    return cat ? exercises.filter((e) => categoryKeysOfExercise(e).includes(cat)) : exercises
+    if (!cat) return exercises
+    // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
+    const keys = rehabPoolKeys(cat)
+    return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 
   return (
@@ -503,7 +506,7 @@ export default function Session() {
               </>
             ) : (
               <>
-                <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·mnt)' : 'Rep'}</span>
+                <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·m·d)' : 'Rep'}</span>
                 {dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
                 <span className="int">Int</span>
               </>
@@ -655,6 +658,58 @@ export default function Session() {
   )
 }
 
+// Input durasi jam·menit·DETIK — detik wajib ada untuk hold isometrik 30-45 dtk.
+// Tanpa kolom detik, hold 30 dtk tampil kosong dan ke-wipe jadi 0 saat diedit.
+function DurInputs({ value, onChange, narrow }: { value: number; onChange: (sec: number) => void; narrow?: boolean }) {
+  const w = narrow ? 28 : 32
+  const h = Math.floor(value / 3600)
+  const m = Math.floor((value % 3600) / 60)
+  const sec = value % 60
+  const num = (v: string, min: number, max?: number) => {
+    const n = Math.floor(Number(v) || 0)
+    return Math.max(min, max === undefined ? n : Math.min(max, n))
+  }
+  return (
+    <div className="row" style={{ gap: 2, alignItems: 'center' }}>
+      <input
+        className="wt"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        style={{ width: w, textAlign: 'center' }}
+        value={h || ''}
+        placeholder="0"
+        onChange={(e) => onChange(num(e.target.value, 0) * 3600 + m * 60 + sec)}
+      />
+      <span className="small muted">j</span>
+      <input
+        className="wt"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={59}
+        style={{ width: w, textAlign: 'center' }}
+        value={m || ''}
+        placeholder="0"
+        onChange={(e) => onChange(h * 3600 + num(e.target.value, 0, 59) * 60 + sec)}
+      />
+      <span className="small muted">mnt</span>
+      <input
+        className="wt"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={59}
+        style={{ width: w, textAlign: 'center' }}
+        value={sec || ''}
+        placeholder="0"
+        onChange={(e) => onChange(h * 3600 + m * 60 + num(e.target.value, 0, 59))}
+      />
+      <span className="small muted">dtk</span>
+    </div>
+  )
+}
+
 const SetRow = memo(function SetRow({
   s,
   dur,
@@ -679,39 +734,7 @@ const SetRow = memo(function SetRow({
       <span className="num">{s.setNumber}</span>
       {isCardio ? (
         <>
-          <div className="row" style={{ gap: 2, alignItems: 'center' }}>
-            <input
-              className="wt"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              style={{ width: 32, textAlign: 'center' }}
-              value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
-              placeholder="0"
-              onChange={(e) => {
-                const h = Number(e.target.value) || 0
-                const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
-                onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-              }}
-            />
-            <span className="small muted">j</span>
-            <input
-              className="wt"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={59}
-              style={{ width: 32, textAlign: 'center' }}
-              value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
-              placeholder="0"
-              onChange={(e) => {
-                const m = Number(e.target.value) || 0
-                const h = Math.floor((s.durationSec ?? 0) / 3600)
-                onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-              }}
-            />
-            <span className="small muted">mnt</span>
-          </div>
+          <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} />
           <input
             className="wt dist"
             type="text"
@@ -754,40 +777,9 @@ const SetRow = memo(function SetRow({
           />
           <button className="step-btn" onClick={() => onStep(s.id, 0.5)}>＋</button>
           {dur ? (
-            // Durasi pakai jam + menit (bukan detik mentah) — konsisten dengan
-            // baris cardio. Backend tetap simpan durationSec.
-            <div className="row" style={{ gap: 2, alignItems: 'center', width: 76 }}>
-              <input
-                className="wt"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                style={{ width: 30, textAlign: 'center' }}
-                value={Math.floor((s.durationSec ?? 0) / 3600) || ''}
-                placeholder="0"
-                onChange={(e) => {
-                  const h = Number(e.target.value) || 0
-                  const m = Math.floor(((s.durationSec ?? 0) % 3600) / 60)
-                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-                }}
-              />
-              <span className="small muted">j</span>
-              <input
-                className="wt"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={59}
-                style={{ width: 30, textAlign: 'center' }}
-                value={Math.floor(((s.durationSec ?? 0) % 3600) / 60) || ''}
-                placeholder="0"
-                onChange={(e) => {
-                  const m = Number(e.target.value) || 0
-                  const h = Math.floor((s.durationSec ?? 0) / 3600)
-                  onPatch(s.id, { durationSec: h * 3600 + m * 60 })
-                }}
-              />
-            </div>
+            // Durasi pakai jam·menit·detik — detik wajib untuk hold isometrik.
+            // Backend tetap simpan durationSec.
+            <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} narrow />
           ) : (
             <input
               className="wt"

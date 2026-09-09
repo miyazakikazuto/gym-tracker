@@ -16,6 +16,7 @@ import {
   rehabWaveAt,
   rehabRound,
   rehabCellStatus,
+  rehabPoolKeys,
 } from './rehab'
 import { presetByKey } from './templates'
 import type { Session } from '../types'
@@ -156,6 +157,16 @@ describe('rehabKeyAt / rehabFullLabel', () => {
     expect(rehabFullLabel(0, 'Leg Rehab Iso')).toBe('[R1-S01] Leg Rehab Iso — W1')
     expect(rehabFullLabel(4, 'Leg Rehab Iso')).toBe('[R1-S05] Leg Rehab Iso — W2')
     expect(rehabFullLabel(16, 'Leg Rehab Iso')).toBe('[R2-S01] Leg Rehab Iso — W1')
+  })
+})
+
+describe('rehabPoolKeys', () => {
+  it('key rehab dipetakan ke kategori library', () => {
+    expect(rehabPoolKeys('leg-iso')).toEqual(['leg'])
+    expect(rehabPoolKeys('leg-light')).toEqual(['leg'])
+    expect(rehabPoolKeys('upper-r')).toEqual(['push', 'pull'])
+    expect(rehabPoolKeys('easy')).toEqual(['easy'])
+    expect(rehabPoolKeys('leg')).toEqual(['leg'])
   })
 })
 
