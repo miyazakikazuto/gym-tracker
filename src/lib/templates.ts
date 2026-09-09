@@ -137,6 +137,33 @@ export function presetByKey(key: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.key === key)
 }
 
+// Kategori library untuk gerakan preset — key preset rehab (leg-iso/upper-r)
+// BUKAN kategori valid (tab Library: leg/push/pull/easy/cardio), jadi petakan
+// ke kategori dasar. Tanpa ini gerakan auto-create tidak muncul di tab mana pun.
+const MUSCLE_TO_BASE: Record<string, string> = {
+  Dada: 'push',
+  Trisep: 'push',
+  Bahu: 'push',
+  Punggung: 'pull',
+  Bisep: 'pull',
+  Forearm: 'pull',
+  Kaki: 'leg',
+  Cardio: 'cardio',
+  Core: 'easy',
+  Lainnya: 'easy',
+}
+
+export function baseCategoryForPresetKey(key: string, muscleGroup: string): string {
+  if (['leg', 'push', 'pull', 'easy', 'cardio'].includes(key)) return key
+  return MUSCLE_TO_BASE[muscleGroup] ?? 'leg'
+}
+
+// Isometrik/hold/plank + seluruh cardio dicatat durasi, sisanya reps.
+export function typeForPresetExercise(name: string, muscleGroup: string): 'reps' | 'duration' {
+  if (muscleGroup === 'Cardio') return 'duration'
+  return /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
+}
+
 export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
 }

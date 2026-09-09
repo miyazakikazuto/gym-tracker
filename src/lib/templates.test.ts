@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PLAN_PRESETS, presetByKey, presetByName, isRest, shortLabelFor, dotColorFor } from './templates'
+import { PLAN_PRESETS, presetByKey, presetByName, isRest, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise } from './templates'
 
 describe('PLAN_PRESETS', () => {
   it('memiliki 9 preset: leg/push/pull/easy/cardio/rest + rehab (leg-iso/leg-light/upper-r)', () => {
@@ -35,6 +35,25 @@ describe('isRest', () => {
   })
   it('case-sensitive? preset name exact → false bila beda case', () => {
     expect(isRest('rest day')).toBe(false)
+  })
+})
+
+describe('baseCategoryForPresetKey / typeForPresetExercise', () => {
+  it('key standar = key itu sendiri', () => {
+    expect(baseCategoryForPresetKey('leg', 'Kaki')).toBe('leg')
+    expect(baseCategoryForPresetKey('cardio', 'Cardio')).toBe('cardio')
+  })
+  it('key rehab dipetakan ke tab library (bukan key mentah)', () => {
+    expect(baseCategoryForPresetKey('leg-iso', 'Kaki')).toBe('leg')
+    expect(baseCategoryForPresetKey('leg-light', 'Kaki')).toBe('leg')
+    expect(baseCategoryForPresetKey('upper-r', 'Dada')).toBe('push')
+    expect(baseCategoryForPresetKey('upper-r', 'Punggung')).toBe('pull')
+  })
+  it('iso + cardio = durasi, sisanya reps', () => {
+    expect(typeForPresetExercise('Isometrik Quad 60°', 'Kaki')).toBe('duration')
+    expect(typeForPresetExercise('Jalan Kaki', 'Cardio')).toBe('duration')
+    expect(typeForPresetExercise('Treadmill', 'Cardio')).toBe('duration')
+    expect(typeForPresetExercise('Leg Curl', 'Kaki')).toBe('reps')
   })
 })
 

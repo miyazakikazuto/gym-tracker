@@ -81,6 +81,41 @@ export async function createExercise(uid: string, data: Omit<Exercise, 'id'>) {
   return addDoc(userGymRef(uid, 'exercises'), data)
 }
 
+// Sinkronisasi gerakan preset ke library (sekali jalan per akun lama):
+// preset baru (mis. Jalan Kaki, Isometrik Quad) tidak masuk akun lama lewat
+// seed (seed hanya akun kosong) maupun templatePlan (bypass bila plan sudah
+// ada). Fungsi ini membuat yang HILANG saja via 1 batch — tidak pernah
+// menghapus/mengubah yang sudah ada. Return jumlah yang dibuat.
+export async function syncPresetExercises(uid: string, exercises: Exercise[]): Promise<number> {
+  const { PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise } = await import('./templates')
+  const known = new Set(exercises.map((e) => e.name.trim().toLowerCase()))
+  const missing: Array<Omit<Exercise, 'id'>> = []
+  for (const preset of PLAN_PRESETS) {
+    if (preset.key === 'rest') continue
+    for (const pe of preset.exercises) {
+      const key = pe.name.trim().toLowerCase()
+      if (known.has(key)) continue
+      known.add(key)
+      const type = typeForPresetExercise(pe.name, pe.muscleGroup)
+      missing.push({
+        name: pe.name,
+        muscleGroup: pe.muscleGroup,
+        equipment: pe.equipment,
+        category: baseCategoryForPresetKey(preset.key, pe.muscleGroup),
+        ...(type === 'duration' ? { type } : {}),
+      })
+    }
+  }
+  if (missing.length === 0) return 0
+  const db = getDb()
+  const batch = writeBatch(db)
+  for (const m of missing) {
+    batch.set(doc(collection(db, 'users', uid, 'exercises')), m)
+  }
+  await batch.commit()
+  return missing.length
+}
+
 export async function updateExercise(uid: string, id: string, data: Omit<Exercise, 'id'>) {
   return updateDoc(doc(getDb(), 'users', uid, 'exercises', id), data as object)
 }

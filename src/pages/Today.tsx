@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan, type PlanItem } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession, createExercise } from '../lib/gymstore'
-import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, type PlanPreset } from '../lib/templates'
+import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -220,13 +220,18 @@ export default function Today() {
       let ex = exercises.find((e) => e.name.trim().toLowerCase() === pe.name.trim().toLowerCase())
       if (!ex) {
         try {
+          // Kategori dipetakan ke tab library (key rehab bukan kategori valid),
+          // tipe iso/cardio = durasi agar input detik + rekap benar.
+          const category = baseCategoryForPresetKey(preset.key, pe.muscleGroup)
+          const type = typeForPresetExercise(pe.name, pe.muscleGroup)
           const ref = await createExercise(uid, {
             name: pe.name,
             muscleGroup: pe.muscleGroup,
             equipment: pe.equipment,
-            category: preset.key,
+            category,
+            ...(type === 'duration' ? { type } : {}),
           })
-          ex = { id: ref.id, name: pe.name, muscleGroup: pe.muscleGroup, equipment: pe.equipment, category: preset.key }
+          ex = { id: ref.id, name: pe.name, muscleGroup: pe.muscleGroup, equipment: pe.equipment, category }
         } catch {
           continue // gagal offline — lewati gerakan ini (best-effort)
         }

@@ -178,6 +178,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [uid, ready, sessions, settings])
 
+  // Sinkronisasi gerakan preset baru ke akun lama (sekali jalan):
+  // seed hanya untuk akun kosong + templatePlan di-bypass bila plan sudah ada,
+  // jadi preset baru (Jalan Kaki, Isometrik Quad, unilateral kanan) tidak pernah
+  // masuk library lama. Sync ini cuma TAMBAH yang hilang via 1 batch.
+  const syncedRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || !exercisesFromServer || syncedRef.current) return
+    if (exercises.length === 0 && sessions.length === 0) return // akun baru → seed yang urus
+    syncedRef.current = true
+    void (async () => {
+      try {
+        const { syncPresetExercises } = await import('../lib/gymstore')
+        const n = await syncPresetExercises(uid, exercises)
+        if (n > 0) showToast(`${n} gerakan baru ditambahkan ke library`)
+      } catch (err) {
+        console.warn('[DataContext] sync preset gagal:', err)
+        syncedRef.current = false
+      }
+    })()
+  }, [uid, ready, exercisesFromServer, exercises, sessions.length])
+
   // Seed default exercises untuk akun baru (0 exercises, 0 sessions).
   // Idempoten & aman race: hanya jalan setelah data konfirmasi dari SERVER —
   // bukan sekadar cache lokal yang belum terisi (internet lambat / storage bersih).
