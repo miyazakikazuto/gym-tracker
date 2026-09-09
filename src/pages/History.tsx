@@ -101,7 +101,12 @@ export default function History() {
   const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
   const usedPlanNames = daySessions.map((s) => s.planName)
   const presetNames = PLAN_PRESETS.map((p) => p.name)
+  // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
+  // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.
+  const REHAB_PRESET_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio', 'rest']
+  const rehabMode = settings.rehabMode === true
   const addOptions = PLAN_PRESETS
+    .filter(({ key }) => !rehabMode || REHAB_PRESET_KEYS.includes(key))
     .map((preset) => ({
       preset,
       plan: plans.find((p) => p.name === preset.name),
