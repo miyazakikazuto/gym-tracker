@@ -660,8 +660,7 @@ export default function Session() {
 
 // Input durasi jam·menit·DETIK — detik wajib ada untuk hold isometrik 30-45 dtk.
 // Tanpa kolom detik, hold 30 dtk tampil kosong dan ke-wipe jadi 0 saat diedit.
-function DurInputs({ value, onChange, narrow }: { value: number; onChange: (sec: number) => void; narrow?: boolean }) {
-  const w = narrow ? 28 : 32
+function DurInputs({ value, onChange }: { value: number; onChange: (sec: number) => void }) {
   const h = Math.floor(value / 3600)
   const m = Math.floor((value % 3600) / 60)
   const sec = value % 60
@@ -669,40 +668,42 @@ function DurInputs({ value, onChange, narrow }: { value: number; onChange: (sec:
     const n = Math.floor(Number(v) || 0)
     return Math.max(min, max === undefined ? n : Math.min(max, n))
   }
+  // Lebar via CSS .wt.dur (46px, tanpa spinner) — JANGAN inline width kecil,
+  // spinner desktop memakan tempat sehingga digit tidak kelihatan di web.
   return (
     <div className="row" style={{ gap: 2, alignItems: 'center' }}>
       <input
-        className="wt"
+        className="wt dur"
         type="number"
         inputMode="numeric"
         min={0}
-        style={{ width: w, textAlign: 'center' }}
         value={h || ''}
         placeholder="0"
+        aria-label="Jam"
         onChange={(e) => onChange(num(e.target.value, 0) * 3600 + m * 60 + sec)}
       />
       <span className="small muted">j</span>
       <input
-        className="wt"
+        className="wt dur"
         type="number"
         inputMode="numeric"
         min={0}
         max={59}
-        style={{ width: w, textAlign: 'center' }}
         value={m || ''}
         placeholder="0"
+        aria-label="Menit"
         onChange={(e) => onChange(h * 3600 + num(e.target.value, 0, 59) * 60 + sec)}
       />
       <span className="small muted">mnt</span>
       <input
-        className="wt"
+        className="wt dur"
         type="number"
         inputMode="numeric"
         min={0}
         max={59}
-        style={{ width: w, textAlign: 'center' }}
         value={sec || ''}
         placeholder="0"
+        aria-label="Detik"
         onChange={(e) => onChange(h * 3600 + m * 60 + num(e.target.value, 0, 59))}
       />
       <span className="small muted">dtk</span>
@@ -779,7 +780,7 @@ const SetRow = memo(function SetRow({
           {dur ? (
             // Durasi pakai jam·menit·detik — detik wajib untuk hold isometrik.
             // Backend tetap simpan durationSec.
-            <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} narrow />
+            <DurInputs value={s.durationSec ?? 0} onChange={(sec) => onPatch(s.id, { durationSec: sec })} />
           ) : (
             <input
               className="wt"

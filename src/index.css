@@ -300,6 +300,12 @@ body {
 .set-row .num { width: 26px; color: var(--muted); font-weight: 700; font-size: 13px; }
 .set-row .wt, .set-row .rp { width: 74px; text-align: center; background: var(--bg2); border:1px solid var(--border); border-radius:8px; padding: 7px 6px; font-size: 14px; color: var(--text); }
 .set-row .wt.dist { width: 60px; }
+/* Input durasi j·mnt·dtk: 46px + tanpa spinner desktop (spinner makan ±14px
+   sehingga digit tidak kelihatan di kotak 28-32px — "kotak kosong" di web). */
+.set-row .wt.dur { width: 46px; padding: 7px 4px; }
+.set-row .wt.dur::-webkit-outer-spin-button,
+.set-row .wt.dur::-webkit-inner-spin-button { -webkit-appearance: none; display: none; }
+.set-row .wt.dur { -moz-appearance: textfield; appearance: textfield; }
 
 .ex-item {
   display: flex;
@@ -516,4 +522,5 @@ body {
   .set-row .num { width: 20px; font-size: 12px; }
   .set-row .wt, .set-row .rp { width: 58px; padding: 7px 4px; }
   .set-row .wt.dist { width: 48px; }
+  .set-row .wt.dur { width: 42px; padding: 7px 3px; }
 }
