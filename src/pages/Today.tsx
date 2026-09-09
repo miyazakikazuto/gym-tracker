@@ -17,47 +17,12 @@ import {
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import { rehabPosition, rehabKeyAt, rehabFullLabel } from '../lib/rehab'
-import type { Session } from '../types'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: string }>
-}
-
-function DayStrip({
-  days,
-  base,
-  sessions,
-  plans,
-}: {
-  days: string[]
-  base: string
-  sessions: Session[]
-  plans: WorkoutPlan[]
-}) {
-  return (
-    <div className="day-strip">
-      {days.map((key) => {
-        const dow = dayOfWeek(key)
-        const dd = key.slice(8, 10)
-        const hasSession = sessions.some((s) => s.date === key && s.endedAt)
-        const isToday = key === base
-        const short = dow === 1 ? 'Sen' : DAY_NAMES[dow].slice(0, 3)
-        const planForDow = plans.find((p) => p.dayOfWeek === dow)
-        const label = planForDow ? shortLabelFor(planForDow.name) : ''
-        const rest = planForDow ? isRest(planForDow.name) : false
-        return (
-          <div className={'day-chip' + (isToday ? ' today' : '') + (hasSession ? ' done' : '')} key={key}>
-            <div className="dow">{short}</div>
-            <div className="dnum">{dd}</div>
-            {rest ? <div className="plan-label rest">REST</div> : label && <div className="plan-label">{label}</div>}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 export default function Today() {
@@ -100,12 +65,8 @@ export default function Today() {
   }
 
   const base = todayKey()
-  const weekStart = addDays(base, -dayOfWeek(base))
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const nowDow = dayOfWeek(base)
 
-  // ===== Mode Rotasi =====
-  const rotationMode = settings.rotationMode !== false // default: aktif
+  // ===== Rotasi (satu-satunya mode jadwal — mode Mingguan dihapus) =====
   const rot = rotationOf(settings)
   const last = lastFinishedSession(sessions)
   const lastKey = last ? presetByName(last.planName)?.key : undefined
@@ -144,9 +105,6 @@ export default function Today() {
   const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRest(s.planName))
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRest(s.planName))
 
-  const todayPlan = plans.find((p) => p.dayOfWeek === nowDow)
-  const todayIsRest = todayPlan ? isRest(todayPlan.name) : false
-
   // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Pull/Push/
   // Easy/Cardio selalu bisa dipilih walau belum diatur di "Kelola jadwal".
   // Rest Day dikecualikan (ada tombol "Istirahat hari ini").
@@ -164,20 +122,16 @@ export default function Today() {
         : `${p.exercises.length} gerakan (template)`,
     }))
 
-  const showStart = rotationMode ? !restToday && !todayDone : !todayIsRest
+  const showStart = !restToday && !todayDone
   // CTA bawah hanya tampil saat kartu Saran (dengan tombol Mulai inline) tidak tampak —
   // hindari dua tombol Mulai serentak di satu layar.
-  const showBottomStart = showStart && (!rotationMode || restToday)
+  const showBottomStart = showStart && restToday
 
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
-    : rotationMode
-      ? effectivePlan
-        ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
-        : 'Buat plan saran dulu'
-      : todayPlan
-        ? 'Mulai sesi hari ini'
-        : 'Atur jadwal & mulai'
+    : effectivePlan
+      ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
+      : 'Buat plan saran dulu'
 
   // Plan virtual dari preset — dipakai saat plan belum dibuat di Kelola jadwal.
   // Gerakan preset dicocokkan dengan library; yang belum ada otomatis dibuat ke
@@ -259,19 +213,12 @@ export default function Today() {
       navigate(`/session/${activeSession.id}`)
       return
     }
-    if (rotationMode) {
-      if (!effectivePlan) {
-        setShowPlan(true)
-        return
-      }
-      void createAndOpen(effectivePlan, cycleLabel)
+    if (!effectivePlan) {
+      setShowPlan(true)
       return
     }
-    if (todayPlan && !todayIsRest) {
-      void createAndOpen(todayPlan)
-    } else {
-      setShowPlan(true)
-    }
+    // Rehab: nama ikut plan (jangan oper cycleLabel 5/3/1 — stiker rehab dihitung di createAndOpen)
+    void createAndOpen(effectivePlan, rehabMode ? undefined : cycleLabel)
   }
 
   async function handleSkip() {
@@ -336,9 +283,8 @@ export default function Today() {
         </div>
       </div>
 
-      {rotationMode ? (
-        <>
-          <div className="card shift-card">
+      <>
+        <div className="card shift-card">
             <div className="card-title">
               <span className="row" style={{ gap: 8 }}>
                 <span className="shift-dot" style={{ background: SHIFT_COLORS[todayShift] }} />
@@ -550,43 +496,7 @@ export default function Today() {
               </div>
             </div>
           )}
-        </>
-      ) : (
-        <>
-          <DayStrip days={days} base={base} sessions={sessions} plans={plans} />
-
-          {todayPlan && !todayIsRest && todaySessions.length === 0 && (
-            <div className="card">
-              <div className="card-title">
-                <span>Jadwal: {todayPlan.name}</span>
-                <span className="badge accent">{DAY_NAMES[nowDow]}</span>
-              </div>
-              {todayPlan.items.map((it, i) => {
-                const ex = exercises.find((e) => e.id === it.exerciseId)
-                return (
-                  <div className="row" key={i} style={{ padding: '6px 0' }}>
-                    <span className="num">{i + 1}.</span>
-                    <span className="grow">{ex?.name ?? 'Gerakan'}</span>
-                    <span className="badge">{it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {todayIsRest && (
-            <div className="card">
-              <div className="card-title">
-                <span>Hari ini istirahat</span>
-                <span className="badge" style={{ background: 'rgba(248,113,113,0.15)', color: 'var(--danger)' }}>REST</span>
-              </div>
-              <div className="small muted">
-                Pulihkan otot, tidur cukup, dan minum air putih. Tidak ada jadwal latihan hari ini.
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      </>
 
       {!ready ? (
         <div className="empty">Memuat…</div>

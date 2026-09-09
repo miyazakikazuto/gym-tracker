@@ -39,7 +39,6 @@ export default function Settings() {
   const { user } = useAuth()
   const { exercises, plans, sessions, bodyweights, settings, ready, saveSettings } = useData()
   const rot = rotationOf(settings)
-  const rotationMode = settings.rotationMode !== false // default: aktif
   const nextShifts = Array.from({ length: 12 }, (_, i) => {
     const date = addDays(rot.anchor, i)
     return { date, sh: cycleShiftAt(rot.anchor, date) }
@@ -254,32 +253,10 @@ export default function Settings() {
       <div className="subtitle">Jadwal, akun, backup & data</div>
 
       <div className="card">
-        <div className="card-title">Mode jadwal</div>
-        <div className="row" style={{ gap: 6 }}>
-          <button
-            className={'btn sm ' + (rotationMode ? 'primary' : 'ghost')}
-            style={{ flex: 1 }}
-            onClick={() => saveSettings({ rotationMode: true })}
-          >
-            Rotasi
-          </button>
-          <button
-            className={'btn sm ' + (!rotationMode ? 'primary' : 'ghost')}
-            style={{ flex: 1 }}
-            onClick={() => saveSettings({ rotationMode: false })}
-          >
-            Mingguan
-          </button>
+        <div className="card-title">Rotasi & Shift</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Saran harian mengikuti urutan rotasi & sesi terakhir — cocok untuk jadwal kerja shift.
         </div>
-        <div className="small muted" style={{ marginTop: 8 }}>
-          {rotationMode
-            ? 'Saran harian mengikuti urutan rotasi & sesi terakhir — cocok untuk jadwal kerja shift.'
-            : 'Jadwal tetap per hari (mis. Senin Push) — ditampilkan di halaman Hari Ini.'}
-        </div>
-
-        {rotationMode && (
-          <>
-            <div className="divider" />
             <div className="card-title" style={{ marginTop: 4 }}>Urutan rotasi</div>
             {rot.rotation.map((k, i) => {
               const name = presetByKey(k)?.name ?? k
@@ -323,8 +300,6 @@ export default function Settings() {
             <div className="small muted" style={{ marginTop: 8 }}>
               Saat shift <b>Malam</b>, saran otomatis ringan (Easy). Timpa shift per tanggal di kalender Riwayat.
             </div>
-          </>
-        )}
       </div>
 
       {/* ===== Mode Rehab ===== */}
