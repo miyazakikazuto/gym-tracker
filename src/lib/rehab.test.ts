@@ -7,6 +7,7 @@ import {
   REHAB_PAIN_STOP,
   REHAB_WAVES,
   shouldStopRehabSet,
+  hasIsoSet,
   isRehabSession,
   rehabPosition,
   rehabKeyAt,
@@ -63,6 +64,33 @@ describe('shouldStopRehabSet', () => {
   it('nyeri 5 lanjut, 6 stop', () => {
     expect(shouldStopRehabSet(5)).toBe(false)
     expect(shouldStopRehabSet(6)).toBe(true)
+  })
+})
+
+describe('hasIsoSet', () => {
+  const exs = [
+    { id: 'iso1', name: 'Isometrik Quad 60°', muscleGroup: 'Kaki', equipment: 'Machine' },
+    { id: 'c1', name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+  ]
+  const isoSess = (id: string, planName: string, sets: Session['sets']) =>
+    sess({ id, planName, sets })
+  it('set hold 30 dtk di gerakan Kaki → true', () => {
+    const s = isoSess('a', 'Leg Day', [
+      { id: 's1', exerciseId: 'iso1', setNumber: 1, weightKg: 0, reps: 0, durationSec: 30 },
+    ])
+    expect(hasIsoSet(s, exs)).toBe(true)
+    expect(isRehabSession(s, exs)).toBe(true)
+  })
+  it('set durasi di gerakan Cardio → false', () => {
+    const s = isoSess('b', 'Cardio Day', [
+      { id: 's1', exerciseId: 'c1', setNumber: 1, weightKg: 0, reps: 0, durationSec: 600 },
+    ])
+    expect(hasIsoSet(s, exs)).toBe(false)
+    expect(isRehabSession(s, exs)).toBe(false)
+  })
+  it('tanpa exercises → fallback aturan lama (stiker/preset)', () => {
+    const s = sess({ id: 'c', planName: 'Leg Day' })
+    expect(isRehabSession(s)).toBe(false)
   })
 })
 

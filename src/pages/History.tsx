@@ -124,7 +124,7 @@ export default function History() {
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, true)
       } else if (settings.rehabMode === true) {
         // Rehab: stiker [R..-S..] tanpa wave/scheme TM (hitung sesi rehab saja)
-        const before = sessions.filter((x) => isRehabSession(x) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
+        const before = sessions.filter((x) => isRehabSession(x, exercises) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
         const idx = before.length % REHAB_CYCLE_LENGTH
         const stiker = rehabFullLabel(idx, name)
         payload = buildSession(

@@ -158,7 +158,7 @@ export default function Today() {
 
   // Mode Rehab: 5/3/1 & TM dimatikan — saran ikut siklus rehab 8 sesi
   const rehabMode = settings.rehabMode === true
-  const rehabPos = rehabPosition(sessions)
+  const rehabPos = rehabPosition(sessions, exercises)
   const rehabKey = rehabKeyAt(rehabPos.sessionIndex)
   const rehabLbl = rehabFullLabel(rehabPos.sessionIndex, presetByKey(rehabKey)?.name ?? rehabKey)
   const rehabWave = rehabWaveAt(rehabPos.sessionIndex)

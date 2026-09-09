@@ -9,17 +9,31 @@
 // berat untuk fase awal, jadi wave disepakati: 3x30s → 3x35s → 3x40s → deload 2x30s.
 
 import { isRest, presetByName } from './templates'
-import type { Session } from '../types'
+import type { Exercise, Session } from '../types'
 
-// Sesi rehab = berstiker [R..] ATAU pakai preset khusus rehab.
-// Easy/Cardio TANPA stiker [R..] (era lama) tidak dihitung — easy/cardio era
-// rehab selalu berstiker [R..] lewat createAndOpen/handleCreate.
+// Sesi rehab = berstiker [R..] ATAU pakai preset khusus rehab ATAU berisi
+// set isometrik (hold durasi di gerakan non-cardio — mis. leg day yang isinya
+// "Isometrik Quad 60°"). Easy/Cardio TANPA stiker [R..] (era lama) tidak
+// dihitung — easy/cardio era rehab selalu berstiker [R..] lewat
+// createAndOpen/handleCreate.
 const REHAB_ONLY_KEYS = new Set(['leg-iso', 'leg-light', 'upper-r'])
 
-export function isRehabSession(s: Session): boolean {
+export function hasIsoSet(s: Session, exercises: Exercise[]): boolean {
+  for (const set of s.sets) {
+    if ((set.durationSec ?? 0) <= 0) continue
+    const ex = exercises.find((e) => e.id === set.exerciseId)
+    if (!ex) continue
+    if (ex.muscleGroup === 'Cardio' || ex.category === 'cardio') continue
+    return true
+  }
+  return false
+}
+
+export function isRehabSession(s: Session, exercises: Exercise[] = []): boolean {
   if (s.endedAt === null || s.isExtra || isRest(s.planName)) return false
   if (s.cycleLabel?.startsWith('[R')) return true
-  return REHAB_ONLY_KEYS.has(presetByName(s.planName)?.key ?? '')
+  if (REHAB_ONLY_KEYS.has(presetByName(s.planName)?.key ?? '')) return true
+  return hasIsoSet(s, exercises)
 }
 
 // 16 sesi: 8 pertama = cycle lama (stiker [R1-S01..S08] lama tetap valid),
@@ -86,10 +100,10 @@ export function shouldStopRehabSet(pain0to10: number): boolean {
 // Hanya sesi rehab yang dihitung (isRehabSession) — sesi era 5/3/1 (Push/Pull/Leg
 // tanpa stiker [R..]) tidak ikut, jadi rehab selalu mulai dari R1-S01.
 // Easy/Cardio era rehab ikut karena berstiker [R..].
-export function rehabPosition(sessions: Session[]): { sessionIndex: number; totalCompleted: number } {
+export function rehabPosition(sessions: Session[], exercises: Exercise[] = []): { sessionIndex: number; totalCompleted: number } {
   let completed = 0
   for (const s of sessions) {
-    if (!isRehabSession(s)) continue
+    if (!isRehabSession(s, exercises)) continue
     completed++
   }
   return { sessionIndex: completed % REHAB_CYCLE_LENGTH, totalCompleted: completed }
@@ -99,8 +113,8 @@ export function rehabKeyAt(index: number): RehabKey {
   return REHAB_CYCLE[index % REHAB_CYCLE_LENGTH]
 }
 
-export function rehabSuggestKey(sessions: Session[]): RehabKey {
-  return rehabKeyAt(rehabPosition(sessions).sessionIndex)
+export function rehabSuggestKey(sessions: Session[], exercises: Exercise[] = []): RehabKey {
+  return rehabKeyAt(rehabPosition(sessions, exercises).sessionIndex)
 }
 
 export type RehabCellStatus = 'done' | 'current' | 'todo'
