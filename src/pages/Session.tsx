@@ -508,7 +508,6 @@ export default function Session() {
             ) : (
               <>
                 <span style={{ width: 76, textAlign: 'center' }}>{dur ? 'Durasi (j·m·d)' : 'Rep'}</span>
-                {dur && <span style={{ width: 60, textAlign: 'center' }}>Jarak (km)</span>}
                 <span className="int">Int</span>
               </>
             )}
@@ -790,20 +789,6 @@ const SetRow = memo(function SetRow({
               value={s.reps || ''}
               placeholder={prev ? String(prev.reps) : '0'}
               onChange={(e) => onPatch(s.id, { reps: Number(e.target.value) })}
-            />
-          )}
-          {dur && (
-            <input
-              className="wt dist"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={s.distanceKm ? fmtNumber(s.distanceKm) : ''}
-              placeholder={prev && prev.distanceKm ? fmtNumber(prev.distanceKm) : '0'}
-              onChange={(e) => {
-                const n = parseDecimal(e.target.value)
-                if (n !== null) onPatch(s.id, { distanceKm: n })
-              }}
             />
           )}
           {pct !== null ? (
