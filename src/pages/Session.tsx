@@ -250,10 +250,16 @@ export default function Session() {
 
   function addSet(exerciseId: string) {
     const dur = exerciseIsDuration(exercises, exerciseId)
-    const prev = localSets
-      .filter((s) => s.exerciseId === exerciseId)
-      .slice()
-      .sort((a, b) => b.setNumber - a.setNumber)[0]
+    // Cardio (mis. Jalan Kaki) TIDAK di pre-fill: tiap jalan beda — nilai lama
+    // hanya tampil sebagai placeholder abu-abu, bukan data. Berlaku juga untuk
+    // pre-fill rehab-hold (cardio bukan isometrik 30 dtk).
+    const cardio = isCardio(exerciseId)
+    const prev = cardio
+      ? undefined
+      : localSets
+        .filter((s) => s.exerciseId === exerciseId)
+        .slice()
+        .sort((a, b) => b.setNumber - a.setNumber)[0]
     const maxNo = localSets
       .filter((s) => s.exerciseId === exerciseId)
       .reduce((m, s) => Math.max(m, s.setNumber), 0)
@@ -262,7 +268,7 @@ export default function Session() {
     let r = 0
     // Rehab: gerakan durasi (isometrik) pre-fill ikut wave sesi (W1 30s → W2 35s → W3 40s → W4 30s)
     const rehabHold = settings.rehabMode === true ? rehabWaveAt(session?.sessionIndex ?? 0).isoHoldSec : REHAB_ISO_HOLD_SEC
-    let d: number | undefined = dur ? (settings.rehabMode === true ? rehabHold : 0) : undefined
+    let d: number | undefined = dur ? (settings.rehabMode === true && !cardio ? rehabHold : 0) : undefined
     let d2: number | undefined = undefined
     let elev: number | undefined = undefined
     if (prev) {
@@ -271,7 +277,7 @@ export default function Session() {
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
       elev = prev.elevationM
-    } else if (planScheme && planTM && planLift) {
+    } else if (!cardio && planScheme && planTM && planLift) {
       // 5/3/1: pre-fill dari TM sesuai tipe sesi (Leg→Squat, Push→Bench, Pull→Deadlift)
       if (planTM[planLift] > 0) {
         const weights = getPrescribedWeights(planScheme, planTM[planLift])
@@ -287,7 +293,7 @@ export default function Session() {
           d2 = best.distanceKm
         }
       }
-    } else {
+    } else if (!cardio) {
       const best = bestSetResult(sessions, sid, exerciseId)
       if (best) {
         w = best.weightKg
