@@ -184,26 +184,6 @@ export default function Progress() {
   const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
   const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), otherVol, 1)
 
-  // Ringkasan cardio (semua sesi)
-  interface CardioInfo { dist: number; dur: number; elev: number; sesi: Set<string> }
-  const cardioMap = new Map<string, CardioInfo>()
-  for (const s of sessions) {
-    if (s.endedAt === null) continue
-    for (const set of s.sets) {
-      const ex = exercises.find((e) => e.id === set.exerciseId)
-      if (!ex || (ex.muscleGroup !== 'Cardio' && ex.category !== 'cardio')) continue
-      const c = cardioMap.get(set.exerciseId) ?? { dist: 0, dur: 0, elev: 0, sesi: new Set<string>() }
-      c.dist += set.distanceKm ?? 0
-      c.dur += set.durationSec ?? 0
-      c.elev += set.elevationM ?? 0
-      c.sesi.add(s.id)
-      cardioMap.set(set.exerciseId, c)
-    }
-  }
-  const cardioList = Array.from(cardioMap.entries())
-    .map(([exId, c]) => ({ exId, dist: c.dist, dur: c.dur, elev: c.elev, n: c.sesi.size }))
-    .sort((a, b) => b.dist - a.dist)
-
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = buildTrendWeeks(today)
   const trendMap = buildTrendMap(sessions, exercises, trendWins)
@@ -612,28 +592,6 @@ export default function Progress() {
             </div>
           )
         })()}
-        {cardioList.length === 0 ? (
-          <div className="small muted">Belum ada data cardio. Isi durasi & jarak (km) di sesi Cardio Day.</div>
-        ) : (
-          <div className="pr-list">
-            {cardioList.map(({ exId, dist, dur, elev, n }) => {
-              const pace = dur > 0 && dist > 0 ? paceStr(dur / 60, dist) : null
-              return (
-                <div className="pr" key={exId}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
-                    <div className="small muted">
-                      {fmtNumber(dist)} km · {fmtHM(dur)} · {n} sesi
-                      {pace && ` · ${pace}/km`}
-                      {elev > 0 && ` · ↑${fmtNumber(elev)} m`}
-                    </div>
-                  </div>
-                  <div className="val">{fmtNumber(dist)} km</div>
-                </div>
-              )
-            })}
-          </div>
-        )}
       </div>
 
       <div className="card">
