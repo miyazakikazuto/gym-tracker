@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB, formatDMYInput, parseDMY, parseKey } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
+import { isRehabSession } from '../lib/rehab'
 import { combineMinSec, createSession, updateSession, buildQuickWalkSet, findTodayCardioSession, findWalkExercise } from '../lib/gymstore'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
@@ -32,6 +33,8 @@ export default function Progress() {
   const uid = useUid()
 
   const today = todayKey()
+  const rehabMode = settings.rehabMode === true
+  const visibleSessions = rehabMode ? sessions : sessions.filter((s) => !isRehabSession(s, exercises))
 
   // ===== Quick-log jalan kaki (lapangan/Strava) — gabung ke sesi cardio hari itu =====
   // Tanggal = teks DD/MM/YYYY + tombol cepat (popup date bawaan rewel di desktop)
@@ -100,8 +103,8 @@ export default function Progress() {
     }
   }
 
-  const weekOpts = useMemo(() => listWeekOptions(sessions, today), [sessions, today])
-  const monthOpts = useMemo(() => listMonthOptions(sessions, today), [sessions, today])
+  const weekOpts = useMemo(() => listWeekOptions(visibleSessions, today), [visibleSessions, today])
+  const monthOpts = useMemo(() => listMonthOptions(visibleSessions, today), [visibleSessions, today])
   const [cardioMonthSel, setCardioMonthSel] = useState(0)
   const [recapKind, setRecapKind] = useState<'mingguan' | 'bulanan'>('mingguan')
   // Index ke daftar opsi — 0 = periode berjalan. Reset saat kind berganti.
@@ -111,7 +114,7 @@ export default function Progress() {
   const copyRecap = () => {
     const win = recapOpts[recapSel] ?? (recapKind === 'mingguan' ? weekWindow(today) : monthWindow(today))
     const prev = recapKind === 'mingguan' ? prevWeekWindow(win) : prevMonthWindow(win)
-    const text = formatPeriodForAI({ sessions, exercises, bodyweights, window: win, prev, kind: recapKind, settings })
+    const text = formatPeriodForAI({ sessions: visibleSessions, exercises, bodyweights, window: win, prev, kind: recapKind, settings })
     navigator.clipboard.writeText(text).then(
       () => showToast('Rekap disalin — tempel ke Claude'),
       () => showToast('Gagal menyalin — coba lagi', 'error'),
@@ -126,7 +129,7 @@ export default function Progress() {
     const start = addDays(weekStart(today), -k * 7)
     const end = addDays(start, 6)
     let vol = 0
-    for (const s of sessions) {
+    for (const s of visibleSessions) {
       if (s.endedAt === null) continue
       if (s.date >= start && s.date <= end) vol += volumeOf(s.sets)
     }
@@ -134,10 +137,10 @@ export default function Progress() {
   })
   const maxVol = Math.max(...weeks.map((w) => w.vol), 1)
   const pageVolume = weeks.reduce((acc, w) => acc + w.vol, 0)
-  const pageSessions = sessions.filter(
+  const pageSessions = visibleSessions.filter(
     (s) => s.endedAt !== null && weeks.some((w) => s.date >= w.start && s.date <= w.end),
   ).length
-  const pageSets = sessions
+  const pageSets = visibleSessions
     .filter((s) => s.endedAt !== null && weeks.some((w) => s.date >= w.start && s.date <= w.end))
     .reduce((acc, s) => acc + s.sets.length, 0)
   const pageLabel = (() => {
@@ -161,7 +164,7 @@ export default function Progress() {
   // sebanding dengan chart mingguan.
   let secVolTotal = 0
   for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
-  for (const s of sessions) {
+  for (const s of visibleSessions) {
     if (s.endedAt === null) continue
     if (!weeks.some((w) => s.date >= w.start && s.date <= w.end)) continue
     for (const set of s.sets) {
@@ -186,7 +189,7 @@ export default function Progress() {
 
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = buildTrendWeeks(today)
-  const trendMap = buildTrendMap(sessions, exercises, trendWins)
+  const trendMap = buildTrendMap(visibleSessions, exercises, trendWins)
   const trends = Array.from(trendMap.entries())
     .filter(([, vals]) => vals.some((v) => v > 0))
     .map(([exId, vals]) => {
@@ -509,7 +512,7 @@ export default function Progress() {
         </div>
         {(() => {
           const win = weekWindow(today)
-          const t = cardioWeekTotal(sessions, exercises, win)
+          const t = cardioWeekTotal(visibleSessions, exercises, win)
           const st = cardioWeekStatus(t.dist)
           const pct = Math.min(100, (t.dist / CARDIO_WEEK_MAX_KM) * 100)
           const markPct = (CARDIO_WEEK_MIN_KM / CARDIO_WEEK_MAX_KM) * 100
@@ -539,7 +542,7 @@ export default function Progress() {
         {/* ===== Rincian bulanan cardio — 5 kategori (Plan B) ===== */}
         {(() => {
           const mWindow = monthOpts[cardioMonthSel] ?? monthWindow(today)
-          const { total, byCat } = cardioMonthBreakdown(sessions, exercises, mWindow)
+          const { total, byCat } = cardioMonthBreakdown(visibleSessions, exercises, mWindow)
           const weeks = weeksInMonthWindow(mWindow, today)
           const avg = cardioMonthAvgWeekly(total.dist, weeks)
           const avgStatus = cardioWeekStatus(avg)

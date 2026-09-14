@@ -28,9 +28,9 @@ export function categoryOfExercise(ex: { category?: string; muscleGroup: string 
 
 /**
  * True bila sesi dihitung dalam siklus 5/3/1 dan rotasi.
- * Kebalikan dari sesi non-counting: belum selesai, extra, Rest Day, Cardio, atau Skip.
+ * Kebalikan dari sesi non-counting: belum selesai, extra, Rest Day, Cardio, Skip, atau Rehab.
  * Disatukan di sini agar `progression.ts` dan `rotation.ts` tidak divergen.
- * 5 predikat: endedAt null, isExtra, isRest(planName), /cardio/i, /^skip/i.
+ * 6 predikat: endedAt null, isExtra, isRest(planName), /cardio/i, /^skip/i, rehab ([R..] / preset rehab).
  */
 export function isCountedSession(s: Session): boolean {
   if (s.endedAt === null) return false
@@ -38,6 +38,10 @@ export function isCountedSession(s: Session): boolean {
   if (isRest(s.planName)) return false
   if (/cardio/i.test(s.planName)) return false
   if (/^skip/i.test(s.planName.trim())) return false
+  // Rehab: [R1-S01]… atau preset rehab tanpa stiker — jangan hitung di siklus 5/3/1
+  if (s.cycleLabel?.startsWith('[R')) return false
+  const key = s.planName.trim().toLowerCase()
+  if (key === 'leg rehab iso' || key === 'leg ringan' || key === 'upper kanan') return false
   return true
 }
 

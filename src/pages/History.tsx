@@ -95,18 +95,20 @@ export default function History() {
   }
 
     const monthPrefix = viewYear + '-' + String(viewMonth + 1).padStart(2, '0')
+  const rehabMode = settings.rehabMode === true
   const list = sessions
-    .filter((s) => s.date.startsWith(monthPrefix) && !isRest(s.planName))
+    .filter((s) => s.date.startsWith(monthPrefix) && !isRest(s.planName) && (rehabMode || !isRehabSession(s, exercises)))
     .sort((a, b) => (b.date < a.date ? -1 : 1))
-  const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
+  const daySessionsAll2 = selKey ? sessions.filter((s) => s.date === selKey) : []
+  const daySessions = rehabMode ? daySessionsAll2 : daySessionsAll2.filter((s) => !isRehabSession(s, exercises))
   const usedPlanNames = daySessions.map((s) => s.planName)
   const presetNames = PLAN_PRESETS.map((p) => p.name)
   // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
   // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.
+  // Rehab OFF (Opsi A): sembunyikan preset rehab dari picker + list
   const REHAB_PRESET_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio', 'rest']
-  const rehabMode = settings.rehabMode === true
   const addOptions = PLAN_PRESETS
-    .filter(({ key }) => !rehabMode || REHAB_PRESET_KEYS.includes(key))
+    .filter(({ key }) => rehabMode ? REHAB_PRESET_KEYS.includes(key) : !['leg-iso', 'leg-light', 'upper-r'].includes(key))
     .map((preset) => ({
       preset,
       plan: plans.find((p) => p.name === preset.name),
@@ -198,7 +200,8 @@ export default function History() {
           ))}
           {cells.map((key, i) => {
             if (!key) return <div className="cal-cell empty" key={i} />
-            const daySessions = sessions.filter((s) => s.date === key)
+            const daySessionsAll = sessions.filter((s) => s.date === key)
+            const daySessions = rehabMode ? daySessionsAll : daySessionsAll.filter((s) => !isRehabSession(s, exercises))
             const has = daySessions.length > 0
             const isToday = key === todayKey()
             const isSelected = key === selKey
