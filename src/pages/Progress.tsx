@@ -17,6 +17,9 @@ import {
   listMonthOptions,
   cardioWeekTotal,
   cardioWeekStatus,
+  cardioMonthBreakdown,
+  weeksInMonthWindow,
+  cardioMonthAvgWeekly,
   CARDIO_WEEK_MIN_KM,
   CARDIO_WEEK_MAX_KM,
 } from '../lib/periodSummary'
@@ -99,6 +102,7 @@ export default function Progress() {
 
   const weekOpts = useMemo(() => listWeekOptions(sessions, today), [sessions, today])
   const monthOpts = useMemo(() => listMonthOptions(sessions, today), [sessions, today])
+  const [cardioMonthSel, setCardioMonthSel] = useState(0)
   const [recapKind, setRecapKind] = useState<'mingguan' | 'bulanan'>('mingguan')
   // Index ke daftar opsi — 0 = periode berjalan. Reset saat kind berganti.
   const [recapSel, setRecapSel] = useState(0)
@@ -550,6 +554,62 @@ export default function Progress() {
                 {fmtNumber(Math.round(t.dist * 10) / 10)} km / {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km · {statusText} · {fmtHM(t.dur)} · {t.sessions} sesi
               </div>
             </>
+          )
+        })()}
+        {/* ===== Rincian bulanan cardio — 5 kategori (Plan B) ===== */}
+        {(() => {
+          const mWindow = monthOpts[cardioMonthSel] ?? monthWindow(today)
+          const { total, byCat } = cardioMonthBreakdown(sessions, exercises, mWindow)
+          const weeks = weeksInMonthWindow(mWindow, today)
+          const avg = cardioMonthAvgWeekly(total.dist, weeks)
+          const avgStatus = cardioWeekStatus(avg)
+          const avgText = avgStatus.status === 'kurang'
+            ? `kurang ${fmtNumber(Math.round(avgStatus.diff * 10) / 10)} km`
+            : avgStatus.status === 'pas' ? 'pas ✓' : `lebih ${fmtNumber(Math.round(avgStatus.diff * 10) / 10)} km`
+          const mLabel = monthOpts[cardioMonthSel]?.label ?? `${MONTHS[Number(mWindow.start.slice(5, 7)) - 1]} ${mWindow.start.slice(0, 4)}`
+          return (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+              <div className="row wrap" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <div className="small" style={{ fontWeight: 700 }}>Bulan ini — {mLabel}</div>
+                <div className="row" style={{ gap: 4 }}>
+                  <button className="btn sm ghost" disabled={cardioMonthSel >= monthOpts.length - 1} onClick={() => setCardioMonthSel((v) => Math.min(monthOpts.length - 1, v + 1))}>◀</button>
+                  <button className="btn sm ghost" disabled={cardioMonthSel <= 0} onClick={() => setCardioMonthSel((v) => Math.max(0, v - 1))}>▶</button>
+                </div>
+              </div>
+              {total.sessions === 0 ? (
+                <div className="small muted" style={{ marginBottom: 6 }}>Belum ada sesi cardio di bulan ini.</div>
+              ) : (
+                <>
+                  <div className="small muted" style={{ marginBottom: 6 }}>
+                    {fmtNumber(Math.round(total.dist * 10) / 10)} km · {fmtHM(total.dur)} · {total.sessions} sesi
+                  </div>
+                  <div style={{ display: 'grid', gap: 6, marginBottom: 8 }}>
+                    {byCat.filter((c) => c.dist > 0).map((c) => {
+                      const pct = total.dist > 0 ? (c.dist / total.dist) * 100 : 0
+                      const pace = c.dur > 0 && c.dist > 0 ? paceStr(c.dur / 60, c.dist) : null
+                      return (
+                        <div key={c.key} className="row" style={{ alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 88, fontSize: 13, fontWeight: 600 }}>{c.label}</div>
+                          <div className="bar-track grow" style={{ position: 'relative' }}>
+                            <div className="bar-fill" style={{ width: `${Math.min(100, pct)}%`, opacity: 0.9 }} />
+                          </div>
+                          <div className="small" style={{ width: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {fmtNumber(Math.round(c.dist * 10) / 10)} km · {pct.toFixed(0)}%
+                          </div>
+                          <div className="small muted" style={{ width: 64, textAlign: 'right', fontSize: 11 }}>
+                            {pace ? `${pace}/km` : ''}
+                            {c.elev > 0 ? ` · ↑${fmtNumber(Math.round(c.elev))} m` : ''}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+              <div className="small muted">
+                Rata-rata {fmtNumber(Math.round(avg * 10) / 10)} km/minggu ({weeks} minggu) · target {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km/minggu · {avgText}
+              </div>
+            </div>
           )
         })()}
         {cardioList.length === 0 ? (

@@ -63,6 +63,87 @@ export function cardioWeekStatus(dist: number): { status: CardioWeekStatus; diff
   return { status: 'lebih', diff: dist - CARDIO_WEEK_MAX_KM }
 }
 
+// ===== BREAKDOWN BULANAN CARDIO — 5 kategori (Plan B) =====
+// Jalan Kaki | Hiking(+Trail) | Running(Easy Running/Lari) | Treadmill | Lainnya(Bike/terhapus)
+// Treadmill dipisah dari Running supaya elevasi outdoor tidak terdilusi (0 treadmill).
+export type CardioCategory = 'jalan' | 'hiking' | 'running' | 'treadmill' | 'lain'
+export const CARDIO_CATEGORY_LABEL: Record<CardioCategory, string> = {
+  jalan: 'Jalan Kaki',
+  hiking: 'Hiking',
+  running: 'Running',
+  treadmill: 'Treadmill',
+  lain: 'Lainnya',
+}
+
+export function cardioCategoryOf(exName: string): CardioCategory {
+  const n = exName.toLowerCase()
+  if (n.includes('jalan kaki')) return 'jalan'
+  if (n.includes('hiking') || n.includes('hike') || n.includes('trail')) return 'hiking'
+  if (n.includes('treadmill')) return 'treadmill'
+  if (n.includes('running') || (n.includes('lari') && !n.includes('lari kecil'))) return 'running'
+  return 'lain'
+}
+
+export interface CardioBreakdown { key: CardioCategory; label: string; dist: number; dur: number; elev: number; sessions: number }
+
+export function cardioMonthBreakdown(
+  sessions: Session[],
+  exercises: Exercise[],
+  w: PeriodWindow,
+): { total: CardioWeekTotal; byCat: CardioBreakdown[] } {
+  const totalIds = new Set<string>()
+  let totalDist = 0
+  let totalDur = 0
+  const byCat = new Map<CardioCategory, { dist: number; dur: number; elev: number; ids: Set<string> }>()
+  const ensure = (k: CardioCategory) => {
+    let v = byCat.get(k)
+    if (!v) { v = { dist: 0, dur: 0, elev: 0, ids: new Set<string>() }; byCat.set(k, v) }
+    return v
+  }
+  for (const s of sessions) {
+    if (s.endedAt === null) continue
+    if (s.date < w.start || s.date > w.end) continue
+    let countedTotal = false
+    const catSeen = new Set<CardioCategory>()
+    for (const set of s.sets) {
+      const ex = exercises.find((e) => e.id === set.exerciseId)
+      if (!ex || (ex.muscleGroup !== 'Cardio' && ex.category !== 'cardio')) continue
+      const cat = cardioCategoryOf(ex.name)
+      const bucket = ensure(cat)
+      bucket.dist += set.distanceKm ?? 0
+      bucket.dur += set.durationSec ?? 0
+      bucket.elev += set.elevationM ?? 0
+      catSeen.add(cat)
+      totalDist += set.distanceKm ?? 0
+      totalDur += set.durationSec ?? 0
+      countedTotal = true
+    }
+    if (countedTotal) totalIds.add(s.id)
+    for (const c of catSeen) ensure(c).ids.add(s.id)
+  }
+  const ORDER: CardioCategory[] = ['jalan', 'hiking', 'running', 'treadmill', 'lain']
+  const out: CardioBreakdown[] = ORDER.filter((k) => byCat.has(k)).map((k) => {
+    const v = byCat.get(k)!
+    return { key: k, label: CARDIO_CATEGORY_LABEL[k], dist: v.dist, dur: v.dur, elev: v.elev, sessions: v.ids.size }
+  }).sort((a, b) => b.dist - a.dist)
+  return { total: { dist: totalDist, dur: totalDur, sessions: totalIds.size }, byCat: out }
+}
+
+// Minggu dalam window bulan: ceil(daysPassed/7) untuk bulan berjalan, else ceil(daysInMonth/7).
+// daysPassed = min(today,end) - start +1 (inklusif), minimal 1.
+export function weeksInMonthWindow(m: PeriodWindow, today?: string): number {
+  const t = today ?? todayKey()
+  const end = t < m.end ? t : m.end
+  const startMs = new Date(m.start + 'T00:00:00Z').getTime()
+  const endMs = new Date(end + 'T00:00:00Z').getTime()
+  const daysPassed = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1)
+  return Math.max(1, Math.ceil(daysPassed / 7))
+}
+
+export function cardioMonthAvgWeekly(totalDist: number, weeks: number): number {
+  return weeks > 0 ? totalDist / weeks : 0
+}
+
 export function monthWindow(today?: string): PeriodWindow {
   const key = today ?? todayKey()
   const [y, m] = key.split('-').map(Number)
