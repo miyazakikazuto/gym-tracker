@@ -327,7 +327,7 @@ export default function Settings() {
       <div className="card">
         <div className="card-title">5/3/1 Training Max</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
-          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — Sesi {cyclePos.sessionIndex + 1}/{cycleLen}
+          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — Sesi {cyclePos.sessionIndex + 1}/{cycleLen} · 4 tingkat (W1 3×5 → W2 3×3 → W3 5/3/1 → W4 Deload) × {cycleLen / 4}/minggu
         </div>
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <div className="field" style={{ flex: 1 }}>

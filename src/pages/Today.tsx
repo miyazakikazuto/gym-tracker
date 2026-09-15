@@ -502,54 +502,76 @@ export default function Today() {
             </div>
             {is531Active ? (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-                  {get531Sequence(excludedTypes).map((s, i) => {
-                    const isCurrent = i === cyclePos.sessionIndex
-                    const isDone = i < cyclePos.sessionIndex
-                    const w = cycleLen / 4
-                    const weekLabel = i < w ? '3×5' : i < 2 * w ? '3×3' : i < 3 * w ? '5/3/1' : 'Deload'
-                    return (
-                      <div
-                        key={i}
-                        className={'shift-week-cell' + (isCurrent ? ' today' : '')}
-                        style={
-                          isCurrent
-                            ? { borderColor: 'var(--accent)', background: 'rgba(99,102,241,0.1)' }
-                            : isDone
-                              ? { opacity: 0.4 }
-                              : undefined
-                        }
-                      >
-                        <div className="sw-dow" style={{ fontSize: 10 }}>
-                          {weekLabel}
+                {(() => {
+                  const seq = get531Sequence(excludedTypes)
+                  const cols = cycleLen / 4 // 3 saat 12, 4 saat 16
+                  const waves = [
+                    { label: 'W1 3×5', key: 'W1' },
+                    { label: 'W2 3×3', key: 'W2' },
+                    { label: 'W3 5/3/1', key: 'W3' },
+                    { label: 'W4 Deload', key: 'W4' },
+                  ]
+                  return (
+                    <>
+                      {waves.map((wave, wIdx) => (
+                        <div key={wave.key} style={{ marginTop: wIdx === 0 ? 0 : 8 }}>
+                          <div className="small muted" style={{ fontWeight: 800, letterSpacing: 0.5, marginBottom: 4 }}>
+                            {wave.label}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 4 }}>
+                            {Array.from({ length: cols }, (_, c) => {
+                              const i = wIdx * cols + c
+                              const s = seq[i]
+                              if (!s) return null
+                              const isCurrent = i === cyclePos.sessionIndex
+                              const isDone = i < cyclePos.sessionIndex
+                              return (
+                                <div
+                                  key={i}
+                                  className={'shift-week-cell' + (isCurrent ? ' today' : '')}
+                                  style={
+                                    isCurrent
+                                      ? { borderColor: 'var(--accent)', background: 'rgba(99,102,241,0.1)' }
+                                      : isDone
+                                        ? { opacity: 0.4 }
+                                        : undefined
+                                  }
+                                >
+                                  <div className="sw-dow" style={{ fontSize: 10 }}>
+                                    {wave.label.split(' ')[1]}
+                                  </div>
+                                  <div className="sw-dnum" style={{ fontSize: 11 }}>
+                                    S{i + 1}
+                                  </div>
+                                  <span
+                                    className="sw-shift"
+                                    style={{
+                                      background:
+                                        s.key === 'leg'
+                                          ? '#6366f1'
+                                          : s.key === 'push'
+                                            ? '#f59e0b'
+                                            : s.key === 'pull'
+                                              ? '#10b981'
+                                              : '#6b7280',
+                                      fontSize: 10,
+                                      padding: '1px 4px',
+                                    }}
+                                  >
+                                    {s.key === 'leg' ? 'L' : s.key === 'push' ? 'P' : s.key === 'pull' ? 'Pl' : 'E'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                        <div className="sw-dnum" style={{ fontSize: 11 }}>
-                          S{i + 1}
-                        </div>
-                        <span
-                          className="sw-shift"
-                          style={{
-                            background:
-                              s.key === 'leg'
-                                ? '#6366f1'
-                                : s.key === 'push'
-                                  ? '#f59e0b'
-                                  : s.key === 'pull'
-                                    ? '#10b981'
-                                    : '#6b7280',
-                            fontSize: 10,
-                            padding: '1px 4px',
-                          }}
-                        >
-                          {s.key === 'leg' ? 'L' : s.key === 'push' ? 'P' : s.key === 'pull' ? 'Pl' : 'E'}
-                        </span>
+                      ))}
+                      <div className="small muted" style={{ marginTop: 8 }}>
+                        1 cycle = {cycleLen} sesi · 4 tingkat (W1-W4) × {cols} sesi/minggu · S{cyclePos.sessionIndex + 1} = sesi saat ini
                       </div>
-                    )
-                  })}
-                </div>
-                <div className="small muted" style={{ marginTop: 8 }}>
-                  1 cycle = {cycleLen} sesi · S{cyclePos.sessionIndex + 1} = sesi saat ini
-                </div>
+                    </>
+                  )
+                })()}
               </>
             ) : (
               <>
