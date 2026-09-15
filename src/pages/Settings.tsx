@@ -318,7 +318,7 @@ export default function Settings() {
         </div>
         <div className="small muted">
           {settings.rehabMode
-            ? 'ON — 5/3/1 & Training Max dimatikan. Saran ikut siklus rehab 8 sesi (iso → ringan → upper kanan → easy). Leg Curl tetap ada, stop bila nyeri/panas >5/10.'
+            ? 'ON — 5/3/1 & Training Max dimatikan. Saran ikut siklus rehab 16 sesi (W1 Pondasi → W4 Deload, iso 30→35→40→30 dtk) — leg-iso/ringan/upper-r/cardio ×4, Leg Curl tetap, stop >5/10.'
             : 'OFF — jadwal normal 5/3/1 + rotasi.'}
         </div>
       </div>
