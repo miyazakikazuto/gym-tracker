@@ -10,7 +10,7 @@ import { computePosition, getScheme, computeExcludedTypes } from '../lib/progres
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
 import Modal from '../components/Modal'
 import SessionRow from '../components/SessionRow'
-import { exerciseIsDuration, isCountedSession } from '../lib/helpers'
+import { exerciseIsDuration } from '../lib/helpers'
 import type { WorkoutPlan } from '../types'
 
 function monthGrid(year: number, month: number): (string | null)[] {
@@ -78,13 +78,8 @@ export default function History() {
   const selShift = selKey ? shiftForDate(selKey, settings) : null
 
   useEffect(() => {
-    if (selKey) {
-      const has = sessions.some((s) => s.date === selKey && isCountedSession(s))
-      setHistoryExtra(has)
-    } else {
-      setHistoryExtra(false)
-    }
-  }, [selKey, sessions])
+    setHistoryExtra(false)
+  }, [selKey])
 
   function shift(delta: number) {
     let m = viewMonth + delta
@@ -358,7 +353,7 @@ export default function History() {
               </>
             )}
 
-            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }} title="Default OFF — auto ON hanya kalau hari itu sudah ada sesi counted">
+            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }} title="Default OFF — centang manual kalau mau tidak majuin siklus">
               <input type="checkbox" checked={historyExtra} onChange={(e) => setHistoryExtra(e.target.checked)} />
               Sesi tambahan (tidak majuin siklus)
             </label>
