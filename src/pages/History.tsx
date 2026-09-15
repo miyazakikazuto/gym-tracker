@@ -10,7 +10,7 @@ import { computePosition, getScheme, computeExcludedTypes } from '../lib/progres
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
 import Modal from '../components/Modal'
 import SessionRow from '../components/SessionRow'
-import { exerciseIsDuration } from '../lib/helpers'
+import { exerciseIsDuration, isCountedSession } from '../lib/helpers'
 import type { WorkoutPlan } from '../types'
 
 function monthGrid(year: number, month: number): (string | null)[] {
@@ -79,8 +79,10 @@ export default function History() {
 
   useEffect(() => {
     if (selKey) {
-      const has = sessions.some((s) => s.date === selKey && !isRest(s.planName))
+      const has = sessions.some((s) => s.date === selKey && isCountedSession(s))
       setHistoryExtra(has)
+    } else {
+      setHistoryExtra(false)
     }
   }, [selKey, sessions])
 
@@ -162,6 +164,7 @@ export default function History() {
       payload.planName = name
       const ref = await createSession(uid, payload)
       setSelKey(null)
+      setHistoryExtra(false)
       navigate(`/session/${ref.id}`)
     } catch (e) {
       setError((e as Error).message)
@@ -355,7 +358,7 @@ export default function History() {
               </>
             )}
 
-            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }}>
+            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }} title="Default OFF — auto ON hanya kalau hari itu sudah ada sesi counted">
               <input type="checkbox" checked={historyExtra} onChange={(e) => setHistoryExtra(e.target.checked)} />
               Sesi tambahan (tidak majuin siklus)
             </label>
@@ -400,7 +403,7 @@ export default function History() {
             {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
 
             <div className="form-actions">
-              <button className="btn ghost" disabled={creating} onClick={() => setSelKey(null)}>Tutup</button>
+              <button className="btn ghost" disabled={creating} onClick={() => { setSelKey(null); setHistoryExtra(false) }}>Tutup</button>
             </div>
         </Modal>
       )}
