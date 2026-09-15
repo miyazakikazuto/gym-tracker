@@ -64,7 +64,8 @@ export interface Session {
   startedAt: number // epoch ms
   endedAt: number | null
   sets: SessionSet[]
-  rpes?: Record<string, number> // exerciseId → RPE 6..10
+  rpe?: number // RPE sesi 1..10 (di footer, bukan per gerakan)
+  rpes?: Record<string, number> // LEGACY per-gerakan 6..10 — dibaca sebagai fallback avg→rpe
   // Snapshot 5/3/1 saat sesi dibuat — stiker cycle biar history/rekap tetap kebal perubahan setting
   cycle?: number // C1, C2, ...
   sessionIndex?: number // 0-based dalam cycle

@@ -32,7 +32,12 @@ export default function Session() {
   const session = sessions.find((s) => s.id === id)
   const [note, setNote] = useState(session?.note ?? '')
   const [localSets, setLocalSets] = useState<SessionSet[]>(session?.sets ?? [])
-  const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
+  const [localRpe, setLocalRpe] = useState<number | null>(() => {
+    if (session?.rpe != null) return session.rpe
+    const vals = Object.values(session?.rpes ?? {})
+    if (vals.length > 0) return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+    return null
+  })
   const [syncPending, setSyncPending] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   // Undo hapus set: snapshot ditahan 5 detik sebelum dianggap final.
@@ -47,7 +52,7 @@ export default function Session() {
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
   // Perubahan yang belum sukses ditulis — dipakai untuk flush saat keluar halaman
-  const dirtyRef = useRef<{ sets?: SessionSet[]; note?: string; rpes?: Record<string, number> }>({})
+  const dirtyRef = useRef<{ sets?: SessionSet[]; note?: string; rpe?: number | null }>({})
   // Lookup best e1RM per gerakan — dibangun sekali per data, bukan scan per render
   const bestE1RmMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -213,7 +218,11 @@ export default function Session() {
     if (session) {
       setNote(session.note ?? '')
       setLocalSets(session.sets)
-      setLocalRpes(session.rpes ?? {})
+      if (session.rpe != null) setLocalRpe(session.rpe)
+      else {
+        const vals = Object.values(session.rpes ?? {})
+        setLocalRpe(vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null)
+      }
     }
   }, [id, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -222,12 +231,12 @@ export default function Session() {
     return () => {
       ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
       const d = dirtyRef.current
-      const payload: { sets?: SessionSet[]; note?: string; rpes?: Record<string, number> } = {}
+      const payload: { sets?: SessionSet[]; note?: string; rpe?: number | null } = {}
       if (d.sets) payload.sets = d.sets
       if (d.note != null) payload.note = d.note
-      if (d.rpes) payload.rpes = d.rpes
+      if (d.rpe !== undefined) payload.rpe = d.rpe
       if (Object.keys(payload).length > 0 && id) {
-        updateSession(uid, id, payload).catch(() => undefined)
+        updateSession(uid, id, payload as never).catch(() => undefined)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -328,19 +337,16 @@ export default function Session() {
     }, 600)
   }
 
-  function patchRpe(exerciseId: string, value: number | null) {
-    const next = { ...localRpes }
-    if (value === null) delete next[exerciseId]
-    else next[exerciseId] = value
-    setLocalRpes(next)
-    dirtyRef.current.rpes = next
+  function patchSessionRpe(value: number | null) {
+    setLocalRpe(value)
+    dirtyRef.current.rpe = value
     setSyncPending(true)
     pendingCount.current++
     if (rpeTimer.current) clearTimeout(rpeTimer.current)
     rpeTimer.current = setTimeout(async () => {
       try {
-        await updateSession(uid, sid, { rpes: next })
-        if (dirtyRef.current.rpes === next) delete dirtyRef.current.rpes
+        await updateSession(uid, sid, { rpe: value } as never)
+        if (dirtyRef.current.rpe === value) delete dirtyRef.current.rpe
       } catch {
         /* gagal: tetap dirty */
       } finally {
@@ -358,7 +364,7 @@ export default function Session() {
 
   async function finish() {
     try {
-      await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
+      await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpe: localRpe } as never)
     } catch {
       showToast('Gagal menyelesaikan sesi — cek koneksi internet', 'error')
       return
@@ -370,7 +376,7 @@ export default function Session() {
 
   async function saveDone() {
     try {
-      await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
+      await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpe: localRpe } as never)
     } catch {
       showToast('Gagal menyimpan — cek koneksi internet', 'error')
       return
@@ -559,23 +565,7 @@ export default function Session() {
               />
             )
           })}
-          <div className="row" style={{ marginTop: 8 }}>
-            <span className="small muted">RPE</span>
-            {[6, 7, 8, 9, 10].map((r) => (
-              <button
-                key={r}
-                className={'rpe-chip' + (localRpes[exId] === r ? ' active' : '')}
-                onClick={() => patchRpe(exId, localRpes[exId] === r ? null : r)}
-              >
-                {r}
-              </button>
-            ))}
-            {localRpes[exId] !== undefined && (
-              <span className="small muted" style={{ marginLeft: 'auto' }}>
-                {localRpes[exId] === 10 ? 'maksimal' : localRpes[exId] === 9 ? '1 sisa' : localRpes[exId] === 8 ? '2 sisa' : localRpes[exId] === 7 ? '3 sisa' : 'ringan'}
-              </span>
-            )}
-          </div>
+
         </div>
         )
       })}
@@ -628,6 +618,25 @@ export default function Session() {
           rows={2}
           placeholder="Cara badan hari ini, PR, dll…"
         />
+      </div>
+
+      {/* RPE sesi 1-10 di bawah — bukan per gerakan */}
+      <div className="card">
+        <div className="card-title">RPE Sesi (1-10)</div>
+        <div className="row wrap" style={{ gap: 6 }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+            <button
+              key={v}
+              className={'rpe-chip' + (localRpe === v ? ' active' : '') + (v > 8 ? ' danger' : '')}
+              onClick={() => patchSessionRpe(localRpe === v ? null : v)}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <div className="small muted" style={{ marginTop: 6 }}>
+          1:sangat ringan · 5:sedang · 8:berat · 10:maksimal {localRpe != null && `(terpilih ${localRpe})`}
+        </div>
       </div>
 
       {settings.rehabMode === true && (
