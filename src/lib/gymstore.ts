@@ -217,7 +217,7 @@ export async function deleteSession(uid: string, id: string) {
   return deleteDoc(doc(getDb(), 'users', uid, 'sessions', id))
 }
 
-// Build a new session payload for a given date (default start 12:00 WIB)
+// Build a new session payload for a given date (default 12:00 WIB untuk sesi manual/Riwayat — bukan jam latihan asli)
 export function buildSession(
   plan: WorkoutPlan | null | undefined,
   dateKey: string,

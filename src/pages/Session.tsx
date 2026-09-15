@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
-import { formatHM, formatDMYWIB } from '../lib/date'
+import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
 import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { presetByName } from '../lib/templates'
@@ -440,8 +440,27 @@ export default function Session() {
           <div className="page-title">{session.planName}</div>
           <div className="subtitle" style={{ marginBottom: 0 }}>
             {formatDMYWIB(session.date)} · mulai {formatHM(session.startedAt)}
+            {isNoonPlaceholder(session.startedAt, session.date) && ' (estimasi)'}
             {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
+          {isNoonPlaceholder(session.startedAt, session.date) && (
+            <div className="small muted" style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="time"
+                value={formatHM(session.startedAt)}
+                onChange={(e) => {
+                  const [h, m] = e.target.value.split(':').map(Number)
+                  if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                  const base = parseKey(session.date).getTime()
+                  const next = base + h * 3600000 + m * 60000
+                  void updateSession(uid, session.id, { startedAt: next } as never).catch(() =>
+                    showToast('Gagal ubah jam — cek koneksi', 'error'),
+                  )
+                }}
+              />
+              <span>ubah jam mulai</span>
+            </div>
+          )}
         </div>
         <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
       </div>

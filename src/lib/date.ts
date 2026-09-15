@@ -33,6 +33,11 @@ export function addDays(key: string, n: number): string {
   return dateKey(new Date(d.getTime() + n * 86400000))
 }
 
+// 12:00 WIB placeholder untuk sesi manual/Riwayat (gymstore.ts buildSession)
+export function isNoonPlaceholder(ts: number, dateKeyStr: string): boolean {
+  return ts === parseKey(dateKeyStr).getTime() + 12 * 60 * 60 * 1000
+}
+
 export function weekStart(key: string): string {
   const dow = dayOfWeek(key)
   return addDays(key, -dow)
