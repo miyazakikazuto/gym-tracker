@@ -20,9 +20,9 @@
   - Alur: `freebuff` uji → `merge --no-edit` → `main`. `vercel deploy --prod` manual. `vercel.json` kosong (tanpa `ignoreCommand`, semua branch preview). `vite.config.ts:9` & `scripts/gen-sw.cjs:11` base adaptif `VERCEL ? '/' : '/gym-tracker/'` — **ubah keduanya bersamaan**.
 - **Firebase:** `src/lib/firebase.ts` config hardcoded publik by design, `projectId: xauusd-jurnal`, path `users/{uid}/gym/**` (shared dengan app XAUUSD — jangan bentrok `firestore.rules:4` `users/{userId}/{document=**}`). Offline persistence `src/lib/db.ts:21` `initializeFirestore(persistentLocalCache(multiTab))` — **jangan balik ke `getFirestore`**.
 - **Token:** `VERCEL_TOKEN=vcp_6mp...jAaiTh0nBFD1` (user bilang `biarin` tidak revoke), CLI `vercel@59.5.0`, `.vercel/project.json` sudah link.
-- **Stack & Build:** `HashRouter` (tanpa SPA rewrite), `tsc -b && vite build` + `postbuild node scripts/gen-sw.cjs` (precache 29/29 ~1037KB), `rolldownOptions advancedChunks firebase-firestore`, `chunkSizeWarningLimit:600`, `vitest run` **76 tests**, `oxlint` 0 errors, CI `.github/workflows/test.yml` Node 24 vs `deploy.yml` Node 20 (drift, belum disamakan).
+- **Stack & Build:** `HashRouter` (tanpa SPA rewrite), `tsc -b && vite build` + `postbuild node scripts/gen-sw.cjs` (precache 33/33 ~1059KB), `rolldownOptions advancedChunks firebase-firestore`, `chunkSizeWarningLimit:600`, `vitest run` **239 tests (17 file)**, `oxlint` 0 errors, CI `.github/workflows/test.yml` Node 24 (deploy.yml Node 20 drift fixed).
 - **Domain Logic:** `src/lib/progression.ts` (5/3/1 **dinamis Opsi A**: default 16 `L/P/Pl/E×4` / 12 `L/P/Pl×4` jika `excludeEasyDay`, W4 Deload **di dalam** cycle, `Today.tsx:440` threshold `w=cycleLen/4` biar 12→Deload S10-S12 benar), `rotation.ts`, `e1rm.ts` — wajib ada test. `types.ts:53` `Session.cycle/cycleLabel/scheme/isExtra`, `UserSettings.cycleNumber/sessionIndex` legacy mati (tidak dibaca `computePosition`), `skippedSessions` yang dipakai.
-- **Preferensi User:** Merge tiap fitur `checkout main && pull && merge --no-edit && npm test && push`, dropdown rekap mingguan/bulanan, `isExtra` manual smart default, `fmtNumber` koma, WIB `todayKey/parseKey/addDays/weekStart`, review Langkah 1 dulu baru Langkah 2.
+- **Preferensi User:** `freebuff` uji → merge `main --no-edit --no-ff`, `isExtra` Default OFF selalu ( `b6af929` / `0a369e4` ), `fmtNumber` koma, WIB `todayKey/parseKey/addDays/weekStart`, 5/3/1 4 tingkat W1→Deload 4 baris×3 kolom (12) / 4×4 (16) `925d2a6`, siklus dinamis `fa2258d` `w=cycleLen/4`.
 
 ## 3. Work State
 
@@ -97,27 +97,25 @@ merge main --no-edit → GH Pages → cek HP
 - **Rendah:** Dead exports (`makeSessionSet`, `patchExerciseCategory`), Reset cycle bohong (`Settings.tsx:554`), Node drift CI, `gen-sw.cjs:15` scan tidak rekursif.
 - **GitHub Issues:** #2 pagination sessions & #3 sinkron `firestore.rules` vs Console masih open.
 
-## 8. Status Terakhir
+## 8. Status Terakhir (update 14 Sep 2026)
 
-- `freebuff` = `main` = **`4212e81`** (merge 09 Sep 2026 — sinkron penuh, P1 + rehab + cardio + fix tanggal semua di dua-duanya).
-- PWA `sw.js` precache **33/33** (~1055 KB, filter .map).
-- Test **232 pass (17 file)**, lint 0 error (warning fast-refresh saja), typecheck 0.
-- **Mode Rehab FINAL (committed):** `rehabMode` di settings, cycle **16 sesi** `[leg-iso, leg-light, upper-r, cardio]×4` + wave W1 3×30s → W2 3×35s → W3 3×40s → W4 deload 2×30s, stiker `[R1-S01] .. — Wx`, deteksi iso gabungan `hasIsoSet` (leg day isi hold ikut kehitung), grid 16 kotak di beranda (hanya ronde berjalan), hitung sesi rehab saja, tombol tambah Riwayat disaring, mode Mingguan dihapus (Rotasi+Rehab saja). Lutut 60° + stop-rule nyeri/panas >5/10, Leg Curl tetap.
-- **Cardio FINAL (committed):** card Cardio terpisah di Progress + total mingguan vs target fix **15–25 km/minggu** (minggu berjalan, bukan rata-rata 4 minggu), `Jalan Kaki` di library + sinkron preset ke akun lama (`syncPresetExercises`), status 1 baris, `DecimalInput` (koma aman, style prop), quick-log jalan gabung ke sesi cardio hari itu (cari sesi cardio tanggal tsb → tambah set, else bikin `Cardio Day`).
-- **Kondisi user:** tangan kiri cedera grip (grip off) + lutut kanan patellar fase isometrik. Gaya bicara: santai "bre".
-- ⚠️ **Token terekspos di chat, WAJIB revoke + JANGAN tulis full di repo:** `VERCEL_TOKEN` (prefix `vcp_6mp…`, full ada di chat session 09 Sep 2026) + `GH_TOKEN` (prefix `ghp_e7P…`, full ada di chat). Revoke di Vercel dashboard + GitHub settings, lalu generate baru.
+- `freebuff` **`0a369e4`** (Vercel prod) ahead `main`; `main` terakhir `4212e81` (09 Sep) — belum merge 13 komit baru. PWA `sw.js` precache **33/33** (~1059 KB).
+- Test **239 pass (17 file)**, lint 0 error (warning fast-refresh), build OK.
+- **Mode Rehab (Opsi A OFF clean):** `rehabMode=true` 16 sesi `W1 Pondasi 30s → W2 35s → W3 40s → W4 Deload 30s ×4`, grid 16 kotak balik `85a1b51` (R-ronde, W1-W4), OFF → `be2c9e2` hide list/kalender + `isCountedSession` exclude `[R]/preset rehab` tidak bocor siklus.
+- **Cardio:** 5 kategori `Jalan/Hiking/Running/Treadmill/Lain` `e0e6226`, bulanan byCat `weeksInMonth=ceil(days/7)` + `↑m>0`, all-time dihapus `c8972d9`, quick-log `[km][mnt][dtk]` `381b82b` + tanggal teks `546471f` + prefill cardio fix `ad01437`.
+- **5/3/1:** dinamis 12 (Easy OFF `L/P/Pl×4`) / 16 (ON) `fa2258d` `w=cycleLen/4` Deload S10-12/13-16, UI 4 baris×cols `925d2a6` W1 3×5→W4 Deload, Today grid rehab 4 baris. Extra selalu OFF `0a369e4` (Hapus auto `has`).
+- **TM keep Opsi A (14 Sep):** `squat 55 / bench 37.5 / deadlift 87.5` keep — tidak turun (sudah ringan), reset W1, monitor `stop >5/10`. Kondisi: tangan kiri grip off, lutut patellar iso 60° 3×30s, leg curl tetap.
+- ⚠️ **Token terekspos, WAJIB revoke:** `VERCEL_TOKEN vcp_6mp…` + `GH_TOKEN ghp_e7P…` (full di chat 09 Sep) — revoke & generate baru, push protection aktif.
 
 ### Komit `freebuff` setelah `ba74944` (kronologis, semua pushed → Vercel prod)
 
-1. `bbbe4d5` Mode Rehab 8 sesi awal → `d984089` 16 sesi + waves → `a194306` grid 16 kotak → `a5f9138` hitung rehab-only + grid ronde berjalan → `1a97837` `hasIsoSet` → `1940699` saring Riwayat → `22ed704` easy→cardio → `6b5e937` pool rehab + form cerdas + input detik → `25b6a67` hapus Mingguan.
-2. `b0b4edf` rekap cap 300 mnt + iso tanpa e1RM → `21c9f5e` total hold → `0193129` badge e1RM hidden durasi → `97a2fcb` hapus Jarak iso → `4e4d539` input durasi 46px.
-3. `b589257` saran tidak dobel + Jalan Kaki → `ff71733` `syncPresetExercises` → `bdc5876` `fmtInput` anti-bulat → `59aa291` card Cardio → `16acf58` total mingguan → `bbd070b` label 1 baris → `bc1725d` `DecimalInput` → `06b1dc7` quick-log gabung.
-4. `546471f` quick-log tanggal teks `HH/BB/TTTT` + `[Hari ini] [Kemarin]`: popup `input type=date` macet di desktop user (jalan di HP) → teks + `parseDMY`/`formatDMYInput` di `date.ts` (validasi kabisat/bulan/tahun, tolak masa depan), test `date.test.ts` 4 case.
-5. `e0e6226` cardio 5 kategori + `c8972d9` hapus all-time + `45fd12b` hapus grid rehab + `be2c9e2` rehab OFF sembunyikan & jangan hitung siklus.
+1. `bbbe4d5` Rehab 8→`d984089` 16 + `a194306` grid → `a5f9138` rehab-only → `1a97837` hasIsoSet → `1940699` filter → `22ed704` easy→cardio → `6b5e937` pool → `25b6a67` hapus Mingguan.
+2. `b0b4edf` cap iso → `21c9f5e` total hold → `0193129` badge hidden → `97a2fcb` jarak iso → `4e4d539` durasi 46px.
+3. `b589257` tidak dobel + Jalan Kaki → `ff71733` syncPreset → `bdc5876` fmtInput → `59aa291` card Cardio → `16acf58` mingguan 15-25km → `381b82b` mnt+dtk → `ad01437` prefill cardio fix → `e0e6226` 5 kategori bulanan → `c8972d9` hapus all-time.
+4. `546471f` tanggal teks `HH/BB/TTTT` + `parseDMY`, `fa2258d` 5/3/1 `w=cycleLen/4`, `925d2a6` 4 baris×3 kolom, `45fd12b` hapus grid rehab → `85a1b51` balikin W1→Deload, `be2c9e2` OFF hide, `b6af929`/`0a369e4` extra selalu OFF ( `isCountedSession` 6 predikat ).
 
-## 9. Next Move (update 09 Sep 2026, post-merge)
+## 9. Next Move
 
-1. **Cek 2 URL:** Vercel prod `https://gym-tracker-inky-rho.vercel.app` + GH Pages `https://miyazakikazuto.github.io/gym-tracker/` (tunggu deploy Pages selesai).
-2. **Revoke token terekspos** (Vercel dashboard + GitHub settings) lalu generate baru — full token hanya ada di chat session 09 Sep 2026, jangan tulis di repo (push protection nolak).
-3. Lanjut issue kecil bila ada (contoh: card volume `(Lainnya)` bila gerakan dihapus dari Library).
-4. Tiap langkah: `npm test && npm run lint && npm run build` → `push freebuff` → `merge main` → cek HP + desktop.
+1. **Merge freebuff → main** (13 komit) → cek GH Pages `https://miyazakikazuto.github.io/gym-tracker/` + Vercel prod.
+2. **Revoke token** (Vercel + GitHub) — full token di chat, jangan tulis repo.
+3. Jalan 1 cycle P1 dari W1 3×5 dengan TM 55/37.5/87.5 keep — evaluasi `>5/10` di W3, baru naik 2.5kg.
