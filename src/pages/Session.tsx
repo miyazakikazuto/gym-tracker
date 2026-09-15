@@ -48,6 +48,7 @@ export default function Session() {
   const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [editingTime, setEditingTime] = useState(false)
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
@@ -440,27 +441,62 @@ export default function Session() {
           <div className="page-title">{session.planName}</div>
           <div className="subtitle" style={{ marginBottom: 0 }}>
             {formatDMYWIB(session.date)} · mulai {formatHM(session.startedAt)}
-            {isNoonPlaceholder(session.startedAt, session.date) && ' (estimasi)'}
+            {isNoonPlaceholder(session.startedAt, session.date) && !editingTime && (
+              <>
+                {' · '}
+                <button
+                  onClick={() => setEditingTime(true)}
+                  title="sesuaikan jam mulai"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    fontSize: 'inherit',
+                    color: 'var(--muted)',
+                    textDecoration: 'underline',
+                    textDecorationStyle: 'dashed',
+                    textUnderlineOffset: 2,
+                    cursor: 'pointer',
+                  }}
+                >
+                  estimasi ✎
+                </button>
+              </>
+            )}
+            {isNoonPlaceholder(session.startedAt, session.date) && editingTime && (
+              <>
+                {' · '}
+                <input
+                  type="time"
+                  autoFocus
+                  value={formatHM(session.startedAt)}
+                  onBlur={() => setEditingTime(false)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setEditingTime(false) }}
+                  onChange={(e) => {
+                    const [h, m] = e.target.value.split(':').map(Number)
+                    if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                    const base = parseKey(session.date).getTime()
+                    const next = base + h * 3600000 + m * 60000
+                    void updateSession(uid, session.id, { startedAt: next } as never)
+                      .then(() => setEditingTime(false))
+                      .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: 6,
+                    padding: '1px 6px',
+                    font: 'inherit',
+                    fontSize: 'inherit',
+                    color: 'var(--text)',
+                    width: 92,
+                  }}
+                />
+              </>
+            )}
             {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
-          {isNoonPlaceholder(session.startedAt, session.date) && (
-            <div className="small muted" style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                type="time"
-                value={formatHM(session.startedAt)}
-                onChange={(e) => {
-                  const [h, m] = e.target.value.split(':').map(Number)
-                  if (!Number.isFinite(h) || !Number.isFinite(m)) return
-                  const base = parseKey(session.date).getTime()
-                  const next = base + h * 3600000 + m * 60000
-                  void updateSession(uid, session.id, { startedAt: next } as never).catch(() =>
-                    showToast('Gagal ubah jam — cek koneksi', 'error'),
-                  )
-                }}
-              />
-              <span>ubah jam mulai</span>
-            </div>
-          )}
         </div>
         <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
       </div>
