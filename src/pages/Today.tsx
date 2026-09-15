@@ -437,7 +437,8 @@ export default function Today() {
                   {get531Sequence(excludedTypes).map((s, i) => {
                     const isCurrent = i === cyclePos.sessionIndex
                     const isDone = i < cyclePos.sessionIndex
-                    const weekLabel = i < 4 ? '3×5' : i < 8 ? '3×3' : i < 12 ? '5/3/1' : 'Deload'
+                    const w = cycleLen / 4
+                    const weekLabel = i < w ? '3×5' : i < 2 * w ? '3×3' : i < 3 * w ? '5/3/1' : 'Deload'
                     return (
                       <div
                         key={i}

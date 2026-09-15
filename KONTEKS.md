@@ -21,7 +21,7 @@
 - **Firebase:** `src/lib/firebase.ts` config hardcoded publik by design, `projectId: xauusd-jurnal`, path `users/{uid}/gym/**` (shared dengan app XAUUSD — jangan bentrok `firestore.rules:4` `users/{userId}/{document=**}`). Offline persistence `src/lib/db.ts:21` `initializeFirestore(persistentLocalCache(multiTab))` — **jangan balik ke `getFirestore`**.
 - **Token:** `VERCEL_TOKEN=vcp_6mp...jAaiTh0nBFD1` (user bilang `biarin` tidak revoke), CLI `vercel@59.5.0`, `.vercel/project.json` sudah link.
 - **Stack & Build:** `HashRouter` (tanpa SPA rewrite), `tsc -b && vite build` + `postbuild node scripts/gen-sw.cjs` (precache 29/29 ~1037KB), `rolldownOptions advancedChunks firebase-firestore`, `chunkSizeWarningLimit:600`, `vitest run` **76 tests**, `oxlint` 0 errors, CI `.github/workflows/test.yml` Node 24 vs `deploy.yml` Node 20 (drift, belum disamakan).
-- **Domain Logic:** `src/lib/progression.ts` (5/3/1 cycle 16 sesi / 12 sesi jika `excludeEasyDay`), `rotation.ts`, `e1rm.ts` — wajib ada test. `types.ts:53` `Session.cycle/cycleLabel/scheme/isExtra`, `UserSettings.cycleNumber/sessionIndex` legacy mati (tidak dibaca `computePosition`), `skippedSessions` yang dipakai.
+- **Domain Logic:** `src/lib/progression.ts` (5/3/1 **dinamis Opsi A**: default 16 `L/P/Pl/E×4` / 12 `L/P/Pl×4` jika `excludeEasyDay`, W4 Deload **di dalam** cycle, `Today.tsx:440` threshold `w=cycleLen/4` biar 12→Deload S10-S12 benar), `rotation.ts`, `e1rm.ts` — wajib ada test. `types.ts:53` `Session.cycle/cycleLabel/scheme/isExtra`, `UserSettings.cycleNumber/sessionIndex` legacy mati (tidak dibaca `computePosition`), `skippedSessions` yang dipakai.
 - **Preferensi User:** Merge tiap fitur `checkout main && pull && merge --no-edit && npm test && push`, dropdown rekap mingguan/bulanan, `isExtra` manual smart default, `fmtNumber` koma, WIB `todayKey/parseKey/addDays/weekStart`, review Langkah 1 dulu baru Langkah 2.
 
 ## 3. Work State
@@ -112,7 +112,8 @@ merge main --no-edit → GH Pages → cek HP
 1. `bbbe4d5` Mode Rehab 8 sesi awal → `d984089` 16 sesi + waves → `a194306` grid 16 kotak → `a5f9138` hitung rehab-only + grid ronde berjalan → `1a97837` `hasIsoSet` → `1940699` saring Riwayat → `22ed704` easy→cardio → `6b5e937` pool rehab + form cerdas + input detik → `25b6a67` hapus Mingguan.
 2. `b0b4edf` rekap cap 300 mnt + iso tanpa e1RM → `21c9f5e` total hold → `0193129` badge e1RM hidden durasi → `97a2fcb` hapus Jarak iso → `4e4d539` input durasi 46px.
 3. `b589257` saran tidak dobel + Jalan Kaki → `ff71733` `syncPresetExercises` → `bdc5876` `fmtInput` anti-bulat → `59aa291` card Cardio → `16acf58` total mingguan → `bbd070b` label 1 baris → `bc1725d` `DecimalInput` → `06b1dc7` quick-log gabung.
-4. `546471f` (TERBARU) quick-log tanggal teks `HH/BB/TTTT` + `[Hari ini] [Kemarin]`: popup `input type=date` macet di desktop user (jalan di HP) → teks + `parseDMY`/`formatDMYInput` di `date.ts` (validasi kabisat/bulan/tahun, tolak masa depan), test `date.test.ts` 4 case.
+4. `546471f` quick-log tanggal teks `HH/BB/TTTT` + `[Hari ini] [Kemarin]`: popup `input type=date` macet di desktop user (jalan di HP) → teks + `parseDMY`/`formatDMYInput` di `date.ts` (validasi kabisat/bulan/tahun, tolak masa depan), test `date.test.ts` 4 case.
+5. `e0e6226` cardio 5 kategori + `c8972d9` hapus all-time + `45fd12b` hapus grid rehab + `be2c9e2` rehab OFF sembunyikan & jangan hitung siklus.
 
 ## 9. Next Move (update 09 Sep 2026, post-merge)
 
