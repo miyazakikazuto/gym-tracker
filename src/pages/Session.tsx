@@ -401,6 +401,12 @@ export default function Session() {
   const addPool = (() => {
     const cat = presetByName(session.planName)?.key
     if (!cat) return exercises
+    // Saran Leg Day Opsi A: 6 knee-safe prioritas (quad/ham/glute/hip tanpa leg extension)
+    if (cat === 'leg') {
+      const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
+      const legPool = exercises.filter((e) => LEG_SUGGEST.includes(e.name))
+      if (legPool.length > 0) return legPool
+    }
     // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
     const keys = rehabPoolKeys(cat)
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
