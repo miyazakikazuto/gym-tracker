@@ -401,19 +401,29 @@ export default function Session() {
   const addPool = (() => {
     const cat = presetByName(session.planName)?.key
     if (!cat) return exercises
-    // Saran Leg Day Opsi A: 6 knee-safe prioritas (quad/ham/glute/hip tanpa leg extension)
-    if (cat === 'leg') {
-      const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
-      const legPool = exercises.filter((e) => LEG_SUGGEST.includes(e.name))
-      if (legPool.length > 0) return legPool
-    }
     // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
     const keys = rehabPoolKeys(cat)
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 
-  // Dihitung SEKALI per render (dulu 3× via IIFE) — dipakai blok saran di bawah
-  const rankedSuggestions = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
+  // Dihitung SEKALI per render — hybrid Opsi A: 6 knee-safe di atas + sisa leg di bawah
+  const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
+  const rankedSuggestions = (() => {
+    const base = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
+    const cat = presetByName(session.planName)?.key
+    if (cat !== 'leg') return base
+    const prio = (name: string) => (LEG_SUGGEST.includes(name) ? 0 : 1)
+    const rank: Record<string, number> = { gap: 0, baru: 1, lupa: 2, biasa: 3 }
+    return [...base].sort((a, b) => {
+      const pa = prio(a.exercise.name)
+      const pb = prio(b.exercise.name)
+      if (pa !== pb) return pa - pb
+      const ra = rank[a.reason] ?? 3
+      const rb = rank[b.reason] ?? 3
+      if (ra !== rb) return ra - rb
+      return (b.daysSinceLast ?? 9999) - (a.daysSinceLast ?? 9999)
+    })
+  })()
   const suggestBadge = (ex: { muscleGroup: string }, r: string) =>
     r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
 
