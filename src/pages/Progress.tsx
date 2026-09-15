@@ -247,7 +247,7 @@ export default function Progress() {
   // PR per exercise (4 dimensi: beban, reps, durasi, e1RM)
   const [prMode, setPrMode] = useState<'weight' | 'reps' | 'dur' | 'e1rm'>('weight')
   const [prMuscle, setPrMuscle] = useState('Semua')
-  const [openCards, setOpenCards] = useState({ trend: false, rpe: false, pr: false, sbd: false })
+  const [openCards, setOpenCards] = useState({ trend: false, pr: false, sbd: false })
 
   interface PrBest { weight: number; reps: number; durationSec: number; e1rm: number; date: string }
   const prMap = new Map<string, { weight?: PrBest; reps?: PrBest; dur?: PrBest; e1rm?: PrBest }>()
@@ -285,21 +285,6 @@ export default function Progress() {
     .map((exId) => exercises.find((e) => e.id === exId)?.muscleGroup)
     .filter((g): g is string => !!g)))]
   const prsFiltered = prMuscle === 'Semua' ? prs : prs.filter(([exId]) => exercises.find((e) => e.id === exId)?.muscleGroup === prMuscle)
-
-  // Avg RPE per exercise (from sessions with rpes)
-  const rpeMap = new Map<string, { sum: number; count: number }>()
-  for (const s of sessions) {
-    if (s.endedAt === null) continue
-    for (const [exId, rpe] of Object.entries(s.rpes ?? {})) {
-      const cur = rpeMap.get(exId) ?? { sum: 0, count: 0 }
-      cur.sum += rpe
-      cur.count += 1
-      rpeMap.set(exId, cur)
-    }
-  }
-  const rpes = Array.from(rpeMap.entries())
-    .map(([exId, v]) => ({ exId, avg: v.sum / v.count, count: v.count }))
-    .sort((a, b) => b.avg - a.avg)
 
   // ===== Minggu ini: breakdown per grup otot =====
   const thisWeekStart = weekStart(today)
@@ -781,39 +766,6 @@ export default function Progress() {
             })}
           </div>
         )}
-        </>
-        )}
-      </div>
-
-      <div className="card">
-        <div
-          className="card-title toggle-head"
-          role="button"
-          tabIndex={0}
-          onClick={() => setOpenCards((o) => ({ ...o, rpe: !o.rpe }))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenCards((o) => ({ ...o, rpe: !o.rpe })) }
-          }}
-        >
-          <span>RPE rata-rata per gerakan</span>
-          <span>{openCards.rpe ? '▾' : '▸'}</span>
-        </div>
-        {openCards.rpe && (
-        <>
-        {rpes.length === 0 ? (
-          <div className="small muted">Belum ada data RPE. Atur RPE (6–10) di akhir tiap gerakan saat sesi.</div>
-        ) : (
-          <div className="pr-list">
-            {rpes.map(({ exId, avg, count }) => (
-              <div className="pr" key={exId}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{getExerciseName(exercises, exId)}</div>
-                  <div className="small muted">{count} sesi</div>
-                </div>
-                <div className="val">{avg.toFixed(1)}</div>
-              </div>
-            ))}
-          </div>        )}
         </>
         )}
       </div>
