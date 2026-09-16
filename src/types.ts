@@ -100,6 +100,7 @@ export interface UserSettings {
   excludeEasyDay?: boolean // true = Easy Day dihapus dari siklus 5/3/1 (cycle jadi 12 sesi)
   skippedSessions?: number // jumlah sesi yang di-skip (posisi tetap maju)
   rehabMode?: boolean // true = Mode Rehab: 5/3/1 & TM dimatikan, saran ikut REHAB_CYCLE (lib/rehab.ts)
+  freeOrder?: boolean // true = Week-3 Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
 }
 
 export const MUSCLE_GROUPS = [

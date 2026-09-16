@@ -17,6 +17,7 @@ import {
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, rehabCellStatus, REHAB_WAVES } from '../lib/rehab'
+import { FREE_WEEK_KEYS, weekProgressFreeOrder } from '../lib/rotation'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
 
@@ -170,6 +171,8 @@ export default function Today() {
         : 'santai'
   // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab
   const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
+  const freeOrder = settings.freeOrder === true
+  const freeProg = freeOrder ? weekProgressFreeOrder(sessions, excludedTypes, settings.skippedSessions ?? 0) : null
   const effectiveKey = rehabMode ? rehabKey : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
   const effectivePreset = presetByKey(effectiveKey)
   const effectivePlan = planForKey(plans, effectiveKey)
@@ -489,7 +492,56 @@ export default function Today() {
             )}
           </div>
 
-          {rehabMode ? (
+          {freeOrder && !rehabMode ? (
+            <div className="card">
+              <div className="card-title">
+                Week-{freeProg!.cycle} <span className="badge accent">{freeProg!.progress}</span> <span className="badge">{freeProg!.isWeekComplete ? 'siap lanjut ✓' : 'bebas urut'}</span>
+              </div>
+              <div className="small muted" style={{ marginBottom: 8 }}>Pull / Push / Leg — tap kartu mana aja, hitam kalau selesai. Harus 3/3 baru lanjut. 5/3/1 wave tetap urut ({cycleScheme?.label ?? '—'}).</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {FREE_WEEK_KEYS.map((k) => {
+                  const preset = presetByKey(k)!
+                  const done = freeProg!.doneKeys.has(k)
+                  const plan = planForKey(plans, k)
+                  return (
+                    <button
+                      key={k}
+                      className={'shift-week-cell' + (done ? '' : ' today')}
+                      style={done ? { opacity: 0.45, borderColor: 'var(--ok)' } : undefined}
+                      disabled={creating || !!activeSession}
+                      onClick={async () => {
+                        if (activeSession) { navigate(`/session/${activeSession.id}`); return }
+                        const p = plan ?? (await templatePlan(preset))
+                        const already = done
+                        void createAndOpen(p, preset.name, false).then(() => {
+                          if (already) showToast(`${preset.shortLabel} sudah di week ini — tetap kehitung 1`)
+                        })
+                      }}
+                    >
+                      <div className="sw-dow" style={{ fontSize: 10 }}>{preset.shortLabel}</div>
+                      <div className="sw-dnum" style={{ fontSize: 11 }}>{done ? '✓' : '○'}</div>
+                      <span className="sw-shift" style={{ background: dotColorFor(preset.name) ?? 'var(--muted)', fontSize: 10, padding: '1px 4px' }}>
+                        {plan ? `${plan.items.length} g` : `${preset.exercises.length} g`}
+                      </span>
+                      {done && <div className="small muted" style={{ fontSize: 9, marginTop: 2 }}>hitam</div>}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="small muted" style={{ marginTop: 8 }}>{freeProg!.doneKeys.size}/3 selesai{freeProg!.doneKeys.size>0 && ` · ${Array.from(freeProg!.doneKeys).map((k)=>presetByKey(k)?.shortLabel).join(' ✓ ')} ✓`}</div>
+              {freeProg!.isWeekComplete ? (
+                <div className="card" style={{ marginTop: 10, borderColor: 'var(--accent)', background: 'rgba(167,139,250,.08)' }}>
+                  <div className="small" style={{ fontWeight: 800, marginBottom: 6 }}>Week-{freeProg!.cycle} selesai 3/3 ✓ — lanjut?</div>
+                  <button className="btn primary wide" disabled={!!activeSession} onClick={() => showToast(`Week-${freeProg!.cycle} komplit — mulai Week-${freeProg!.cycle + 1} dengan sesi berikutnya`)}>
+                    Lanjut ke Week-{freeProg!.cycle + 1} →
+                  </button>
+                  <div className="small muted" style={{ marginTop: 6 }}>Tombol aktif hanya kalau 3/3. Duplicate tetap 1. Wave 5/3/1 tetap urut ({cycleLabel}).</div>
+                </div>
+              ) : (
+                <div className="small muted" style={{ marginTop: 8 }}>Pilih 1 per hari bebas urut — harus 3/3 baru tombol Lanjut muncul.</div>
+              )}
+            </div>
+          ) : rehabMode ? (
             <RehabProgramGrid totalCompleted={rehabPos.totalCompleted} />
           ) : (
           <div className="card">
