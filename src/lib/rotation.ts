@@ -82,6 +82,11 @@ export function planForKey(plans: WorkoutPlan[], key: string): WorkoutPlan | und
 // Mode bebas Week-3: Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
 export const FREE_WEEK_KEYS = ['pull', 'push', 'leg'] as const
 
+export function freeNextKey(doneKeys: Set<string>): string | null {
+  for (const k of FREE_WEEK_KEYS) if (!doneKeys.has(k)) return k
+  return null
+}
+
 export function weekProgressFreeOrder(
   sessions: Session[],
   _excludedTypes: Set<string>,

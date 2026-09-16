@@ -17,7 +17,7 @@ import {
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, rehabCellStatus, REHAB_WAVES } from '../lib/rehab'
-import { FREE_WEEK_KEYS, weekProgressFreeOrder } from '../lib/rotation'
+import { FREE_WEEK_KEYS, weekProgressFreeOrder, freeNextKey } from '../lib/rotation'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
 
@@ -173,7 +173,8 @@ export default function Today() {
   const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
   const freeOrder = settings.freeOrder === true
   const freeProg = freeOrder ? weekProgressFreeOrder(sessions, excludedTypes, settings.skippedSessions ?? 0, settings) : null
-  const effectiveKey = rehabMode ? rehabKey : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
+  const freeNext = freeOrder && freeProg && !freeProg.isWeekComplete ? freeNextKey(freeProg.doneKeys) : null
+  const effectiveKey = rehabMode ? rehabKey : freeNext ? freeNext : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
   const effectivePreset = presetByKey(effectiveKey)
   const effectivePlan = planForKey(plans, effectiveKey)
 
@@ -420,7 +421,11 @@ export default function Today() {
                 </div>
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}
+                  {freeOrder && freeProg ? (
+                    freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'} · wave ${cycleScheme?.label ?? '—'} tetap urut`
+                  ) : (
+                    <>Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}</>
+                  )}
                 </div>
                 <div style={{ height: 10 }} />
                 <button className="btn sm ghost wide" onClick={() => { setPickExtra(true); setShowPick(true) }}>Tambah sesi lagi</button>
@@ -432,7 +437,7 @@ export default function Today() {
                   <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
-                  {rehabMode ? rehabLbl : cycleLabel}
+                  {rehabMode ? rehabLbl : freeNext ? `${presetByKey(freeNext)?.name ?? freeNext} — bebas ${freeProg?.progress ?? ''}` : cycleLabel}
                 </div>
                 {rehabMode && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
