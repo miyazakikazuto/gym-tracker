@@ -274,13 +274,18 @@ export function findTodayCardioSession(
     exercises.filter((e) => e.muscleGroup === 'Cardio' || e.category === 'cardio').map((e) => e.id),
   )
   const sameDay = sessions.filter((s) => s.date === dateKey)
-  // Berjalan didahulukan (tempel ke sesi aktif), lalu yang terbaru selesai
-  const running = sameDay.find((s) => s.endedAt === null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
-  if (running) return running
-  const finished = sameDay
+  // Berjalan Cardio didahulukan, lalu Cardio Selesai terbaru
+  const runningCardio = sameDay.find((s) => s.endedAt === null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
+  if (runningCardio) return runningCardio
+  const finishedCardio = sameDay
     .filter((s) => s.endedAt !== null && s.sets.some((st) => cardioIds.has(st.exerciseId)))
     .sort((a, b) => b.startedAt - a.startedAt)
-  return finished[0]
+  if (finishedCardio[0]) return finishedCardio[0]
+  // Fallback clean: kalau tidak ada Cardio hari itu, tempel ke sesi hari itu apa aja (mis Leg Day) biar 1 sesi/hari
+  const runningAny = sameDay.find((s) => s.endedAt === null)
+  if (runningAny) return runningAny
+  const finishedAny = sameDay.filter((s) => s.endedAt !== null).sort((a, b) => b.startedAt - a.startedAt)
+  return finishedAny[0]
 }
 
 // Gabung input menit + detik quick-log jadi total detik (normalisasi otomatis:

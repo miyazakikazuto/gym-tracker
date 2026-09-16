@@ -53,10 +53,13 @@ describe('findTodayCardioSession', () => {
     const b = sess('b', { sets: [runSet('jk')], startedAt: 9 })
     expect(findTodayCardioSession([a, b], exs, '2026-09-12')?.id).toBe('b')
   })
-  it('sesi tanpa set cardio / beda tanggal → undefined', () => {
+  it('sesi tanpa set cardio → fallback ke Leg Day hari itu (clean 1 sesi/hari)', () => {
     const leg = sess('leg', { planName: 'Leg Day', sets: [{ id: 'x', exerciseId: 'sq', setNumber: 1, weightKg: 10, reps: 10 }] })
+    expect(findTodayCardioSession([leg], exs, '2026-09-12')?.id).toBe('leg')
+  })
+  it('beda tanggal → undefined', () => {
     const other = sess('other', { date: '2026-09-11', sets: [runSet('jk')] })
-    expect(findTodayCardioSession([leg, other], exs, '2026-09-12')).toBeUndefined()
+    expect(findTodayCardioSession([other], exs, '2026-09-12')).toBeUndefined()
   })
 })
 
