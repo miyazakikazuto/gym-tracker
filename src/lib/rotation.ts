@@ -94,14 +94,12 @@ export function weekProgressFreeOrder(
   let total: number
   let countedSessions: Session[]
   if (settings?.freeOrderSince || settings?.freeOrderOffset != null) {
-    const offset = settings?.freeOrderOffset ?? 0
     const since = settings?.freeOrderSince
-    let countedAll = 0
-    for (const s of sessions) if (isCountedSession(s)) countedAll++
-    total = Math.max(0, countedAll - offset + (skippedSessions ?? 0))
     countedSessions = sessions
       .filter((s) => isCountedSession(s) && (!since || s.date >= since))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+    // total sinkron dengan filtered length (bukan global - offset) biar Week tidak loncat ke Week-2 0/3
+    total = countedSessions.length + (skippedSessions ?? 0)
   } else {
     // Fallback tanpa jangkar: hitung dari sesi hari ini saja biar Leg 16 Sep via Riwayat langsung 1/3
     const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
