@@ -1,4 +1,4 @@
-import { parseKey } from './date'
+import { parseKey, todayKey } from './date'
 import { presetByName, presetByLooseName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
@@ -89,40 +89,40 @@ export function weekProgressFreeOrder(
   settings?: Partial<UserSettings>,
 ): { cycle: number; sessionIndex: number; doneKeys: Set<string>; isWeekComplete: boolean; progress: string } {
   const WEEK = 3
-  // Jangkar: kalau freeOrderSince/Offset ada → hitung dari sana (Week-1 langsung), fallback ke global (biar nggak crash)
-  // Juga handle kasus sudah terlanjur Week-13 (tanpa jangkar) → paksa balik ke Week-1 via offset implisit
-  let total: number
   let countedSessions: Session[]
   if (settings?.freeOrderSince || settings?.freeOrderOffset != null) {
     const since = settings?.freeOrderSince
     countedSessions = sessions
       .filter((s) => isCountedSession(s) && (!since || s.date >= since))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
-    // total sinkron dengan filtered length (bukan global - offset) biar Week tidak loncat ke Week-2 0/3
-    total = countedSessions.length + (skippedSessions ?? 0)
   } else {
-    // Fallback tanpa jangkar: hitung dari sesi hari ini saja biar Leg 16 Sep via Riwayat langsung 1/3
-    const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const today = todayKey()
     countedSessions = sessions
       .filter((s) => isCountedSession(s) && s.date >= today)
       .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
-    // total = unique counted hari ini + skipped, tapi weekProgress pakai total untuk cycle; pakai doneKeys size untuk progress yang jujur
-    // Supaya cycle tidak loncat, total = countedSessions length (filtered today) — cukup untuk 0/3→1/3 hari ini
-    total = countedSessions.length + (skippedSessions ?? 0)
   }
-  const cycle = Math.floor(total / WEEK) + 1
-  const weekStart = (cycle - 1) * WEEK
-  const doneKeys = new Set<string>()
-  const uniqueNeeded = 3
-  for (let i = weekStart; i < countedSessions.length && doneKeys.size < uniqueNeeded; i++) {
-    const k = (presetByLooseName(countedSessions[i].planName) ?? presetByName(countedSessions[i].planName))?.key
-    if (!k || !(FREE_WEEK_KEYS as readonly string[]).includes(k)) continue
-    doneKeys.add(k)
-    if (doneKeys.size === 3) break
-    if (i - weekStart >= 5) break
+  // Iterative walk: kumpulkan 3 unique per Week (duplicate=1, max 6 scan = 3 unique + 3 duplicate)
+  // biar Leg 2× tetap 1/3, tidak loncat Week-2 0/3 prematur
+  let pos = 0
+  let cycle = 1
+  let cur = new Set<string>()
+  while (pos < countedSessions.length) {
+    cur = new Set<string>()
+    let scanned = 0
+    while (pos < countedSessions.length && cur.size < 3 && scanned < 6) {
+      const k = (presetByLooseName(countedSessions[pos].planName) ?? presetByName(countedSessions[pos].planName))?.key
+      if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) cur.add(k)
+      pos++
+      scanned++
+      if (cur.size === 3) break
+    }
+    if (cur.size === 3) {
+      if (pos < countedSessions.length) cycle++
+      else break
+    } else break
   }
-  // Kalau fallback total 0 tapi ada countedSessions kosong → doneKeys 0/3 Week-1 (benar)
-  // Kalau fallback tapi ada sesi baru setelah ON tanpa jangkar, countedSessions akan kosong → tetap 0/3, akan terisi setelah jangkar diset
+  const doneKeys = cur
+  const total = countedSessions.length + (skippedSessions ?? 0)
   return {
     cycle,
     sessionIndex: total % WEEK,
