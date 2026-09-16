@@ -227,6 +227,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })()
   }, [uid, ready, exercisesFromServer, exercises.length, sessions.length])
 
+  // Migrasi freeOrder Week-13 → Week-1: yang sudah ON tapi tanpa jangkar → set since/offset biar Week-1
+  useEffect(() => {
+    if (!uid || !ready || !settings.freeOrder || settings.freeOrderSince) return
+    const cnt = sessions.filter((s) => {
+      if (s.endedAt === null) return false
+      if (s.isExtra) return false
+      if (/cardio/i.test(s.planName) || /^skip/i.test(s.planName.trim()) || s.planName === 'Rest Day') return false
+      return true
+    }).length
+    const { todayKey } = require('../lib/date')
+    saveSettings({ freeOrderSince: todayKey(), freeOrderOffset: cnt } as Partial<UserSettings>)
+  }, [uid, ready, settings.freeOrder, settings.freeOrderSince, sessions])
+
   // Auto-close: sesi berjalan yang ditinggalkan (>48 jam) ditandai selesai.
   // Idempoten & best-effort (sama seperti migrasi kategori): kalau gagal,
   // ditulis ulang saat load berikutnya. endedAt = startedAt + 90 menit (estimasi

@@ -86,14 +86,31 @@ export function weekProgressFreeOrder(
   sessions: Session[],
   _excludedTypes: Set<string>,
   skippedSessions: number,
+  settings?: Partial<UserSettings>,
 ): { cycle: number; sessionIndex: number; doneKeys: Set<string>; isWeekComplete: boolean; progress: string } {
-  let counted = 0
-  for (const s of sessions) if (isCountedSession(s)) counted++
-  const total = counted + (skippedSessions ?? 0)
   const WEEK = 3
+  // Jangkar: kalau freeOrderSince/Offset ada → hitung dari sana (Week-1 langsung), fallback ke global (biar nggak crash)
+  // Juga handle kasus sudah terlanjur Week-13 (tanpa jangkar) → paksa balik ke Week-1 via offset implisit
+  let total: number
+  let countedSessions: Session[]
+  if (settings?.freeOrderSince || settings?.freeOrderOffset != null) {
+    const offset = settings?.freeOrderOffset ?? 0
+    const since = settings?.freeOrderSince
+    let countedAll = 0
+    for (const s of sessions) if (isCountedSession(s)) countedAll++
+    total = Math.max(0, countedAll - offset + (skippedSessions ?? 0))
+    countedSessions = sessions
+      .filter((s) => isCountedSession(s) && (!since || s.date >= since))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+  } else {
+    // Fallback lama tanpa jangkar: langsung Week-1 biar tidak Week-13 (jaga history C4 tetap)
+    // Anggap semua history sebelum ON sudah di-offset → total 0
+    total = 0
+    countedSessions = []
+    // Kalau ada sesi setelah toggle tanpa jangkar, tetap hitung dari 0 (akan migrasi ke since di Settings/DataContext)
+  }
   const cycle = Math.floor(total / WEEK) + 1
   const weekStart = (cycle - 1) * WEEK
-  const countedSessions = sessions.filter(isCountedSession).sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
   const doneKeys = new Set<string>()
   const uniqueNeeded = 3
   for (let i = weekStart; i < countedSessions.length && doneKeys.size < uniqueNeeded; i++) {
@@ -101,8 +118,10 @@ export function weekProgressFreeOrder(
     if (!k || !(FREE_WEEK_KEYS as readonly string[]).includes(k)) continue
     doneKeys.add(k)
     if (doneKeys.size === 3) break
-    if (i - weekStart >= 5) break // max 6 scan (duplicate window) biar tidak spill ke week depan
+    if (i - weekStart >= 5) break
   }
+  // Kalau fallback total 0 tapi ada countedSessions kosong → doneKeys 0/3 Week-1 (benar)
+  // Kalau fallback tapi ada sesi baru setelah ON tanpa jangkar, countedSessions akan kosong → tetap 0/3, akan terisi setelah jangkar diset
   return {
     cycle,
     sessionIndex: total % WEEK,

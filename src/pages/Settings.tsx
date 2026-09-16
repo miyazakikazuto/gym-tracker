@@ -9,6 +9,7 @@ import { rotationOf } from '../lib/rotation'
 import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import { computePosition, getFullLabel, dynamicCycleLength, computeExcludedTypes } from '../lib/progression'
+import { isCountedSession } from '../lib/helpers'
 import { suggestTm } from '../lib/tmSuggestion'
 import { fmtNumber } from '../lib/helpers'
 import Modal from '../components/Modal'
@@ -260,7 +261,13 @@ export default function Settings() {
             <div className="card-title" style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Urutan rotasi</span>
               <label className="row small" style={{ gap: 6, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!settings.freeOrder} onChange={(e) => saveSettings({ freeOrder: e.target.checked })} />
+                <input type="checkbox" checked={!!settings.freeOrder} onChange={(e) => {
+                  const on = e.target.checked
+                  if (on) {
+                    const counted = sessions.filter(isCountedSession).length
+                    saveSettings({ freeOrder: true, freeOrderSince: todayKey(), freeOrderOffset: counted })
+                  } else saveSettings({ freeOrder: false })
+                }} />
                 Mode bebas Week-3
               </label>
             </div>
