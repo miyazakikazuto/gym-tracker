@@ -168,6 +168,11 @@ export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
 }
 
+export function presetByLooseName(name: string): PlanPreset | undefined {
+  const bare = name.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0].trim().toLowerCase()
+  return PLAN_PRESETS.find((p) => p.name.toLowerCase() === bare)
+}
+
 export function isRest(name: string): boolean {
   return presetByName(name)?.key === 'rest'
 }

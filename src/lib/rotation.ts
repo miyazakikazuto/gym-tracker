@@ -1,5 +1,5 @@
 import { parseKey } from './date'
-import { presetByName, presetByKey } from './templates'
+import { presetByName, presetByLooseName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
@@ -53,7 +53,7 @@ function nextRotationKey(settings: Partial<UserSettings>, sessions: Session[]): 
   if (rotation.length === 0) return DEFAULT_ROTATION[0]
   const last = lastFinishedSession(sessions)
   if (!last) return rotation[0]
-  const lastKey = presetByName(last.planName)?.key
+  const lastKey = (presetByLooseName(last.planName) ?? presetByName(last.planName))?.key
   if (!lastKey) return rotation[0]
   const idx = rotation.indexOf(lastKey)
   if (idx === -1) return rotation[0]
@@ -103,18 +103,21 @@ export function weekProgressFreeOrder(
       .filter((s) => isCountedSession(s) && (!since || s.date >= since))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
   } else {
-    // Fallback lama tanpa jangkar: langsung Week-1 biar tidak Week-13 (jaga history C4 tetap)
-    // Anggap semua history sebelum ON sudah di-offset → total 0
-    total = 0
-    countedSessions = []
-    // Kalau ada sesi setelah toggle tanpa jangkar, tetap hitung dari 0 (akan migrasi ke since di Settings/DataContext)
+    // Fallback tanpa jangkar: hitung dari sesi hari ini saja biar Leg 16 Sep via Riwayat langsung 1/3
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    countedSessions = sessions
+      .filter((s) => isCountedSession(s) && s.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+    // total = unique counted hari ini + skipped, tapi weekProgress pakai total untuk cycle; pakai doneKeys size untuk progress yang jujur
+    // Supaya cycle tidak loncat, total = countedSessions length (filtered today) — cukup untuk 0/3→1/3 hari ini
+    total = countedSessions.length + (skippedSessions ?? 0)
   }
   const cycle = Math.floor(total / WEEK) + 1
   const weekStart = (cycle - 1) * WEEK
   const doneKeys = new Set<string>()
   const uniqueNeeded = 3
   for (let i = weekStart; i < countedSessions.length && doneKeys.size < uniqueNeeded; i++) {
-    const k = presetByName(countedSessions[i].planName)?.key
+    const k = (presetByLooseName(countedSessions[i].planName) ?? presetByName(countedSessions[i].planName))?.key
     if (!k || !(FREE_WEEK_KEYS as readonly string[]).includes(k)) continue
     doneKeys.add(k)
     if (doneKeys.size === 3) break

@@ -1,5 +1,5 @@
 import type { Exercise, Session } from '../types'
-import { isRest } from './templates'
+import { isRest, presetByLooseName } from './templates'
 import { volumeOf } from './date'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
@@ -35,7 +35,7 @@ export function categoryOfExercise(ex: { category?: string; muscleGroup: string 
 export function isCountedSession(s: Session): boolean {
   if (s.endedAt === null) return false
   if (s.isExtra) return false
-  if (isRest(s.planName)) return false
+  if (isRest(s.planName) || (presetByLooseName(s.planName)?.key === 'rest')) return false
   if (/cardio/i.test(s.planName)) return false
   if (/^skip/i.test(s.planName.trim())) return false
   // Rehab: [R1-S01]… atau preset rehab tanpa stiker — jangan hitung di siklus 5/3/1
