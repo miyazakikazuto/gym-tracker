@@ -22,12 +22,14 @@ export const PLAN_PRESETS: PlanPreset[] = [
       // Nama disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts) supaya
       // templatePlan() menemukan gerakan yang sudah ada di library —
       // bukan membuat duplikat baru saat "Pilih plan lain".
-      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      // Urutan user: Press → Thrust → Calf → Squat → Abductor → Adductor.
+      // Hip Thrust = pengganti Leg Curl.
       { name: 'Leg Press', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Barbell' },
-      { name: 'Leg Extension', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Leg Curl', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Hip Thrust', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      { name: 'Abductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Adductor', muscleGroup: 'Kaki', equipment: 'Machine' },
     ],
   },
   {
