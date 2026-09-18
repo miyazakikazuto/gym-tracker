@@ -20,6 +20,7 @@ import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, reh
 import { FREE_WEEK_KEYS, weekProgressFreeOrder, freeNextKey } from '../lib/rotation'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
+import QuickWalkCard from '../components/QuickWalkCard'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -496,6 +497,8 @@ export default function Today() {
               </>
             )}
           </div>
+
+          <QuickWalkCard />
 
           {freeOrder && !rehabMode ? (
             <div className="card">
