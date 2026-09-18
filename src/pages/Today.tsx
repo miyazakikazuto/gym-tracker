@@ -104,7 +104,6 @@ export default function Today() {
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [showPick, setShowPick] = useState(false)
-  const [pickExtra, setPickExtra] = useState(false)
   // Guard double-tap: satu sesi per tekan Mulai (Firestore await bisa >1 detik)
   const [creating, setCreating] = useState(false)
 
@@ -435,7 +434,7 @@ export default function Today() {
                   )}
                 </div>
                 <div style={{ height: 10 }} />
-                <button className="btn sm ghost wide" onClick={() => { setPickExtra(true); setShowPick(true) }}>Tambah sesi lagi</button>
+                <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
               </>
             ) : (
               <>
@@ -489,7 +488,7 @@ export default function Today() {
                       <button className="btn primary" disabled={creating} onClick={handleStart}>
                         {effectivePlan ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}` : 'Buat plan dulu'}
                       </button>
-                      <button className="btn ghost" onClick={() => { setPickExtra(false); setShowPick(true) }}>Pilih plan lain</button>
+                      <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                       <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
                       <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
                     </div>
@@ -675,12 +674,11 @@ export default function Today() {
       {showPlan && <PlanEditor onClose={() => setShowPlan(false)} />}
 
       {showPick && (
-        <Modal onClose={() => { setShowPick(false); setPickExtra(false) }} label="Pilih plan">
+        <Modal onClose={() => setShowPick(false)} label="Pilih plan">
           <h3>Pilih plan untuk hari ini</h3>
-          <label className="row small" style={{ gap: 6, marginBottom: 10, cursor: 'pointer' }} title="Default OFF — auto ON hanya kalau hari itu sudah ada sesi counted">
-            <input type="checkbox" checked={pickExtra} onChange={(e) => setPickExtra(e.target.checked)} />
-            Sesi tambahan (tidak majuin siklus)
-          </label>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Butuh sesi tambahan? Buat seperti biasa — centang Extra di dalam halaman sesi (bisa juga setelah selesai).
+          </div>
           {pickOptions.length === 0 ? (
             <div className="small muted">Belum ada plan. Atur lewat "Kelola jadwal" dulu.</div>
           ) : (
@@ -689,12 +687,10 @@ export default function Today() {
                 key={o.key}
                 className={'opt' + (o.suggested ? ' suggested' : '')}
                 onClick={async () => {
-                  const wantExtra = pickExtra
                   setShowPick(false)
-                  setPickExtra(false)
                   const preset = PLAN_PRESETS.find((p) => p.key === o.key)!
                   const plan = o.plan ?? (await templatePlan(preset))
-                  void createAndOpen(plan, o.name, wantExtra)
+                  void createAndOpen(plan, o.name, false)
                 }}
               >
                 {o.name}{o.suggested && <span className="tag" style={{ marginLeft: 6 }}>saran</span>}

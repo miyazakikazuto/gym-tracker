@@ -556,6 +556,20 @@ export default function Session() {
         </button>
       </div>
 
+      <label className="row small muted" style={{ gap: 6, margin: '-4px 0 12px', cursor: 'pointer' }} title="Extra = sesi tambahan, tidak majuin siklus 5/3/1, rotasi, maupun rehab. Bisa diubah kapan saja — siklus kehitung ulang otomatis.">
+        <input
+          type="checkbox"
+          checked={session.isExtra === true}
+          onChange={(e) => {
+            const checked = e.target.checked
+            void updateSession(uid, session.id, { isExtra: checked } as never)
+              .then(() => showToast(checked ? 'Ditandai extra — siklus kehitung ulang' : 'Balik counted — siklus kehitung ulang'))
+              .catch(() => showToast('Gagal ubah status extra — cek koneksi', 'error'))
+          }}
+        />
+        Sesi tambahan (extra — tidak majuin siklus)
+      </label>
+
       {undoDelete && (
         <div className="card row spread" style={{ padding: '10px 12px', borderColor: 'var(--danger)' }}>
           <span className="small">1 set dihapus</span>

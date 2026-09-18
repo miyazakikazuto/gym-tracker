@@ -70,16 +70,11 @@ export default function History() {
   }, [expanded, showShift])
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [historyExtra, setHistoryExtra] = useState(false)
   const [error, setError] = useState('')
   const [visibleCount, setVisibleCount] = useState(30)
 
   const cells = monthGrid(viewYear, viewMonth)
   const selShift = selKey ? shiftForDate(selKey, settings) : null
-
-  useEffect(() => {
-    setHistoryExtra(false)
-  }, [selKey])
 
   function shift(delta: number) {
     let m = viewMonth + delta
@@ -114,18 +109,15 @@ export default function History() {
   // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual
   const customPlans = plans.filter((p) => !presetNames.includes(p.name) && !usedPlanNames.includes(p.name))
 
-  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string, isExtra?: boolean) {
+  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
     if (!selKey) return
     setCreating(true)
     setError('')
     try {
-      const wantExtra = isExtra ?? historyExtra
       const startAt = parseKey(selKey).getTime() + 12 * 60 * 60 * 1000
       let payload: ReturnType<typeof buildSession>
       if (isRest(name)) {
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
-      } else if (wantExtra) {
-        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, true)
       } else if (settings.rehabMode === true) {
         // Rehab: stiker [R..-S..] tanpa wave/scheme TM (hitung sesi rehab saja)
         const before = sessions.filter((x) => isRehabSession(x, exercises) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
@@ -159,7 +151,6 @@ export default function History() {
       payload.planName = name
       const ref = await createSession(uid, payload)
       setSelKey(null)
-      setHistoryExtra(false)
       navigate(`/session/${ref.id}`)
     } catch (e) {
       setError((e as Error).message)
@@ -353,12 +344,8 @@ export default function History() {
               </>
             )}
 
-            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }} title="Default OFF — centang manual kalau mau tidak majuin siklus">
-              <input type="checkbox" checked={historyExtra} onChange={(e) => setHistoryExtra(e.target.checked)} />
-              Sesi tambahan (tidak majuin siklus)
-            </label>
             <div className="small muted" style={{ margin: daySessions.length ? '12px 0 8px' : '0 0 8px' }}>
-              Tambah sesi untuk tanggal ini:
+              Tambah sesi untuk tanggal ini (butuh extra? centang di dalam halaman sesi):
             </div>
 
             {addOptions.length === 0 && customPlans.length === 0 ? (
@@ -398,7 +385,7 @@ export default function History() {
             {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
 
             <div className="form-actions">
-              <button className="btn ghost" disabled={creating} onClick={() => { setSelKey(null); setHistoryExtra(false) }}>Tutup</button>
+              <button className="btn ghost" disabled={creating} onClick={() => setSelKey(null)}>Tutup</button>
             </div>
         </Modal>
       )}
