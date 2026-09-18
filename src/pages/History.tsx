@@ -35,6 +35,7 @@ export default function History() {
   const [viewYear, setViewYear] = useState(todayY)
   const [viewMonth, setViewMonth] = useState(todayM - 1) // 0-indexed
   // Preferensi tampilan kalender — tersimpan di localStorage (gt:calPrefs)
+  // Default Off (kosong bersih) — Detail hanya bila user memilih
   const [expanded, setExpanded] = useState<boolean>(() => {
     try {
       const raw = localStorage.getItem('gt:calPrefs')
@@ -45,7 +46,7 @@ export default function History() {
     } catch {
       /* localStorage tidak tersedia — pakai default */
     }
-    return true
+    return false
   })
   const [showShift, setShowShift] = useState<boolean>(() => {
     try {
@@ -179,7 +180,7 @@ export default function History() {
             Shift {showShift ? 'On' : 'Off'}
           </button>
           <div className="cal-toggle">
-            <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Ringkas</button>
+            <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Off</button>
             <button className={expanded ? 'active' : ''} onClick={() => setExpanded(true)}>Detail</button>
           </div>
         </div>
@@ -195,7 +196,6 @@ export default function History() {
             const isToday = key === todayKey()
             const isSelected = key === selKey
             const isRestDay = daySessions.some((s) => isRest(s.planName))
-            const dotColors = Array.from(new Set(daySessions.map((s) => dotColorFor(s.planName)).filter((c): c is string => !!c)))
             const labels = Array.from(new Set(daySessions.map((s) => s.planName))).map((name) => ({
               text: shortLabelFor(name) || name.toUpperCase().slice(0, 4),
               color: dotColorFor(name) ?? (isRest(name) ? '#ff5c5c' : 'var(--muted)'),
@@ -224,13 +224,6 @@ export default function History() {
                     ))}
                     {labels.length > 3 && <span className="cal-tag extra">+{labels.length - 3}</span>}
                   </>
-                )}
-                {!expanded && has && dotColors.length > 0 && (
-                  <span className="dot">
-                    {dotColors.slice(0, 3).map((c, j) => (
-                      <span key={j} style={{ background: c }} />
-                    ))}
-                  </span>
                 )}
               </div>
             )
