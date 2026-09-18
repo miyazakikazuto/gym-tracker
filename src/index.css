@@ -351,6 +351,8 @@ body {
   cursor: pointer;
   border: 1px solid transparent;
   touch-action: manipulation;
+  min-width: 0;
+  overflow: hidden;
 }
 .cal-cell.empty { background: transparent; cursor: default; }
 .cal-cell.today { border: 2px solid var(--accent); color: var(--accent); font-weight: 800; }
@@ -358,7 +360,7 @@ body {
 .cal-cell.rest-day { background: rgba(255, 60, 60, 0.15); }
 .cal-grid .cal-cell { height:62px; flex-direction:column; gap:2px; padding-top:4px; }
 .cal-grid.detail .cal-day { font-size:11px; line-height:1; }
-.cal-tag { font-size:10px; font-weight:800; letter-spacing:.4px; line-height:1.15; }
+.cal-tag { font-size:10px; font-weight:800; letter-spacing:.4px; line-height:1.15; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cal-tag.extra { color:var(--muted); opacity:.6; }
 .cal-shift { position:absolute; top:2px; right:4px; font-size:9px; font-weight:800; letter-spacing:.3px; background:rgba(0,0,0,.32); padding:1px 4px; border-radius:999px; line-height:1.5; }
 .cal-legend { display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:10.5px; color:var(--muted); font-weight:700; align-items:center; }
