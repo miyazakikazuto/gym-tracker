@@ -189,19 +189,25 @@ export default function Today() {
   // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Pull/Push/
   // Easy/Cardio selalu bisa dipilih walau belum diatur di "Kelola jadwal".
   // Rest Day dikecualikan (ada tombol "Istirahat hari ini").
+  // Filter ikut mode: rehab OFF = leg/push/pull/cardio (+easy bila tidak di-exclude),
+  // rehab ON = leg-iso/leg-light/upper-r/cardio — item rehab tidak muncul di mode normal.
   // Kalau plan belum dibuat, sesi tetap bisa dimulai dari template preset
   // (gerakan dicocokkan dengan library lewat templatePlan).
+  const REHAB_PICK_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio']
+  const NORMAL_PICK_KEYS = ['leg', 'push', 'pull', 'easy', 'cardio']
   const pickOptions = PLAN_PRESETS
     .filter((p) => p.key !== 'rest' && !(settings.excludeEasyDay && p.key === 'easy'))
+    .filter((p) => (rehabMode ? REHAB_PICK_KEYS : NORMAL_PICK_KEYS).includes(p.key))
     .map((p) => ({
       key: p.key,
       name: p.name,
       plan: planForKey(plans, p.key),
       suggested: p.key === effectiveKey,
       sub: planForKey(plans, p.key)
-        ? `${planForKey(plans, p.key)!.items.length} gerakan`
-        : `${p.exercises.length} gerakan (template)`,
+        ? `${planForKey(plans, p.key)!.items.length} gerakan · plan`
+        : `${p.exercises.length} gerakan`,
     }))
+    .sort((a, b) => Number(b.suggested) - Number(a.suggested))
 
   const showStart = !restToday && !todayDone
   // CTA bawah hanya tampil saat kartu Saran (dengan tombol Mulai inline) tidak tampak —
@@ -691,7 +697,7 @@ export default function Today() {
                   void createAndOpen(plan, o.name, wantExtra)
                 }}
               >
-                {o.name}{o.suggested && <span className="tag">saran</span>}
+                {o.name}{o.suggested && <span className="tag" style={{ marginLeft: 6 }}>saran</span>}
                 <span className="sub">{o.sub}</span>
               </button>
             ))
