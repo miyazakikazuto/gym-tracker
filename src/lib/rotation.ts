@@ -1,4 +1,4 @@
-import { parseKey, todayKey } from './date'
+import { addDays, mondayOf, parseKey, todayKey } from './date'
 import { presetByName, presetByLooseName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
@@ -92,47 +92,29 @@ export function weekProgressFreeOrder(
   _excludedTypes: Set<string>,
   skippedSessions: number,
   settings?: Partial<UserSettings>,
+  refToday?: string,
 ): { cycle: number; sessionIndex: number; doneKeys: Set<string>; isWeekComplete: boolean; progress: string } {
   const WEEK = 3
-  let countedSessions: Session[]
-  if (settings?.freeOrderSince || settings?.freeOrderOffset != null) {
-    const since = settings?.freeOrderSince
-    countedSessions = sessions
-      .filter((s) => isCountedSession(s) && (!since || s.date >= since))
-      .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
-  } else {
-    const today = todayKey()
-    countedSessions = sessions
-      .filter((s) => isCountedSession(s) && s.date >= today)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+  // Week program by kalender beneran: Senin–Minggu minggu berjalan.
+  // Sesi minggu lalu yang tak komplet hangus (tidak carry-over).
+  const ref = refToday ?? todayKey()
+  const mon = mondayOf(ref)
+  const sun = addDays(mon, 6)
+  const weekSessions = sessions
+    .filter((s) => isCountedSession(s) && s.date >= mon && s.date <= sun)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+  // Unique per key = duplicate otomatis 1 (Pull 2× tetap 1)
+  const doneKeys = new Set<string>()
+  for (const s of weekSessions) {
+    const k = (presetByLooseName(s.planName) ?? presetByName(s.planName))?.key
+    if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) doneKeys.add(k)
   }
-  // Iterative walk: kumpulkan 3 unique per Week (duplicate=1, max 6 scan = 3 unique + 3 duplicate)
-  // biar Leg 2× tetap 1/3, tidak loncat Week-2 0/3 prematur
-  let pos = 0
-  let cycle = 1
-  let cur = new Set<string>()
-  while (pos < countedSessions.length) {
-    cur = new Set<string>()
-    let scanned = 0
-    while (pos < countedSessions.length && cur.size < 3 && scanned < 6) {
-      const k = (presetByLooseName(countedSessions[pos].planName) ?? presetByName(countedSessions[pos].planName))?.key
-      if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) cur.add(k)
-      pos++
-      scanned++
-      if (cur.size === 3) break
-    }
-    if (cur.size === 3) {
-      if (pos < countedSessions.length) cycle++
-      else break
-    } else break
-  }
-  // Rollover: week terakhir pas-komplet (tidak ada sesi sesudahnya) langsung
-  // jadi week baru 0/3 — header tidak macet di "Week-N 3/3" menunggu sesi pertama
-  const doneKeys = cur.size === 3 ? new Set<string>() : cur
-  const rolledCycle = cur.size === 3 ? cycle + 1 : cycle
-  const total = countedSessions.length + (skippedSessions ?? 0)
+  // Nomor week = index minggu kalender sejak jangkar (snap ke Senin, min 1)
+  const anchorMon = mondayOf(settings?.freeOrderSince ?? ref)
+  const cycle = Math.max(1, Math.round((parseKey(mon).getTime() - parseKey(anchorMon).getTime()) / 86400000 / 7) + 1)
+  const total = weekSessions.length + (skippedSessions ?? 0)
   return {
-    cycle: rolledCycle,
+    cycle,
     sessionIndex: total % WEEK,
     doneKeys,
     isWeekComplete: doneKeys.size === 3,

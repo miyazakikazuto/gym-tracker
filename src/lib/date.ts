@@ -43,6 +43,13 @@ export function weekStart(key: string): string {
   return addDays(key, -dow)
 }
 
+// Senin minggu kalender tsb (untuk week program 5/3/1 — terpisah dari
+// weekStart Minggu yang dipakai statistik cardio). dayOfWeek: 0=Minggu.
+export function mondayOf(key: string): string {
+  const dow = dayOfWeek(key)
+  return addDays(key, -((dow + 6) % 7))
+}
+
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
 export function formatDMYWIB(key: string): string {
