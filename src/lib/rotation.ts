@@ -126,10 +126,13 @@ export function weekProgressFreeOrder(
       else break
     } else break
   }
-  const doneKeys = cur
+  // Rollover: week terakhir pas-komplet (tidak ada sesi sesudahnya) langsung
+  // jadi week baru 0/3 — header tidak macet di "Week-N 3/3" menunggu sesi pertama
+  const doneKeys = cur.size === 3 ? new Set<string>() : cur
+  const rolledCycle = cur.size === 3 ? cycle + 1 : cycle
   const total = countedSessions.length + (skippedSessions ?? 0)
   return {
-    cycle,
+    cycle: rolledCycle,
     sessionIndex: total % WEEK,
     doneKeys,
     isWeekComplete: doneKeys.size === 3,

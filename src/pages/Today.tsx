@@ -173,7 +173,8 @@ export default function Today() {
   const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
   const freeOrder = settings.freeOrder === true
   const freeProg = freeOrder ? weekProgressFreeOrder(sessions, excludedTypes, settings.skippedSessions ?? 0, settings) : null
-  const freeNext = freeOrder && freeProg && !freeProg.isWeekComplete ? freeNextKey(freeProg.doneKeys) : null
+  // Week fresh (0/3, termasuk awal program) = bebas urut tanpa default — saran '—' sampai user pilih via grid
+  const freeNext = freeOrder && freeProg && freeProg.doneKeys.size > 0 ? freeNextKey(freeProg.doneKeys) : null
   const effectiveKey = rehabMode ? rehabKey : freeNext ? freeNext : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
   const effectivePreset = presetByKey(effectiveKey)
   const effectivePlan = planForKey(plans, effectiveKey)

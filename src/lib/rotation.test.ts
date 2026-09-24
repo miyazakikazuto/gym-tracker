@@ -4,6 +4,8 @@ import {
   lastFinishedSession,
   daysSinceLast,
   suggestKey,
+  weekProgressFreeOrder,
+  freeNextKey,
 } from './rotation'
 import type { Session } from '../types'
 
@@ -149,5 +151,66 @@ describe('suggestKey night-light & siang alias', () => {
     // shift siang should be treated as sore via shiftForDate, but suggestKey only checks 'malam'
     const r = suggestKey({}, [], 'sore')
     expect(r.isNightLight).toBe(false)
+  })
+})
+
+describe('weekProgressFreeOrder', () => {
+  const since = { freeOrderSince: '2026-01-01' }
+  const seq = (names: string[]) =>
+    names.map((planName, i) =>
+      mkSession({ id: `s${i}`, planName, date: `2026-09-${String(10 + i).padStart(2, '0')}`, startedAt: i, endedAt: i + 1 }),
+    )
+
+  it('kosong → Week-1 0/3', () => {
+    const r = weekProgressFreeOrder([], new Set(), 0, since)
+    expect(r).toMatchObject({ cycle: 1, progress: '0/3', isWeekComplete: false })
+    expect(r.doneKeys.size).toBe(0)
+  })
+
+  it('week jalan 2/3 → tetap Week-1', () => {
+    const r = weekProgressFreeOrder(seq(['Pull Day', 'Push Day']), new Set(), 0, since)
+    expect(r).toMatchObject({ cycle: 1, progress: '2/3', isWeekComplete: false })
+    expect(r.doneKeys).toEqual(new Set(['pull', 'push']))
+  })
+
+  it('week pas-komplet → rollover Week-2 0/3 (tidak macet di 3/3)', () => {
+    const r = weekProgressFreeOrder(seq(['Pull Day', 'Push Day', 'Leg Day']), new Set(), 0, since)
+    expect(r).toMatchObject({ cycle: 2, progress: '0/3', isWeekComplete: false })
+    expect(r.doneKeys.size).toBe(0)
+  })
+
+  it('1 sesi week baru → Week-2 1/3', () => {
+    const r = weekProgressFreeOrder(seq(['Pull Day', 'Push Day', 'Leg Day', 'Pull Day']), new Set(), 0, since)
+    expect(r).toMatchObject({ cycle: 2, progress: '1/3', isWeekComplete: false })
+    expect(r.doneKeys).toEqual(new Set(['pull']))
+  })
+
+  it('2 week komplet (6 sesi) → rollover Week-3 0/3', () => {
+    const r = weekProgressFreeOrder(
+      seq(['Pull Day', 'Push Day', 'Leg Day', 'Leg Day', 'Push Day', 'Pull Day']),
+      new Set(), 0, since,
+    )
+    expect(r).toMatchObject({ cycle: 3, progress: '0/3', isWeekComplete: false })
+  })
+
+  it('duplicate tidak ganda: Pull 2× tetap 2/3', () => {
+    const r = weekProgressFreeOrder(seq(['Pull Day', 'Pull Day', 'Push Day']), new Set(), 0, since)
+    expect(r).toMatchObject({ cycle: 1, progress: '2/3' })
+    expect(r.doneKeys).toEqual(new Set(['pull', 'push']))
+  })
+
+  it('Leg susulan (ke-4) masuk Week-2 1/3', () => {
+    const r = weekProgressFreeOrder(seq(['Pull Day', 'Push Day', 'Leg Day', 'Leg Day']), new Set(), 0, since)
+    expect(r).toMatchObject({ cycle: 2, progress: '1/3' })
+    expect(r.doneKeys).toEqual(new Set(['leg']))
+  })
+})
+
+describe('freeNextKey', () => {
+  it('kosong → pull; berkurang sesuai sisa; penuh → null', () => {
+    expect(freeNextKey(new Set())).toBe('pull')
+    expect(freeNextKey(new Set(['pull']))).toBe('push')
+    expect(freeNextKey(new Set(['pull', 'push']))).toBe('leg')
+    expect(freeNextKey(new Set(['pull', 'push', 'leg']))).toBeNull()
   })
 })
