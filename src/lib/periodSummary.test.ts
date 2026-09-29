@@ -58,9 +58,9 @@ describe('cardioWeekTotal / cardioWeekStatus', () => {
     expect(t.dur).toBe(4200)
     expect(t.sessions).toBe(2)
   })
-  it('status kurang/pas/lebih vs 15-25 km', () => {
-    expect(cardioWeekStatus(12.4)).toEqual({ status: 'kurang', diff: expect.closeTo(2.6) })
-    expect(cardioWeekStatus(15).status).toBe('pas')
+  it('status kurang/pas/lebih vs 12-25 km', () => {
+    expect(cardioWeekStatus(10)).toEqual({ status: 'kurang', diff: expect.closeTo(2) })
+    expect(cardioWeekStatus(12).status).toBe('pas')
     expect(cardioWeekStatus(25).status).toBe('pas')
     expect(cardioWeekStatus(30)).toEqual({ status: 'lebih', diff: 5 })
   })

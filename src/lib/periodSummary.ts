@@ -27,7 +27,7 @@ export function monSunWeekAgo(today: string, offset: number): PeriodWindow {
 }
 
 // ===== TARGET MINGGUAN CARDIO (fixed — jadikan setting bila kepakai) =====
-export const CARDIO_WEEK_MIN_KM = 15
+export const CARDIO_WEEK_MIN_KM = 12
 export const CARDIO_WEEK_MAX_KM = 25
 
 export interface CardioWeekTotal {
