@@ -1,7 +1,7 @@
 // Rekap mingguan/bulanan siap-tempel ke AI: agregat sesi selesai dalam periode,
 // volume per otot (primary saja — angka jujur, tanpa secondary), per gerakan
 // dengan delta vs periode sebelumnya, dan tren berat badan.
-import { addDays, MONTHS, todayKey, volumeOf, weekStart } from './date'
+import { addDays, mondayOf, MONTHS, todayKey, volumeOf, weekStart } from './date'
 import { getExerciseName, fmtNumber } from './helpers'
 import { isRest } from './templates'
 import { computeExcludedTypes, computePosition, getScheme } from './progression'
@@ -16,6 +16,13 @@ export interface PeriodWindow {
 export function weekWindow(today?: string): PeriodWindow {
   const t = today ?? todayKey()
   const start = weekStart(t)
+  return { start, end: addDays(start, 6) }
+}
+
+// Window mileage Senin–Minggu untuk week program (offset 0 = minggu berjalan,
+// 1 = minggu lalu, dst). Terpisah dari weekWindow Minggu–Sabtu statistik cardio.
+export function monSunWeekAgo(today: string, offset: number): PeriodWindow {
+  const start = addDays(mondayOf(today), -7 * Math.max(0, offset))
   return { start, end: addDays(start, 6) }
 }
 
@@ -169,7 +176,7 @@ function inPeriod(s: Session, w: PeriodWindow): boolean {
   return s.endedAt !== null && !isRest(s.planName) && s.date >= w.start && s.date <= w.end
 }
 
-function fmtRange(w: PeriodWindow): string {
+export function fmtRange(w: PeriodWindow): string {
   const [, m1, d1] = w.start.split('-')
   const [y2, m2, d2] = w.end.split('-')
   if (w.start.slice(0, 7) === w.end.slice(0, 7)) {

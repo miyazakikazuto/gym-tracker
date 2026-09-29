@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   formatPeriodForAI,
   weekWindow,
+  monSunWeekAgo,
+  fmtRange,
   monthWindow,
   prevWeekWindow,
   prevMonthWindow,
@@ -107,6 +109,25 @@ describe('windows', () => {
     const w = weekWindow('2026-08-26')
     expect(w.start).toBe('2026-08-23')
     expect(w.end).toBe('2026-08-29')
+  })
+
+  it('monSunWeekAgo: offset 0 = Senin–Minggu berjalan (Kamis 24 Sep → 21–27)', () => {
+    expect(monSunWeekAgo('2026-09-24', 0)).toEqual({ start: '2026-09-21', end: '2026-09-27' })
+    expect(monSunWeekAgo('2026-09-24', 1)).toEqual({ start: '2026-09-14', end: '2026-09-20' })
+  })
+
+  it('monSunWeekAgo edge: Minggu masuk week sama, Senin buka week baru', () => {
+    expect(monSunWeekAgo('2026-09-27', 0)).toEqual({ start: '2026-09-21', end: '2026-09-27' })
+    expect(monSunWeekAgo('2026-09-28', 0)).toEqual({ start: '2026-09-28', end: '2026-10-04' })
+  })
+
+  it('monSunWeekAgo offset negatif dijepit ke 0', () => {
+    expect(monSunWeekAgo('2026-09-24', -2)).toEqual({ start: '2026-09-21', end: '2026-09-27' })
+  })
+
+  it('fmtRange label rentang se-bulan & lintas bulan', () => {
+    expect(fmtRange({ start: '2026-09-21', end: '2026-09-27' })).toBe('21–27 Sep 2026')
+    expect(fmtRange({ start: '2026-09-28', end: '2026-10-04' })).toBe('28 Sep – 04 Okt 2026')
   })
 
   it('monthWindow batas bulan & tahun kabisat', () => {

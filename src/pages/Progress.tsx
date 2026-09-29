@@ -9,6 +9,8 @@ import { secondaryFactorsFor } from '../lib/muscles'
 import {
   formatPeriodForAI,
   weekWindow,
+  monSunWeekAgo,
+  fmtRange,
   monthWindow,
   prevWeekWindow,
   prevMonthWindow,
@@ -35,6 +37,8 @@ export default function Progress() {
   const weekOpts = useMemo(() => listWeekOptions(visibleSessions, today), [visibleSessions, today])
   const monthOpts = useMemo(() => listMonthOptions(visibleSessions, today), [visibleSessions, today])
   const [cardioMonthSel, setCardioMonthSel] = useState(0)
+  // Geser blok mileage mingguan (Senin–Minggu): 0 = 4 minggu terbaru
+  const [mileShift, setMileShift] = useState(0)
   const [recapKind, setRecapKind] = useState<'mingguan' | 'bulanan'>('mingguan')
   // Index ke daftar opsi — 0 = periode berjalan. Reset saat kind berganti.
   const [recapSel, setRecapSel] = useState(0)
@@ -405,6 +409,51 @@ export default function Progress() {
             </>
           )
         })()}
+        {/* ===== Mileage mingguan (Senin–Minggu) — 4 baris + geser ala bulanan ===== */}
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+          <div className="row wrap" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <div className="small" style={{ fontWeight: 700 }}>Mileage mingguan (Senin–Minggu)</div>
+            <div className="row" style={{ gap: 4 }}>
+              <button className="btn sm ghost" disabled={mileShift >= 51} onClick={() => setMileShift((v) => Math.min(51, v + 1))}>◀</button>
+              <button className="btn sm ghost" disabled={mileShift <= 0} onClick={() => setMileShift((v) => Math.max(0, v - 1))}>▶</button>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {[0, 1, 2, 3].map((i) => {
+              const off = mileShift + i
+              const win = monSunWeekAgo(today, off)
+              const t = cardioWeekTotal(visibleSessions, exercises, win)
+              const st = cardioWeekStatus(t.dist)
+              const pct = Math.min(100, (t.dist / CARDIO_WEEK_MAX_KM) * 100)
+              const markPct = (CARDIO_WEEK_MIN_KM / CARDIO_WEEK_MAX_KM) * 100
+              const statusText =
+                st.status === 'kurang'
+                  ? `kurang ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
+                  : st.status === 'pas'
+                    ? 'pas ✓'
+                    : `lebih ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
+              return (
+                <div key={off}>
+                  <div className="row wrap" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div className="small" style={{ fontWeight: 700 }}>
+                      {fmtRange(win)}
+                      {off === 0 && <span className="badge ok" style={{ marginLeft: 6 }}>kini</span>}
+                      {off === 1 && <span className="badge" style={{ marginLeft: 6 }}>lalu</span>}
+                    </div>
+                    <div className="small muted">{fmtNumber(Math.round(t.dist * 10) / 10)} km · {statusText}</div>
+                  </div>
+                  <div className="row" style={{ alignItems: 'center' }}>
+                    <div className="bar-track grow" style={{ position: 'relative' }}>
+                      <div className="bar-fill" style={{ width: `${pct}%` }} />
+                      <div style={{ position: 'absolute', left: `${markPct}%`, top: 0, bottom: 0, width: 2, background: 'var(--warn, #f59e0b)' }} />
+                    </div>
+                  </div>
+                  <div className="small muted" style={{ marginTop: 2 }}>{fmtHM(t.dur)} · {t.sessions} sesi</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
         {/* ===== Rincian bulanan cardio — 5 kategori (Plan B) ===== */}
         {(() => {
           const mWindow = monthOpts[cardioMonthSel] ?? monthWindow(today)
