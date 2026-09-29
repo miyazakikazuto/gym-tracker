@@ -377,38 +377,6 @@ export default function Progress() {
 
       <div className="card">
         <div className="card-title">Cardio</div>
-        <div className="small muted" style={{ marginBottom: 8 }}>
-          Dari sesi Cardio Day — catat jalan pindah ke Beranda.
-        </div>
-        {(() => {
-          const win = monSunWeekAgo(today, 0)
-          const t = cardioWeekTotal(visibleSessions, exercises, win)
-          const st = cardioWeekStatus(t.dist)
-          const pct = Math.min(100, (t.dist / CARDIO_WEEK_MAX_KM) * 100)
-          const markPct = (CARDIO_WEEK_MIN_KM / CARDIO_WEEK_MAX_KM) * 100
-          const statusText =
-            st.status === 'kurang'
-              ? `kurang ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
-              : st.status === 'pas'
-                ? 'pas ✓'
-                : `lebih ${fmtNumber(Math.round(st.diff * 10) / 10)} km`
-          return (
-            <>
-              <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
-                Minggu ini ({fmtRange(win)})
-              </div>
-              <div className="row" style={{ marginTop: 6, alignItems: 'center' }}>
-                <div className="bar-track grow" style={{ position: 'relative' }}>
-                  <div className="bar-fill" style={{ width: `${pct}%` }} />
-                  <div style={{ position: 'absolute', left: `${markPct}%`, top: 0, bottom: 0, width: 2, background: 'var(--warn, #f59e0b)' }} />
-                </div>
-              </div>
-              <div className="small muted" style={{ marginTop: 4, marginBottom: 8 }}>
-                {fmtNumber(Math.round(t.dist * 10) / 10)} km / {CARDIO_WEEK_MIN_KM}–{CARDIO_WEEK_MAX_KM} km · {statusText} · {fmtHM(t.dur)} · {t.sessions} sesi
-              </div>
-            </>
-          )
-        })()}
         {/* ===== Mileage mingguan (Senin–Minggu) — 4 baris + geser ala bulanan ===== */}
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           <div className="row wrap" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
