@@ -414,8 +414,8 @@ export default function Progress() {
           <div className="row wrap" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <div className="small" style={{ fontWeight: 700 }}>Mileage mingguan (Senin–Minggu)</div>
             <div className="row" style={{ gap: 4 }}>
-              <button className="btn sm ghost" disabled={mileShift >= 51} onClick={() => setMileShift((v) => Math.min(51, v + 1))}>◀</button>
-              <button className="btn sm ghost" disabled={mileShift <= 0} onClick={() => setMileShift((v) => Math.max(0, v - 1))}>▶</button>
+              <button className="btn sm ghost" disabled={mileShift >= 48} onClick={() => setMileShift((v) => Math.min(48, v + 4))}>◀</button>
+              <button className="btn sm ghost" disabled={mileShift <= 0} onClick={() => setMileShift((v) => Math.max(0, v - 4))}>▶</button>
             </div>
           </div>
           <div style={{ display: 'grid', gap: 10 }}>
