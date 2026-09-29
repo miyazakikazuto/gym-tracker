@@ -381,7 +381,7 @@ export default function Progress() {
           Dari sesi Cardio Day — catat jalan pindah ke Beranda.
         </div>
         {(() => {
-          const win = weekWindow(today)
+          const win = monSunWeekAgo(today, 0)
           const t = cardioWeekTotal(visibleSessions, exercises, win)
           const st = cardioWeekStatus(t.dist)
           const pct = Math.min(100, (t.dist / CARDIO_WEEK_MAX_KM) * 100)
@@ -395,7 +395,7 @@ export default function Progress() {
           return (
             <>
               <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
-                Minggu ini ({formatDMYWIB(win.start)} – {formatDMYWIB(win.end)})
+                Minggu ini ({fmtRange(win)})
               </div>
               <div className="row" style={{ marginTop: 6, alignItems: 'center' }}>
                 <div className="bar-track grow" style={{ position: 'relative' }}>
