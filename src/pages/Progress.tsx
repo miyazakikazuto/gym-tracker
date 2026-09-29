@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../context/DataContext'
-import { volumeOf, todayKey, addDays, weekStart, MONTHS, formatDMYWIB } from '../lib/date'
+import { volumeOf, todayKey, addDays, mondayOf, MONTHS } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { isRehabSession } from '../lib/rehab'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
@@ -59,7 +59,7 @@ export default function Progress() {
   const [inclSecondary, setInclSecondary] = useState(true)
   const weeks = [3, 2, 1, 0].map((w) => {
     const k = w + volPage * 4
-    const start = addDays(weekStart(today), -k * 7)
+    const start = addDays(mondayOf(today), -k * 7)
     const end = addDays(start, 6)
     let vol = 0
     for (const s of visibleSessions) {
@@ -220,7 +220,7 @@ export default function Progress() {
   const prsFiltered = prMuscle === 'Semua' ? prs : prs.filter(([exId]) => exercises.find((e) => e.id === exId)?.muscleGroup === prMuscle)
 
   // ===== Minggu ini: breakdown per grup otot =====
-  const thisWeekStart = weekStart(today)
+  const thisWeekStart = mondayOf(today)
   const thisWeekEnd = addDays(thisWeekStart, 6)
   interface MuscleWeekInfo { sessions: Set<string>; sets: number; vol: number }
   const thisWeekMuscle = new Map<string, MuscleWeekInfo>()
@@ -280,7 +280,7 @@ export default function Progress() {
       <div className="card">
         <div className="card-title">Otot Minggu Ini</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
-          {formatDMYWIB(thisWeekStart)} – {formatDMYWIB(thisWeekEnd)}
+          {fmtRange({ start: thisWeekStart, end: thisWeekEnd })}
         </div>
         {thisWeekList.length === 0 ? (
           <div className="small muted">Belum ada sesi latihan minggu ini.</div>
@@ -741,7 +741,7 @@ export default function Progress() {
 
 function buildTrendWeeks(today: string): { start: string; end: string }[] {
   return [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
-    const start = addDays(weekStart(today), -w * 7)
+    const start = addDays(mondayOf(today), -w * 7)
     const end = addDays(start, 6)
     return { start, end }
   })
