@@ -274,6 +274,10 @@ export default function Session() {
     return <div className="empty">Memuat sesi…</div>
   }
 
+  // sid di atas SEMUA early-return: del() (hoisted) dipakai branch Rest —
+  // const di bawah return tak pernah terinisialisasi → TDZ saat Hapus diklik.
+  const sid = session.id
+
   // Rest Day = hari istirahat: tanpa gerakan, set, RPE, stiker, atau tombol
   // workout. Tampil sebagai kartu info + hapus saja.
   if (isRestLoose(session.planName)) {
@@ -314,7 +318,6 @@ export default function Session() {
   }
 
   const isActive = session.endedAt === null
-  const sid = session.id
 
   // Parse 5/3/1 context dari planName — mis. "[C1-S05] Leg Day — 3×3"
   const cycleMatch = session.planName.match(/\[C(\d+)-S(\d+)\]/)
