@@ -24,6 +24,13 @@ interface SetResult {
   elevationM?: number
 }
 
+// Kode error Firebase (permission-denied/unavailable/…) — toast generik
+// "cek koneksi" menelan info ini sehingga gagal-hapus tak terdiagnosis.
+function errCode(e: unknown): string {
+  if (typeof e === 'object' && e !== null && 'code' in e) return String((e as { code: unknown }).code)
+  return e instanceof Error ? e.message : 'unknown'
+}
+
 export default function Session() {
   const { id } = useParams<{ id: string }>()
   const uid = useUid()
@@ -257,9 +264,10 @@ export default function Session() {
     if (session.cycle !== undefined) patch.cycle = deleteField()
     if (session.sessionIndex !== undefined) patch.sessionIndex = deleteField()
     if (Object.keys(patch).length === 0) return
-    updateSession(uid, session.id, patch as never).catch(() =>
-      showToast('Gagal merapikan sesi Rest — cek koneksi', 'error'),
-    )
+    updateSession(uid, session.id, patch as never).catch((e) => {
+      console.error('[session] normalisasi rest gagal:', e)
+      showToast(`Gagal merapikan sesi Rest (${errCode(e)}) — cek koneksi`, 'error')
+    })
   }, [ready, session, uid, showToast])
 
   if (!ready || !session) {
@@ -449,8 +457,9 @@ export default function Session() {
   async function del() {
     try {
       await deleteSession(uid, sid)
-    } catch {
-      showToast('Gagal menghapus sesi — cek koneksi internet', 'error')
+    } catch (e) {
+      console.error('[session] hapus gagal:', e)
+      showToast(`Gagal menghapus sesi (${errCode(e)}) — cek koneksi internet`, 'error')
       return
     }
     navigate('/')
