@@ -4,9 +4,10 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
-import { presetByName } from '../lib/templates'
+import { presetByName, isRestLoose } from '../lib/templates'
+import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
@@ -243,8 +244,65 @@ export default function Session() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Normalisasi sekali per sesi: Rest rusak-data (stiker siklus / extra /
+  // Berlangsung / berisi set) dirapikan jadi Rest Day selesai — tanpa ubah makna.
+  const normalizedRef = useRef('')
+  useEffect(() => {
+    if (!ready || !session || !isRestLoose(session.planName)) return
+    if (normalizedRef.current === session.id) return
+    normalizedRef.current = session.id
+    const patch: Record<string, unknown> = { ...normalizeRestSession(session) }
+    if (session.cycleLabel !== undefined) patch.cycleLabel = deleteField()
+    if (session.scheme !== undefined) patch.scheme = deleteField()
+    if (session.cycle !== undefined) patch.cycle = deleteField()
+    if (session.sessionIndex !== undefined) patch.sessionIndex = deleteField()
+    if (Object.keys(patch).length === 0) return
+    updateSession(uid, session.id, patch as never).catch(() =>
+      showToast('Gagal merapikan sesi Rest — cek koneksi', 'error'),
+    )
+  }, [ready, session, uid, showToast])
+
   if (!ready || !session) {
     return <div className="empty">Memuat sesi…</div>
+  }
+
+  // Rest Day = hari istirahat: tanpa gerakan, set, RPE, stiker, atau tombol
+  // workout. Tampil sebagai kartu info + hapus saja.
+  if (isRestLoose(session.planName)) {
+    return (
+      <div className="page">
+        <div className="row spread">
+          <div>
+            <div className="page-title">😴 Rest Day</div>
+            <div className="subtitle" style={{ marginBottom: 0 }}>
+              {formatDMYWIB(session.date)} · hari istirahat — tanpa gerakan
+            </div>
+          </div>
+          <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
+        </div>
+        <div className="card">
+          <div className="card-title">Istirahat penuh</div>
+          <div className="small muted">
+            Tidak ada gerakan, set, RPE, atau stiker siklus. Sesi ini tidak majuin siklus maupun rotasi.
+          </div>
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={() => navigate(-1)}>Kembali</button>
+        </div>
+        {confirmDel && (
+          <Modal onClose={() => setConfirmDel(false)} label="Hapus sesi">
+            <h3>Hapus sesi ini?</h3>
+            <div className="small muted" style={{ marginBottom: 10 }}>
+              "Rest Day" ({formatDMYWIB(session.date)}) akan dihapus permanen.
+            </div>
+            <div className="form-actions sticky">
+              <button className="btn ghost" onClick={() => setConfirmDel(false)}>Batal</button>
+              <button className="btn danger" onClick={() => { setConfirmDel(false); void del() }}>Hapus</button>
+            </div>
+          </Modal>
+        )}
+      </div>
+    )
   }
 
   const isActive = session.endedAt === null

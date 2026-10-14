@@ -1,5 +1,5 @@
 import type { Exercise, Session } from '../types'
-import { isRest, presetByLooseName } from './templates'
+import { isRestLoose } from './templates'
 import { volumeOf } from './date'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
@@ -35,7 +35,7 @@ export function categoryOfExercise(ex: { category?: string; muscleGroup: string 
 export function isCountedSession(s: Session): boolean {
   if (s.endedAt === null) return false
   if (s.isExtra) return false
-  if (isRest(s.planName) || (presetByLooseName(s.planName)?.key === 'rest')) return false
+  if (isRestLoose(s.planName)) return false
   if (/cardio/i.test(s.planName)) return false
   if (/^skip/i.test(s.planName.trim())) return false
   // Rehab: [R1-S01]… atau preset rehab tanpa stiker — jangan hitung di siklus 5/3/1
@@ -43,6 +43,22 @@ export function isCountedSession(s: Session): boolean {
   const key = s.planName.trim().toLowerCase()
   if (key === 'leg rehab iso' || key === 'leg ringan' || key === 'upper kanan') return false
   return true
+}
+
+/**
+ * Patch kanonis untuk sesi Rest Day: nama bersih tanpa stiker, bukan extra,
+ * langsung selesai, tanpa set. Idempoten — return {} bila sudah kanonis
+ * atau bukan rest (cek longgar: stiker "[C5-S05] Rest Day — 3×3" ikut kena).
+ * Field snapshot 5/3/1 (cycleLabel/scheme/…) dihapus pemanggil via deleteField.
+ */
+export function normalizeRestSession(s: Session): Partial<Session> {
+  if (!isRestLoose(s.planName)) return {}
+  const patch: Partial<Session> = {}
+  if (s.planName !== 'Rest Day') patch.planName = 'Rest Day'
+  if (s.isExtra === true) patch.isExtra = false
+  if (s.endedAt === null) patch.endedAt = s.startedAt
+  if (s.sets.length > 0) patch.sets = []
+  return patch
 }
 
 export function categoryKeysOfExercise(ex: Exercise): string[] {

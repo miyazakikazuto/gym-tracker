@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import { isRestLoose, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
@@ -90,7 +90,7 @@ export default function History() {
     const monthPrefix = viewYear + '-' + String(viewMonth + 1).padStart(2, '0')
   const rehabMode = settings.rehabMode === true
   const list = sessions
-    .filter((s) => s.date.startsWith(monthPrefix) && !isRest(s.planName) && (rehabMode || !isRehabSession(s, exercises)))
+    .filter((s) => s.date.startsWith(monthPrefix) && !isRestLoose(s.planName) && (rehabMode || !isRehabSession(s, exercises)))
     .sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessionsAll2 = selKey ? sessions.filter((s) => s.date === selKey) : []
   const daySessions = rehabMode ? daySessionsAll2 : daySessionsAll2.filter((s) => !isRehabSession(s, exercises))
@@ -117,8 +117,12 @@ export default function History() {
     try {
       const startAt = parseKey(selKey).getTime() + 12 * 60 * 60 * 1000
       let payload: ReturnType<typeof buildSession>
-      if (isRest(name)) {
+      if (isRestLoose(name)) {
+        // Rest Day langsung selesai (tanpa stiker/extra) — tidak ada Rest "Berlangsung"
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
+        payload.planName = 'Rest Day'
+        payload.endedAt = payload.startedAt
+        payload.sets = []
       } else if (settings.rehabMode === true) {
         // Rehab: stiker [R..-S..] tanpa wave/scheme TM (hitung sesi rehab saja)
         const before = sessions.filter((x) => isRehabSession(x, exercises) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
@@ -195,10 +199,10 @@ export default function History() {
             const has = daySessions.length > 0
             const isToday = key === todayKey()
             const isSelected = key === selKey
-            const isRestDay = daySessions.some((s) => isRest(s.planName))
+            const isRestDay = daySessions.some((s) => isRestLoose(s.planName))
             const labels = Array.from(new Set(daySessions.map((s) => s.planName))).map((name) => ({
               text: shortLabelFor(name) || name.toUpperCase().slice(0, 4),
-              color: dotColorFor(name) ?? (isRest(name) ? '#ff5c5c' : 'var(--muted)'),
+              color: dotColorFor(name) ?? (isRestLoose(name) ? '#ff5c5c' : 'var(--muted)'),
             }))
             const sh = shiftForDate(key, settings)
             return (

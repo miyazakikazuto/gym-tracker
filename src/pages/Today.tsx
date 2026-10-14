@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan, type PlanItem } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession, createExercise } from '../lib/gymstore'
-import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
+import { shortLabelFor, isRestLoose, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -182,9 +182,9 @@ export default function Today() {
   const todaySessions = sessions.filter((s) => s.date === base)
   // Istirahat hari ini = ada sesi Rest Day tersimpan (bukan state lokal) —
   // sehingga muncul juga di kalender Riwayat & bertahan setelah reload.
-  const restToday = todaySessions.some((s) => isRest(s.planName))
-  const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRest(s.planName))
-  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRest(s.planName))
+  const restToday = todaySessions.some((s) => isRestLoose(s.planName))
+  const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRestLoose(s.planName))
+  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRestLoose(s.planName))
 
   // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Pull/Push/
   // Easy/Cardio selalu bisa dipilih walau belum diatur di "Kelola jadwal".
@@ -254,6 +254,23 @@ export default function Today() {
   async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean) {
     if (creating) return
     setCreating(true)
+    // Rest Day bukan workout: paksa payload kanonis (langsung selesai, tanpa
+    // stiker/extra/set) — tidak ada lagi Rest "Berlangsung" + editor gerakan.
+    if (isRestLoose(name ?? plan?.name ?? '')) {
+      try {
+        const payload = buildSession(null, base, () => 'reps', Date.now(), undefined, false)
+        payload.planName = 'Rest Day'
+        payload.endedAt = payload.startedAt
+        payload.sets = []
+        const ref = await createSession(uid, payload)
+        navigate(`/session/${ref.id}`)
+      } catch {
+        showToast('Gagal menyimpan istirahat — cek koneksi internet', 'error')
+      } finally {
+        setCreating(false)
+      }
+      return
+    }
     let payload: ReturnType<typeof buildSession>
     if (isExtra) {
       payload = buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
@@ -352,7 +369,7 @@ export default function Today() {
 
   // Batalkan istirahat — hapus sesi Rest Day hari ini
   async function cancelRestToday() {
-    const rest = todaySessions.find((s) => isRest(s.planName))
+    const rest = todaySessions.find((s) => isRestLoose(s.planName))
     if (!rest) return
     try {
       await deleteSession(uid, rest.id)

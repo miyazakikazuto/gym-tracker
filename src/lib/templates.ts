@@ -179,6 +179,12 @@ export function isRest(name: string): boolean {
   return presetByName(name)?.key === 'rest'
 }
 
+// Longgar: benar juga bila nama ditempeli stiker siklus ("[C5-S05] Rest Day — 3×3").
+// Dipakai semua guard runtime agar Rest rusak-data tetap diperlakukan sebagai istirahat.
+export function isRestLoose(name: string): boolean {
+  return presetByLooseName(name)?.key === 'rest'
+}
+
 export function shortLabelFor(name: string): string {
   return presetByName(name)?.shortLabel ?? ''
 }

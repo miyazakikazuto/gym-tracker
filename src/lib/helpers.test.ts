@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, bestSetResult, fmtNumber, fmtInput } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput } from './helpers'
 import { parseDecimal } from './parse'
 import type { Exercise, Session } from '../types'
 
@@ -91,6 +91,9 @@ describe('isCountedSession', () => {
   it('Rest Day → false', () => {
     expect(isCountedSession(mkSession({ planName: 'Rest Day' }))).toBe(false)
   })
+  it('Rest Day berstiker → tetap false (bug 13 Okt)', () => {
+    expect(isCountedSession(mkSession({ planName: '[C5-S05] Rest Day — 3×3' }))).toBe(false)
+  })
   it('cardio case-insensitive → false', () => {
     expect(isCountedSession(mkSession({ planName: 'Cardio Lari' }))).toBe(false)
     expect(isCountedSession(mkSession({ planName: 'CARDIO' }))).toBe(false)
@@ -101,6 +104,26 @@ describe('isCountedSession', () => {
   })
   it('trim skip tidak match bila bukan prefix', () => {
     expect(isCountedSession(mkSession({ planName: 'Leg Skip' }))).toBe(true)
+  })
+})
+
+describe('normalizeRestSession', () => {
+  it('Rest rusak (stiker+extra+Berlangsung+set) → patch kanonis penuh', () => {
+    const s = mkSession({
+      planName: '[C5-S05] Rest Day — 3×3',
+      isExtra: true,
+      startedAt: 1000,
+      endedAt: null,
+      sets: [{ id: 'x', exerciseId: 'e1', setNumber: 1, weightKg: 0, reps: 0 } as never],
+    })
+    expect(normalizeRestSession(s)).toEqual({ planName: 'Rest Day', isExtra: false, endedAt: 1000, sets: [] })
+  })
+  it('Rest kanonis → patch kosong (idempoten)', () => {
+    expect(normalizeRestSession(mkSession({ planName: 'Rest Day' }))).toEqual({})
+  })
+  it('bukan rest → patch kosong', () => {
+    expect(normalizeRestSession(mkSession({ planName: 'Leg Day' }))).toEqual({})
+    expect(normalizeRestSession(mkSession({ planName: '[C1-S01] Leg Day — 3×5' }))).toEqual({})
   })
 })
 
