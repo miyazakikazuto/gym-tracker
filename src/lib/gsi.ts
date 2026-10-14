@@ -1,9 +1,9 @@
 import { OAuthProvider, signInWithCredential } from 'firebase/auth'
 import { getAuthInstance } from './firebase'
 
-// Google Cloud Console → project xauusd-jurnal → APIs & Services → Credentials →
+// Google Cloud Console → project gym-tracker-db-53d67 → APIs & Services → Credentials →
 // "Web client (auto created by Google Service)" → Client ID
-export const GOOGLE_CLIENT_ID = '977650715760-66tcuklejebnqgff88ih12slt1a6chkh.apps.googleusercontent.com'
+export const GOOGLE_CLIENT_ID = '744118317355-km8slsdmhbtvf0q61stfv0jhv22sm0go.apps.googleusercontent.com'
 
 interface TokenClientResponse {
   access_token: string
