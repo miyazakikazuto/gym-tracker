@@ -136,13 +136,17 @@ export function formatSessionForAI(
   }
 
   const totalVol = session.sets.reduce((acc, s) => acc + s.weightKg * (s.durationSec != null ? s.durationSec / 60 : s.reps), 0)
-  const rpeVals = Object.values(session.rpes ?? {})
-  const avgRpe = rpeVals.length > 0 ? rpeVals.reduce((a, b) => a + b, 0) / rpeVals.length : null
+  const rpeLegacy = (() => {
+    if (session.rpe != null) return session.rpe
+    const vals = Object.values(session.rpes ?? {})
+    if (vals.length === 0) return null
+    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+  })()
 
   lines.push('')
   lines.push(
     `Total: ${session.sets.length} set · ${fmtNumber(Math.round(totalVol))} kg volume` +
-      (avgRpe != null ? ` · RPE rata-rata ${fmtNumber(Math.round(avgRpe * 10) / 10)}` : ''),
+      (rpeLegacy != null ? ` · RPE ${fmtNumber(rpeLegacy)}` : ''),
   )
   if (session.note.trim()) lines.push(`Catatan: ${session.note.trim()}`)
   return lines.join('\n')

@@ -64,7 +64,8 @@ export interface Session {
   startedAt: number // epoch ms
   endedAt: number | null
   sets: SessionSet[]
-  rpes?: Record<string, number> // exerciseId → RPE 6..10
+  rpe?: number // RPE sesi 1..10 (di footer, bukan per gerakan)
+  rpes?: Record<string, number> // LEGACY per-gerakan 6..10 — dibaca sebagai fallback avg→rpe
   // Snapshot 5/3/1 saat sesi dibuat — stiker cycle biar history/rekap tetap kebal perubahan setting
   cycle?: number // C1, C2, ...
   sessionIndex?: number // 0-based dalam cycle
@@ -99,6 +100,9 @@ export interface UserSettings {
   excludeEasyDay?: boolean // true = Easy Day dihapus dari siklus 5/3/1 (cycle jadi 12 sesi)
   skippedSessions?: number // jumlah sesi yang di-skip (posisi tetap maju)
   rehabMode?: boolean // true = Mode Rehab: 5/3/1 & TM dimatikan, saran ikut REHAB_CYCLE (lib/rehab.ts)
+  freeOrder?: boolean // true = Week-3 Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+  freeOrderSince?: string // YYYY-MM-DD jangkar mulai Week-3 (biar Week tidak loncat ke 13)
+  freeOrderOffset?: number // counted snapshot saat ON (untuk hitung Week dari 1)
 }
 
 export const MUSCLE_GROUPS = [

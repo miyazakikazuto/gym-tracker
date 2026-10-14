@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dateKey, parseKey, addDays, weekStart, formatDMYWIB, formatDMYInput, parseDMY, volumeOf, MONTHS } from './date'
+import { dateKey, parseKey, addDays, weekStart, mondayOf, formatDMYWIB, formatDMYInput, parseDMY, volumeOf, MONTHS } from './date'
 
 describe('dateKey / parseKey round-trip WIB', () => {
   it('round-trip', () => {
@@ -24,6 +24,16 @@ describe('weekStart', () => {
     expect(weekStart('2026-08-12')).toBe('2026-08-09')
     expect(weekStart('2026-08-09')).toBe('2026-08-09')
     expect(weekStart('2026-08-10')).toBe('2026-08-09')
+  })
+})
+
+describe('mondayOf', () => {
+  it('Senin sebagai awal minggu program', () => {
+    // Kamis 2026-09-24 → Senin 2026-09-21; Minggu 2026-09-27 → Senin yang sama
+    expect(mondayOf('2026-09-24')).toBe('2026-09-21')
+    expect(mondayOf('2026-09-27')).toBe('2026-09-21')
+    expect(mondayOf('2026-09-21')).toBe('2026-09-21')
+    expect(mondayOf('2026-09-28')).toBe('2026-09-28')
   })
 })
 

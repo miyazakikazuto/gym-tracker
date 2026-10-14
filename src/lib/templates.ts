@@ -22,12 +22,14 @@ export const PLAN_PRESETS: PlanPreset[] = [
       // Nama disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts) supaya
       // templatePlan() menemukan gerakan yang sudah ada di library —
       // bukan membuat duplikat baru saat "Pilih plan lain".
-      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      // Urutan user: Press → Thrust → Calf → Squat → Abductor → Adductor.
+      // Hip Thrust = pengganti Leg Curl.
       { name: 'Leg Press', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Romanian Deadlift', muscleGroup: 'Kaki', equipment: 'Barbell' },
-      { name: 'Leg Extension', muscleGroup: 'Kaki', equipment: 'Machine' },
-      { name: 'Leg Curl', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Hip Thrust', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      { name: 'Abductor', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Adductor', muscleGroup: 'Kaki', equipment: 'Machine' },
     ],
   },
   {
@@ -168,8 +170,19 @@ export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
 }
 
+export function presetByLooseName(name: string): PlanPreset | undefined {
+  const bare = name.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0].trim().toLowerCase()
+  return PLAN_PRESETS.find((p) => p.name.toLowerCase() === bare)
+}
+
 export function isRest(name: string): boolean {
   return presetByName(name)?.key === 'rest'
+}
+
+// Longgar: benar juga bila nama ditempeli stiker siklus ("[C5-S05] Rest Day — 3×3").
+// Dipakai semua guard runtime agar Rest rusak-data tetap diperlakukan sebagai istirahat.
+export function isRestLoose(name: string): boolean {
+  return presetByLooseName(name)?.key === 'rest'
 }
 
 export function shortLabelFor(name: string): string {

@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { isRest, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import { isRestLoose, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
@@ -35,6 +35,7 @@ export default function History() {
   const [viewYear, setViewYear] = useState(todayY)
   const [viewMonth, setViewMonth] = useState(todayM - 1) // 0-indexed
   // Preferensi tampilan kalender — tersimpan di localStorage (gt:calPrefs)
+  // Default Off (kosong bersih) — Detail hanya bila user memilih
   const [expanded, setExpanded] = useState<boolean>(() => {
     try {
       const raw = localStorage.getItem('gt:calPrefs')
@@ -45,7 +46,7 @@ export default function History() {
     } catch {
       /* localStorage tidak tersedia — pakai default */
     }
-    return true
+    return false
   })
   const [showShift, setShowShift] = useState<boolean>(() => {
     try {
@@ -70,19 +71,11 @@ export default function History() {
   }, [expanded, showShift])
   const [selKey, setSelKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [historyExtra, setHistoryExtra] = useState(false)
   const [error, setError] = useState('')
   const [visibleCount, setVisibleCount] = useState(30)
 
   const cells = monthGrid(viewYear, viewMonth)
   const selShift = selKey ? shiftForDate(selKey, settings) : null
-
-  useEffect(() => {
-    if (selKey) {
-      const has = sessions.some((s) => s.date === selKey && !isRest(s.planName))
-      setHistoryExtra(has)
-    }
-  }, [selKey, sessions])
 
   function shift(delta: number) {
     let m = viewMonth + delta
@@ -95,18 +88,20 @@ export default function History() {
   }
 
     const monthPrefix = viewYear + '-' + String(viewMonth + 1).padStart(2, '0')
+  const rehabMode = settings.rehabMode === true
   const list = sessions
-    .filter((s) => s.date.startsWith(monthPrefix) && !isRest(s.planName))
+    .filter((s) => s.date.startsWith(monthPrefix) && !isRestLoose(s.planName) && (rehabMode || !isRehabSession(s, exercises)))
     .sort((a, b) => (b.date < a.date ? -1 : 1))
-  const daySessions = selKey ? sessions.filter((s) => s.date === selKey) : []
+  const daySessionsAll2 = selKey ? sessions.filter((s) => s.date === selKey) : []
+  const daySessions = rehabMode ? daySessionsAll2 : daySessionsAll2.filter((s) => !isRehabSession(s, exercises))
   const usedPlanNames = daySessions.map((s) => s.planName)
   const presetNames = PLAN_PRESETS.map((p) => p.name)
   // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
   // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.
+  // Rehab OFF (Opsi A): sembunyikan preset rehab dari picker + list
   const REHAB_PRESET_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio', 'rest']
-  const rehabMode = settings.rehabMode === true
   const addOptions = PLAN_PRESETS
-    .filter(({ key }) => !rehabMode || REHAB_PRESET_KEYS.includes(key))
+    .filter(({ key }) => rehabMode ? REHAB_PRESET_KEYS.includes(key) : !['leg-iso', 'leg-light', 'upper-r'].includes(key))
     .map((preset) => ({
       preset,
       plan: plans.find((p) => p.name === preset.name),
@@ -115,18 +110,19 @@ export default function History() {
   // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual
   const customPlans = plans.filter((p) => !presetNames.includes(p.name) && !usedPlanNames.includes(p.name))
 
-  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string, isExtra?: boolean) {
+  async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
     if (!selKey) return
     setCreating(true)
     setError('')
     try {
-      const wantExtra = isExtra ?? historyExtra
       const startAt = parseKey(selKey).getTime() + 12 * 60 * 60 * 1000
       let payload: ReturnType<typeof buildSession>
-      if (isRest(name)) {
+      if (isRestLoose(name)) {
+        // Rest Day langsung selesai (tanpa stiker/extra) — tidak ada Rest "Berlangsung"
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
-      } else if (wantExtra) {
-        payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, true)
+        payload.planName = 'Rest Day'
+        payload.endedAt = payload.startedAt
+        payload.sets = []
       } else if (settings.rehabMode === true) {
         // Rehab: stiker [R..-S..] tanpa wave/scheme TM (hitung sesi rehab saja)
         const before = sessions.filter((x) => isRehabSession(x, exercises) && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
@@ -188,7 +184,7 @@ export default function History() {
             Shift {showShift ? 'On' : 'Off'}
           </button>
           <div className="cal-toggle">
-            <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Ringkas</button>
+            <button className={!expanded ? 'active' : ''} onClick={() => setExpanded(false)}>Off</button>
             <button className={expanded ? 'active' : ''} onClick={() => setExpanded(true)}>Detail</button>
           </div>
         </div>
@@ -198,15 +194,15 @@ export default function History() {
           ))}
           {cells.map((key, i) => {
             if (!key) return <div className="cal-cell empty" key={i} />
-            const daySessions = sessions.filter((s) => s.date === key)
+            const daySessionsAll = sessions.filter((s) => s.date === key)
+            const daySessions = rehabMode ? daySessionsAll : daySessionsAll.filter((s) => !isRehabSession(s, exercises))
             const has = daySessions.length > 0
             const isToday = key === todayKey()
             const isSelected = key === selKey
-            const isRestDay = daySessions.some((s) => isRest(s.planName))
-            const dotColors = Array.from(new Set(daySessions.map((s) => dotColorFor(s.planName)).filter((c): c is string => !!c)))
+            const isRestDay = daySessions.some((s) => isRestLoose(s.planName))
             const labels = Array.from(new Set(daySessions.map((s) => s.planName))).map((name) => ({
               text: shortLabelFor(name) || name.toUpperCase().slice(0, 4),
-              color: dotColorFor(name) ?? (isRest(name) ? '#ff5c5c' : 'var(--muted)'),
+              color: dotColorFor(name) ?? (isRestLoose(name) ? '#ff5c5c' : 'var(--muted)'),
             }))
             const sh = shiftForDate(key, settings)
             return (
@@ -232,13 +228,6 @@ export default function History() {
                     ))}
                     {labels.length > 3 && <span className="cal-tag extra">+{labels.length - 3}</span>}
                   </>
-                )}
-                {!expanded && has && dotColors.length > 0 && (
-                  <span className="dot">
-                    {dotColors.slice(0, 3).map((c, j) => (
-                      <span key={j} style={{ background: c }} />
-                    ))}
-                  </span>
                 )}
               </div>
             )
@@ -352,12 +341,8 @@ export default function History() {
               </>
             )}
 
-            <label className="row small" style={{ gap: 6, marginBottom: 8, cursor: 'pointer' }}>
-              <input type="checkbox" checked={historyExtra} onChange={(e) => setHistoryExtra(e.target.checked)} />
-              Sesi tambahan (tidak majuin siklus)
-            </label>
             <div className="small muted" style={{ margin: daySessions.length ? '12px 0 8px' : '0 0 8px' }}>
-              Tambah sesi untuk tanggal ini:
+              Tambah sesi untuk tanggal ini (butuh extra? centang di dalam halaman sesi):
             </div>
 
             {addOptions.length === 0 && customPlans.length === 0 ? (

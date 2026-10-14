@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan, type PlanItem } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession, createExercise } from '../lib/gymstore'
-import { shortLabelFor, isRest, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
+import { shortLabelFor, isRestLoose, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -17,19 +17,20 @@ import {
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, rehabCellStatus, REHAB_WAVES } from '../lib/rehab'
+import { FREE_WEEK_KEYS, weekProgressFreeOrder, freeNextKey } from '../lib/rotation'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
+import QuickWalkCard from '../components/QuickWalkCard'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: string }>
 }
 
-// Grid 16 kotak program rehab sebulan (4 baris W1-W4).
+// Grid 16 kotak program rehab sebulan (4 baris W1-W4). — Opsi A balik
 // Gelap = sudah dilakukan, garis ungu = sesi saat ini, terang = jadwal ke depan.
 function RehabProgramGrid({ totalCompleted }: { totalCompleted: number }) {
   const round = rehabRound(totalCompleted)
-  // Gambar ronde BERJALAN (bukan 0-15 terus) — kalau tidak, ronde 2+ gelap semua
   const base = (round - 1) * 16
   return (
     <div className="card">
@@ -103,7 +104,6 @@ export default function Today() {
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [showPick, setShowPick] = useState(false)
-  const [pickExtra, setPickExtra] = useState(false)
   // Guard double-tap: satu sesi per tekan Mulai (Firestore await bisa >1 detik)
   const [creating, setCreating] = useState(false)
 
@@ -171,33 +171,43 @@ export default function Today() {
         : 'santai'
   // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab
   const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
-  const effectiveKey = rehabMode ? rehabKey : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
+  const freeOrder = settings.freeOrder === true
+  const freeProg = freeOrder ? weekProgressFreeOrder(sessions, excludedTypes, settings.skippedSessions ?? 0, settings) : null
+  // Week fresh (0/3, termasuk awal program) = bebas urut tanpa default — saran '—' sampai user pilih via grid
+  const freeNext = freeOrder && freeProg && freeProg.doneKeys.size > 0 ? freeNextKey(freeProg.doneKeys) : null
+  const effectiveKey = rehabMode ? rehabKey : freeNext ? freeNext : is531Active ? suggestKey531(cyclePos.sessionIndex, excludedTypes) : sug.key
   const effectivePreset = presetByKey(effectiveKey)
   const effectivePlan = planForKey(plans, effectiveKey)
 
   const todaySessions = sessions.filter((s) => s.date === base)
   // Istirahat hari ini = ada sesi Rest Day tersimpan (bukan state lokal) —
   // sehingga muncul juga di kalender Riwayat & bertahan setelah reload.
-  const restToday = todaySessions.some((s) => isRest(s.planName))
-  const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRest(s.planName))
-  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRest(s.planName))
+  const restToday = todaySessions.some((s) => isRestLoose(s.planName))
+  const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRestLoose(s.planName))
+  const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRestLoose(s.planName))
 
   // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Pull/Push/
   // Easy/Cardio selalu bisa dipilih walau belum diatur di "Kelola jadwal".
   // Rest Day dikecualikan (ada tombol "Istirahat hari ini").
+  // Filter ikut mode: rehab OFF = leg/push/pull/cardio (+easy bila tidak di-exclude),
+  // rehab ON = leg-iso/leg-light/upper-r/cardio — item rehab tidak muncul di mode normal.
   // Kalau plan belum dibuat, sesi tetap bisa dimulai dari template preset
   // (gerakan dicocokkan dengan library lewat templatePlan).
+  const REHAB_PICK_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio']
+  const NORMAL_PICK_KEYS = ['leg', 'push', 'pull', 'easy', 'cardio']
   const pickOptions = PLAN_PRESETS
     .filter((p) => p.key !== 'rest' && !(settings.excludeEasyDay && p.key === 'easy'))
+    .filter((p) => (rehabMode ? REHAB_PICK_KEYS : NORMAL_PICK_KEYS).includes(p.key))
     .map((p) => ({
       key: p.key,
       name: p.name,
       plan: planForKey(plans, p.key),
       suggested: p.key === effectiveKey,
       sub: planForKey(plans, p.key)
-        ? `${planForKey(plans, p.key)!.items.length} gerakan`
-        : `${p.exercises.length} gerakan (template)`,
+        ? `${planForKey(plans, p.key)!.items.length} gerakan · plan`
+        : `${p.exercises.length} gerakan`,
     }))
+    .sort((a, b) => Number(b.suggested) - Number(a.suggested))
 
   const showStart = !restToday && !todayDone
   // CTA bawah hanya tampil saat kartu Saran (dengan tombol Mulai inline) tidak tampak —
@@ -244,6 +254,23 @@ export default function Today() {
   async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean) {
     if (creating) return
     setCreating(true)
+    // Rest Day bukan workout: paksa payload kanonis (langsung selesai, tanpa
+    // stiker/extra/set) — tidak ada lagi Rest "Berlangsung" + editor gerakan.
+    if (isRestLoose(name ?? plan?.name ?? '')) {
+      try {
+        const payload = buildSession(null, base, () => 'reps', Date.now(), undefined, false)
+        payload.planName = 'Rest Day'
+        payload.endedAt = payload.startedAt
+        payload.sets = []
+        const ref = await createSession(uid, payload)
+        navigate(`/session/${ref.id}`)
+      } catch {
+        showToast('Gagal menyimpan istirahat — cek koneksi internet', 'error')
+      } finally {
+        setCreating(false)
+      }
+      return
+    }
     let payload: ReturnType<typeof buildSession>
     if (isExtra) {
       payload = buildSession(plan, base, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), Date.now(), undefined, true)
@@ -342,7 +369,7 @@ export default function Today() {
 
   // Batalkan istirahat — hapus sesi Rest Day hari ini
   async function cancelRestToday() {
-    const rest = todaySessions.find((s) => isRest(s.planName))
+    const rest = todaySessions.find((s) => isRestLoose(s.planName))
     if (!rest) return
     try {
       await deleteSession(uid, rest.id)
@@ -418,10 +445,14 @@ export default function Today() {
                 </div>
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}
+                  {freeOrder && freeProg ? (
+                    freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'} · wave ${cycleScheme?.label ?? '—'} tetap urut`
+                  ) : (
+                    <>Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}</>
+                  )}
                 </div>
                 <div style={{ height: 10 }} />
-                <button className="btn sm ghost wide" onClick={() => { setPickExtra(true); setShowPick(true) }}>Tambah sesi lagi</button>
+                <button className="btn sm ghost wide" onClick={() => setShowPick(true)}>Tambah sesi lagi</button>
               </>
             ) : (
               <>
@@ -430,7 +461,7 @@ export default function Today() {
                   <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
-                  {rehabMode ? rehabLbl : cycleLabel}
+                  {rehabMode ? rehabLbl : freeNext ? `${presetByKey(freeNext)?.name ?? freeNext} — bebas ${freeProg?.progress ?? ''}` : cycleLabel}
                 </div>
                 {rehabMode && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
@@ -475,7 +506,7 @@ export default function Today() {
                       <button className="btn primary" disabled={creating} onClick={handleStart}>
                         {effectivePlan ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}` : 'Buat plan dulu'}
                       </button>
-                      <button className="btn ghost" onClick={() => { setPickExtra(todayDone || !!activeSession); setShowPick(true) }}>Pilih plan lain</button>
+                      <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                       <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
                       <button className="btn ghost" onClick={() => void handleSkip()}>Skip</button>
                     </div>
@@ -490,7 +521,46 @@ export default function Today() {
             )}
           </div>
 
-          {rehabMode ? (
+          <QuickWalkCard />
+
+          {freeOrder && !rehabMode ? (
+            <div className="card">
+              <div className="card-title">
+                Week-{freeProg!.cycle} <span className="badge accent">{freeProg!.progress}</span>
+              </div>
+              <div className="small muted" style={{ marginBottom: 8 }}>Bebas urut · wave {cycleScheme?.label ?? '—'} tetap urut</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {FREE_WEEK_KEYS.map((k) => {
+                  const preset = presetByKey(k)!
+                  const done = freeProg!.doneKeys.has(k)
+                  return (
+                    <button
+                      key={k}
+                      className={'shift-week-cell' + (done ? '' : '')}
+                      style={done ? { background: 'rgba(52,211,153,.14)', borderColor: 'var(--ok)' } : undefined}
+                      disabled={creating || !!activeSession}
+                      onClick={async () => {
+                        if (activeSession) { navigate(`/session/${activeSession.id}`); return }
+                        const p = planForKey(plans, k) ?? (await templatePlan(preset))
+                        const already = done
+                        void createAndOpen(p, preset.name, false).then(() => {
+                          if (already) showToast(`${preset.shortLabel} sudah di week ini — tetap 1`)
+                        })
+                      }}
+                    >
+                      <div className="sw-dow" style={{ fontSize: 11 }}>{preset.shortLabel}</div>
+                      <div className="sw-dnum" style={{ fontSize: 14 }}>{done ? '✓' : '○'}</div>
+                      <span className="sw-shift" style={{ background: done ? 'var(--ok)' : dotColorFor(preset.name) ?? 'var(--muted)' }}>{preset.shortLabel[0]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="small muted" style={{ marginTop: 8 }}>{freeProg!.doneKeys.size}/3{freeProg!.doneKeys.size>0 && ` · ${Array.from(freeProg!.doneKeys).map((k)=>presetByKey(k)?.shortLabel).join(' ✓ ')} ✓`}</div>
+              {freeProg!.isWeekComplete && (
+                <div className="small" style={{ marginTop: 8, color: 'var(--ok)', fontWeight: 800 }}>✓ Siap lanjut — next sesi otomatis Week-{freeProg!.cycle + 1}</div>
+              )}
+            </div>
+          ) : rehabMode ? (
             <RehabProgramGrid totalCompleted={rehabPos.totalCompleted} />
           ) : (
           <div className="card">
@@ -503,53 +573,76 @@ export default function Today() {
             </div>
             {is531Active ? (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-                  {get531Sequence(excludedTypes).map((s, i) => {
-                    const isCurrent = i === cyclePos.sessionIndex
-                    const isDone = i < cyclePos.sessionIndex
-                    const weekLabel = i < 4 ? '3×5' : i < 8 ? '3×3' : i < 12 ? '5/3/1' : 'Deload'
-                    return (
-                      <div
-                        key={i}
-                        className={'shift-week-cell' + (isCurrent ? ' today' : '')}
-                        style={
-                          isCurrent
-                            ? { borderColor: 'var(--accent)', background: 'rgba(99,102,241,0.1)' }
-                            : isDone
-                              ? { opacity: 0.4 }
-                              : undefined
-                        }
-                      >
-                        <div className="sw-dow" style={{ fontSize: 10 }}>
-                          {weekLabel}
+                {(() => {
+                  const seq = get531Sequence(excludedTypes)
+                  const cols = cycleLen / 4 // 3 saat 12, 4 saat 16
+                  const waves = [
+                    { label: 'W1 3×5', key: 'W1' },
+                    { label: 'W2 3×3', key: 'W2' },
+                    { label: 'W3 5/3/1', key: 'W3' },
+                    { label: 'W4 Deload', key: 'W4' },
+                  ]
+                  return (
+                    <>
+                      {waves.map((wave, wIdx) => (
+                        <div key={wave.key} style={{ marginTop: wIdx === 0 ? 0 : 8 }}>
+                          <div className="small muted" style={{ fontWeight: 800, letterSpacing: 0.5, marginBottom: 4 }}>
+                            {wave.label}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 4 }}>
+                            {Array.from({ length: cols }, (_, c) => {
+                              const i = wIdx * cols + c
+                              const s = seq[i]
+                              if (!s) return null
+                              const isCurrent = i === cyclePos.sessionIndex
+                              const isDone = i < cyclePos.sessionIndex
+                              return (
+                                <div
+                                  key={i}
+                                  className={'shift-week-cell' + (isCurrent ? ' today' : '')}
+                                  style={
+                                    isCurrent
+                                      ? { borderColor: 'var(--accent)', background: 'rgba(99,102,241,0.1)' }
+                                      : isDone
+                                        ? { opacity: 0.4 }
+                                        : undefined
+                                  }
+                                >
+                                  <div className="sw-dow" style={{ fontSize: 10 }}>
+                                    {wave.label.split(' ')[1]}
+                                  </div>
+                                  <div className="sw-dnum" style={{ fontSize: 11 }}>
+                                    S{i + 1}
+                                  </div>
+                                  <span
+                                    className="sw-shift"
+                                    style={{
+                                      background:
+                                        s.key === 'leg'
+                                          ? '#6366f1'
+                                          : s.key === 'push'
+                                            ? '#f59e0b'
+                                            : s.key === 'pull'
+                                              ? '#10b981'
+                                              : '#6b7280',
+                                      fontSize: 10,
+                                      padding: '1px 4px',
+                                    }}
+                                  >
+                                    {s.key === 'leg' ? 'L' : s.key === 'push' ? 'P' : s.key === 'pull' ? 'Pl' : 'E'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                        <div className="sw-dnum" style={{ fontSize: 11 }}>
-                          S{i + 1}
-                        </div>
-                        <span
-                          className="sw-shift"
-                          style={{
-                            background:
-                              s.key === 'leg'
-                                ? '#6366f1'
-                                : s.key === 'push'
-                                  ? '#f59e0b'
-                                  : s.key === 'pull'
-                                    ? '#10b981'
-                                    : '#6b7280',
-                            fontSize: 10,
-                            padding: '1px 4px',
-                          }}
-                        >
-                          {s.key === 'leg' ? 'L' : s.key === 'push' ? 'P' : s.key === 'pull' ? 'Pl' : 'E'}
-                        </span>
+                      ))}
+                      <div className="small muted" style={{ marginTop: 8 }}>
+                        1 cycle = {cycleLen} sesi · 4 tingkat (W1-W4) × {cols} sesi/minggu · S{cyclePos.sessionIndex + 1} = sesi saat ini
                       </div>
-                    )
-                  })}
-                </div>
-                <div className="small muted" style={{ marginTop: 8 }}>
-                  1 cycle = {cycleLen} sesi · S{cyclePos.sessionIndex + 1} = sesi saat ini
-                </div>
+                    </>
+                  )
+                })()}
               </>
             ) : (
               <>
@@ -601,10 +694,9 @@ export default function Today() {
       {showPick && (
         <Modal onClose={() => setShowPick(false)} label="Pilih plan">
           <h3>Pilih plan untuk hari ini</h3>
-          <label className="row small" style={{ gap: 6, marginBottom: 10, cursor: 'pointer' }}>
-            <input type="checkbox" checked={pickExtra} onChange={(e) => setPickExtra(e.target.checked)} />
-            Sesi tambahan (tidak majuin siklus)
-          </label>
+          <div className="small muted" style={{ marginBottom: 10 }}>
+            Butuh sesi tambahan? Buat seperti biasa — centang Extra di dalam halaman sesi (bisa juga setelah selesai).
+          </div>
           {pickOptions.length === 0 ? (
             <div className="small muted">Belum ada plan. Atur lewat "Kelola jadwal" dulu.</div>
           ) : (
@@ -616,10 +708,10 @@ export default function Today() {
                   setShowPick(false)
                   const preset = PLAN_PRESETS.find((p) => p.key === o.key)!
                   const plan = o.plan ?? (await templatePlan(preset))
-                  void createAndOpen(plan, o.name, pickExtra)
+                  void createAndOpen(plan, o.name, false)
                 }}
               >
-                {o.name}{o.suggested && <span className="tag">saran</span>}
+                {o.name}{o.suggested && <span className="tag" style={{ marginLeft: 6 }}>saran</span>}
                 <span className="sub">{o.sub}</span>
               </button>
             ))

@@ -1,5 +1,5 @@
-import { parseKey } from './date'
-import { presetByName, presetByKey } from './templates'
+import { addDays, mondayOf, parseKey, todayKey } from './date'
+import { presetByName, presetByLooseName, presetByKey } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
@@ -53,7 +53,7 @@ function nextRotationKey(settings: Partial<UserSettings>, sessions: Session[]): 
   if (rotation.length === 0) return DEFAULT_ROTATION[0]
   const last = lastFinishedSession(sessions)
   if (!last) return rotation[0]
-  const lastKey = presetByName(last.planName)?.key
+  const lastKey = (presetByLooseName(last.planName) ?? presetByName(last.planName))?.key
   if (!lastKey) return rotation[0]
   const idx = rotation.indexOf(lastKey)
   if (idx === -1) return rotation[0]
@@ -77,4 +77,47 @@ export function planForKey(plans: WorkoutPlan[], key: string): WorkoutPlan | und
   const preset = presetByKey(key)
   if (!preset) return undefined
   return plans.find((p) => p.name === preset.name)
+}
+
+// Mode bebas Week-3: Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+export const FREE_WEEK_KEYS = ['pull', 'push', 'leg'] as const
+
+export function freeNextKey(doneKeys: Set<string>): string | null {
+  for (const k of FREE_WEEK_KEYS) if (!doneKeys.has(k)) return k
+  return null
+}
+
+export function weekProgressFreeOrder(
+  sessions: Session[],
+  _excludedTypes: Set<string>,
+  skippedSessions: number,
+  settings?: Partial<UserSettings>,
+  refToday?: string,
+): { cycle: number; sessionIndex: number; doneKeys: Set<string>; isWeekComplete: boolean; progress: string } {
+  const WEEK = 3
+  // Week program by kalender beneran: Senin–Minggu minggu berjalan.
+  // Sesi minggu lalu yang tak komplet hangus (tidak carry-over).
+  const ref = refToday ?? todayKey()
+  const mon = mondayOf(ref)
+  const sun = addDays(mon, 6)
+  const weekSessions = sessions
+    .filter((s) => isCountedSession(s) && s.date >= mon && s.date <= sun)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startedAt - b.startedAt)
+  // Unique per key = duplicate otomatis 1 (Pull 2× tetap 1)
+  const doneKeys = new Set<string>()
+  for (const s of weekSessions) {
+    const k = (presetByLooseName(s.planName) ?? presetByName(s.planName))?.key
+    if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) doneKeys.add(k)
+  }
+  // Nomor week = index minggu kalender sejak jangkar (snap ke Senin, min 1)
+  const anchorMon = mondayOf(settings?.freeOrderSince ?? ref)
+  const cycle = Math.max(1, Math.round((parseKey(mon).getTime() - parseKey(anchorMon).getTime()) / 86400000 / 7) + 1)
+  const total = weekSessions.length + (skippedSessions ?? 0)
+  return {
+    cycle,
+    sessionIndex: total % WEEK,
+    doneKeys,
+    isWeekComplete: doneKeys.size === 3,
+    progress: `${doneKeys.size}/3`,
+  }
 }

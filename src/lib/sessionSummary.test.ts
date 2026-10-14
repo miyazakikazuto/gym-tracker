@@ -31,13 +31,13 @@ describe('formatSessionForAI', () => {
         { id: 'a', exerciseId: 'bench', setNumber: 1, weightKg: 60, reps: 5 },
         { id: 'b', exerciseId: 'bench', setNumber: 2, weightKg: 60, reps: 4 },
       ],
-      rpes: { bench: 8 },
+      rpe: 8,
     })
     const out = formatSessionForAI(s, exercises)
     expect(out).toContain('Latihan 26 Agu 2026 — Push Day (45 menit)')
     expect(out).toContain('1. Bench Press — 60kg×5, 60kg×4')
     expect(out).toContain('e1RM ~')
-    expect(out).toMatch(/Total: 2 set · 540 kg volume · RPE rata-rata 8/)
+    expect(out).toMatch(/Total: 2 set · 540 kg volume · RPE 8/)
   })
 
   it('gerakan durasi & cardio memakai format menit/km', () => {

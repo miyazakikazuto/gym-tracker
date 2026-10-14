@@ -33,9 +33,21 @@ export function addDays(key: string, n: number): string {
   return dateKey(new Date(d.getTime() + n * 86400000))
 }
 
+// 12:00 WIB placeholder untuk sesi manual/Riwayat (gymstore.ts buildSession)
+export function isNoonPlaceholder(ts: number, dateKeyStr: string): boolean {
+  return ts === parseKey(dateKeyStr).getTime() + 12 * 60 * 60 * 1000
+}
+
 export function weekStart(key: string): string {
   const dow = dayOfWeek(key)
   return addDays(key, -dow)
+}
+
+// Senin minggu kalender tsb (untuk week program 5/3/1 — terpisah dari
+// weekStart Minggu yang dipakai statistik cardio). dayOfWeek: 0=Minggu.
+export function mondayOf(key: string): string {
+  const dow = dayOfWeek(key)
+  return addDays(key, -((dow + 6) % 7))
 }
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']

@@ -1,5 +1,5 @@
 import type { Exercise, Session } from '../types'
-import { isRest } from './templates'
+import { isRestLoose } from './templates'
 import { volumeOf } from './date'
 
 export function getExerciseName(exercises: Exercise[], id: string): string {
@@ -28,17 +28,37 @@ export function categoryOfExercise(ex: { category?: string; muscleGroup: string 
 
 /**
  * True bila sesi dihitung dalam siklus 5/3/1 dan rotasi.
- * Kebalikan dari sesi non-counting: belum selesai, extra, Rest Day, Cardio, atau Skip.
+ * Kebalikan dari sesi non-counting: belum selesai, extra, Rest Day, Cardio, Skip, atau Rehab.
  * Disatukan di sini agar `progression.ts` dan `rotation.ts` tidak divergen.
- * 5 predikat: endedAt null, isExtra, isRest(planName), /cardio/i, /^skip/i.
+ * 6 predikat: endedAt null, isExtra, isRest(planName), /cardio/i, /^skip/i, rehab ([R..] / preset rehab).
  */
 export function isCountedSession(s: Session): boolean {
   if (s.endedAt === null) return false
   if (s.isExtra) return false
-  if (isRest(s.planName)) return false
+  if (isRestLoose(s.planName)) return false
   if (/cardio/i.test(s.planName)) return false
   if (/^skip/i.test(s.planName.trim())) return false
+  // Rehab: [R1-S01]… atau preset rehab tanpa stiker — jangan hitung di siklus 5/3/1
+  if (s.cycleLabel?.startsWith('[R')) return false
+  const key = s.planName.trim().toLowerCase()
+  if (key === 'leg rehab iso' || key === 'leg ringan' || key === 'upper kanan') return false
   return true
+}
+
+/**
+ * Patch kanonis untuk sesi Rest Day: nama bersih tanpa stiker, bukan extra,
+ * langsung selesai, tanpa set. Idempoten — return {} bila sudah kanonis
+ * atau bukan rest (cek longgar: stiker "[C5-S05] Rest Day — 3×3" ikut kena).
+ * Field snapshot 5/3/1 (cycleLabel/scheme/…) dihapus pemanggil via deleteField.
+ */
+export function normalizeRestSession(s: Session): Partial<Session> {
+  if (!isRestLoose(s.planName)) return {}
+  const patch: Partial<Session> = {}
+  if (s.planName !== 'Rest Day') patch.planName = 'Rest Day'
+  if (s.isExtra === true) patch.isExtra = false
+  if (s.endedAt === null) patch.endedAt = s.startedAt
+  if (s.sets.length > 0) patch.sets = []
+  return patch
 }
 
 export function categoryKeysOfExercise(ex: Exercise): string[] {

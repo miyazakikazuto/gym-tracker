@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
-import { formatHM, formatDMYWIB } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession } from '../lib/helpers'
+import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
-import { presetByName } from '../lib/templates'
+import { presetByName, isRestLoose } from '../lib/templates'
+import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
@@ -23,6 +24,13 @@ interface SetResult {
   elevationM?: number
 }
 
+// Kode error Firebase (permission-denied/unavailable/…) — toast generik
+// "cek koneksi" menelan info ini sehingga gagal-hapus tak terdiagnosis.
+function errCode(e: unknown): string {
+  if (typeof e === 'object' && e !== null && 'code' in e) return String((e as { code: unknown }).code)
+  return e instanceof Error ? e.message : 'unknown'
+}
+
 export default function Session() {
   const { id } = useParams<{ id: string }>()
   const uid = useUid()
@@ -32,7 +40,12 @@ export default function Session() {
   const session = sessions.find((s) => s.id === id)
   const [note, setNote] = useState(session?.note ?? '')
   const [localSets, setLocalSets] = useState<SessionSet[]>(session?.sets ?? [])
-  const [localRpes, setLocalRpes] = useState<Record<string, number>>(session?.rpes ?? {})
+  const [localRpe, setLocalRpe] = useState<number | null>(() => {
+    if (session?.rpe != null) return session.rpe
+    const vals = Object.values(session?.rpes ?? {})
+    if (vals.length > 0) return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+    return null
+  })
   const [syncPending, setSyncPending] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   // Undo hapus set: snapshot ditahan 5 detik sebelum dianggap final.
@@ -43,11 +56,12 @@ export default function Session() {
   const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [editingTime, setEditingTime] = useState(false)
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
   // Perubahan yang belum sukses ditulis — dipakai untuk flush saat keluar halaman
-  const dirtyRef = useRef<{ sets?: SessionSet[]; note?: string; rpes?: Record<string, number> }>({})
+  const dirtyRef = useRef<{ sets?: SessionSet[]; note?: string; rpe?: number | null }>({})
   // Lookup best e1RM per gerakan — dibangun sekali per data, bukan scan per render
   const bestE1RmMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -213,7 +227,11 @@ export default function Session() {
     if (session) {
       setNote(session.note ?? '')
       setLocalSets(session.sets)
-      setLocalRpes(session.rpes ?? {})
+      if (session.rpe != null) setLocalRpe(session.rpe)
+      else {
+        const vals = Object.values(session.rpes ?? {})
+        setLocalRpe(vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null)
+      }
     }
   }, [id, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -222,23 +240,84 @@ export default function Session() {
     return () => {
       ;[setsTimer, noteTimer, rpeTimer].forEach((t) => { if (t.current) clearTimeout(t.current) })
       const d = dirtyRef.current
-      const payload: { sets?: SessionSet[]; note?: string; rpes?: Record<string, number> } = {}
+      const payload: { sets?: SessionSet[]; note?: string; rpe?: number | null } = {}
       if (d.sets) payload.sets = d.sets
       if (d.note != null) payload.note = d.note
-      if (d.rpes) payload.rpes = d.rpes
+      if (d.rpe !== undefined) payload.rpe = d.rpe
       if (Object.keys(payload).length > 0 && id) {
-        updateSession(uid, id, payload).catch(() => undefined)
+        updateSession(uid, id, payload as never).catch(() => undefined)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Normalisasi sekali per sesi: Rest rusak-data (stiker siklus / extra /
+  // Berlangsung / berisi set) dirapikan jadi Rest Day selesai — tanpa ubah makna.
+  const normalizedRef = useRef('')
+  useEffect(() => {
+    if (!ready || !session || !isRestLoose(session.planName)) return
+    if (normalizedRef.current === session.id) return
+    normalizedRef.current = session.id
+    const patch: Record<string, unknown> = { ...normalizeRestSession(session) }
+    if (session.cycleLabel !== undefined) patch.cycleLabel = deleteField()
+    if (session.scheme !== undefined) patch.scheme = deleteField()
+    if (session.cycle !== undefined) patch.cycle = deleteField()
+    if (session.sessionIndex !== undefined) patch.sessionIndex = deleteField()
+    if (Object.keys(patch).length === 0) return
+    updateSession(uid, session.id, patch as never).catch((e) => {
+      console.error('[session] normalisasi rest gagal:', e)
+      showToast(`Gagal merapikan sesi Rest (${errCode(e)}) — cek koneksi`, 'error')
+    })
+  }, [ready, session, uid, showToast])
+
   if (!ready || !session) {
     return <div className="empty">Memuat sesi…</div>
   }
 
-  const isActive = session.endedAt === null
+  // sid di atas SEMUA early-return: del() (hoisted) dipakai branch Rest —
+  // const di bawah return tak pernah terinisialisasi → TDZ saat Hapus diklik.
   const sid = session.id
+
+  // Rest Day = hari istirahat: tanpa gerakan, set, RPE, stiker, atau tombol
+  // workout. Tampil sebagai kartu info + hapus saja.
+  if (isRestLoose(session.planName)) {
+    return (
+      <div className="page">
+        <div className="row spread">
+          <div>
+            <div className="page-title">😴 Rest Day</div>
+            <div className="subtitle" style={{ marginBottom: 0 }}>
+              {formatDMYWIB(session.date)} · hari istirahat — tanpa gerakan
+            </div>
+          </div>
+          <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
+        </div>
+        <div className="card">
+          <div className="card-title">Istirahat penuh</div>
+          <div className="small muted">
+            Tidak ada gerakan, set, RPE, atau stiker siklus. Sesi ini tidak majuin siklus maupun rotasi.
+          </div>
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={() => navigate(-1)}>Kembali</button>
+        </div>
+        {confirmDel && (
+          <Modal onClose={() => setConfirmDel(false)} label="Hapus sesi">
+            <h3>Hapus sesi ini?</h3>
+            <div className="small muted" style={{ marginBottom: 10 }}>
+              "Rest Day" ({formatDMYWIB(session.date)}) akan dihapus permanen.
+            </div>
+            <div className="form-actions sticky">
+              <button className="btn ghost" onClick={() => setConfirmDel(false)}>Batal</button>
+              <button className="btn danger" onClick={() => { setConfirmDel(false); void del() }}>Hapus</button>
+            </div>
+          </Modal>
+        )}
+      </div>
+    )
+  }
+
+  const isActive = session.endedAt === null
 
   // Parse 5/3/1 context dari planName — mis. "[C1-S05] Leg Day — 3×3"
   const cycleMatch = session.planName.match(/\[C(\d+)-S(\d+)\]/)
@@ -250,10 +329,16 @@ export default function Session() {
 
   function addSet(exerciseId: string) {
     const dur = exerciseIsDuration(exercises, exerciseId)
-    const prev = localSets
-      .filter((s) => s.exerciseId === exerciseId)
-      .slice()
-      .sort((a, b) => b.setNumber - a.setNumber)[0]
+    // Cardio (mis. Jalan Kaki) TIDAK di pre-fill: tiap jalan beda — nilai lama
+    // hanya tampil sebagai placeholder abu-abu, bukan data. Berlaku juga untuk
+    // pre-fill rehab-hold (cardio bukan isometrik 30 dtk).
+    const cardio = isCardio(exerciseId)
+    const prev = cardio
+      ? undefined
+      : localSets
+        .filter((s) => s.exerciseId === exerciseId)
+        .slice()
+        .sort((a, b) => b.setNumber - a.setNumber)[0]
     const maxNo = localSets
       .filter((s) => s.exerciseId === exerciseId)
       .reduce((m, s) => Math.max(m, s.setNumber), 0)
@@ -262,7 +347,7 @@ export default function Session() {
     let r = 0
     // Rehab: gerakan durasi (isometrik) pre-fill ikut wave sesi (W1 30s → W2 35s → W3 40s → W4 30s)
     const rehabHold = settings.rehabMode === true ? rehabWaveAt(session?.sessionIndex ?? 0).isoHoldSec : REHAB_ISO_HOLD_SEC
-    let d: number | undefined = dur ? (settings.rehabMode === true ? rehabHold : 0) : undefined
+    let d: number | undefined = dur ? (settings.rehabMode === true && !cardio ? rehabHold : 0) : undefined
     let d2: number | undefined = undefined
     let elev: number | undefined = undefined
     if (prev) {
@@ -271,7 +356,7 @@ export default function Session() {
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
       elev = prev.elevationM
-    } else if (planScheme && planTM && planLift) {
+    } else if (!cardio && planScheme && planTM && planLift) {
       // 5/3/1: pre-fill dari TM sesuai tipe sesi (Leg→Squat, Push→Bench, Pull→Deadlift)
       if (planTM[planLift] > 0) {
         const weights = getPrescribedWeights(planScheme, planTM[planLift])
@@ -287,7 +372,7 @@ export default function Session() {
           d2 = best.distanceKm
         }
       }
-    } else {
+    } else if (!cardio) {
       const best = bestSetResult(sessions, sid, exerciseId)
       if (best) {
         w = best.weightKg
@@ -322,19 +407,16 @@ export default function Session() {
     }, 600)
   }
 
-  function patchRpe(exerciseId: string, value: number | null) {
-    const next = { ...localRpes }
-    if (value === null) delete next[exerciseId]
-    else next[exerciseId] = value
-    setLocalRpes(next)
-    dirtyRef.current.rpes = next
+  function patchSessionRpe(value: number | null) {
+    setLocalRpe(value)
+    dirtyRef.current.rpe = value
     setSyncPending(true)
     pendingCount.current++
     if (rpeTimer.current) clearTimeout(rpeTimer.current)
     rpeTimer.current = setTimeout(async () => {
       try {
-        await updateSession(uid, sid, { rpes: next })
-        if (dirtyRef.current.rpes === next) delete dirtyRef.current.rpes
+        await updateSession(uid, sid, { rpe: value } as never)
+        if (dirtyRef.current.rpe === value) delete dirtyRef.current.rpe
       } catch {
         /* gagal: tetap dirty */
       } finally {
@@ -352,7 +434,7 @@ export default function Session() {
 
   async function finish() {
     try {
-      await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpes: localRpes })
+      await updateSession(uid, sid, { note: note.trim(), endedAt: Date.now(), sets: localSets, rpe: localRpe } as never)
     } catch {
       showToast('Gagal menyelesaikan sesi — cek koneksi internet', 'error')
       return
@@ -364,7 +446,7 @@ export default function Session() {
 
   async function saveDone() {
     try {
-      await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpes: localRpes })
+      await updateSession(uid, sid, { note: note.trim(), sets: localSets, rpe: localRpe } as never)
     } catch {
       showToast('Gagal menyimpan — cek koneksi internet', 'error')
       return
@@ -378,8 +460,9 @@ export default function Session() {
   async function del() {
     try {
       await deleteSession(uid, sid)
-    } catch {
-      showToast('Gagal menghapus sesi — cek koneksi internet', 'error')
+    } catch (e) {
+      console.error('[session] hapus gagal:', e)
+      showToast(`Gagal menghapus sesi (${errCode(e)}) — cek koneksi internet`, 'error')
       return
     }
     navigate('/')
@@ -400,8 +483,24 @@ export default function Session() {
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 
-  // Dihitung SEKALI per render (dulu 3× via IIFE) — dipakai blok saran di bawah
-  const rankedSuggestions = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
+  // Dihitung SEKALI per render — hybrid Opsi A: 6 knee-safe di atas + sisa leg di bawah
+  const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
+  const rankedSuggestions = (() => {
+    const base = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
+    const cat = presetByName(session.planName)?.key
+    if (cat !== 'leg') return base
+    const prio = (name: string) => (LEG_SUGGEST.includes(name) ? 0 : 1)
+    const rank: Record<string, number> = { gap: 0, baru: 1, lupa: 2, biasa: 3 }
+    return [...base].sort((a, b) => {
+      const pa = prio(a.exercise.name)
+      const pb = prio(b.exercise.name)
+      if (pa !== pb) return pa - pb
+      const ra = rank[a.reason] ?? 3
+      const rb = rank[b.reason] ?? 3
+      if (ra !== rb) return ra - rb
+      return (b.daysSinceLast ?? 9999) - (a.daysSinceLast ?? 9999)
+    })
+  })()
   const suggestBadge = (ex: { muscleGroup: string }, r: string) =>
     r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
 
@@ -412,6 +511,60 @@ export default function Session() {
           <div className="page-title">{session.planName}</div>
           <div className="subtitle" style={{ marginBottom: 0 }}>
             {formatDMYWIB(session.date)} · mulai {formatHM(session.startedAt)}
+            {isNoonPlaceholder(session.startedAt, session.date) && !editingTime && (
+              <>
+                {' · '}
+                <button
+                  onClick={() => setEditingTime(true)}
+                  title="sesuaikan jam mulai"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    fontSize: 'inherit',
+                    color: 'var(--muted)',
+                    textDecoration: 'underline',
+                    textDecorationStyle: 'dashed',
+                    textUnderlineOffset: 2,
+                    cursor: 'pointer',
+                  }}
+                >
+                  estimasi ✎
+                </button>
+              </>
+            )}
+            {isNoonPlaceholder(session.startedAt, session.date) && editingTime && (
+              <>
+                {' · '}
+                <input
+                  type="time"
+                  autoFocus
+                  value={formatHM(session.startedAt)}
+                  onBlur={() => setEditingTime(false)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setEditingTime(false) }}
+                  onChange={(e) => {
+                    const [h, m] = e.target.value.split(':').map(Number)
+                    if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                    const base = parseKey(session.date).getTime()
+                    const next = base + h * 3600000 + m * 60000
+                    void updateSession(uid, session.id, { startedAt: next } as never)
+                      .then(() => setEditingTime(false))
+                      .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: 6,
+                    padding: '1px 6px',
+                    font: 'inherit',
+                    fontSize: 'inherit',
+                    color: 'var(--text)',
+                    width: 92,
+                  }}
+                />
+              </>
+            )}
             {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
         </div>
@@ -472,6 +625,20 @@ export default function Session() {
           📋 Salin untuk AI
         </button>
       </div>
+
+      <label className="row small muted" style={{ gap: 6, margin: '-4px 0 12px', cursor: 'pointer' }} title="Extra = sesi tambahan, tidak majuin siklus 5/3/1, rotasi, maupun rehab. Bisa diubah kapan saja — siklus kehitung ulang otomatis.">
+        <input
+          type="checkbox"
+          checked={session.isExtra === true}
+          onChange={(e) => {
+            const checked = e.target.checked
+            void updateSession(uid, session.id, { isExtra: checked } as never)
+              .then(() => showToast(checked ? 'Ditandai extra — siklus kehitung ulang' : 'Balik counted — siklus kehitung ulang'))
+              .catch(() => showToast('Gagal ubah status extra — cek koneksi', 'error'))
+          }}
+        />
+        Sesi tambahan (extra — tidak majuin siklus)
+      </label>
 
       {undoDelete && (
         <div className="card row spread" style={{ padding: '10px 12px', borderColor: 'var(--danger)' }}>
@@ -537,23 +704,7 @@ export default function Session() {
               />
             )
           })}
-          <div className="row" style={{ marginTop: 8 }}>
-            <span className="small muted">RPE</span>
-            {[6, 7, 8, 9, 10].map((r) => (
-              <button
-                key={r}
-                className={'rpe-chip' + (localRpes[exId] === r ? ' active' : '')}
-                onClick={() => patchRpe(exId, localRpes[exId] === r ? null : r)}
-              >
-                {r}
-              </button>
-            ))}
-            {localRpes[exId] !== undefined && (
-              <span className="small muted" style={{ marginLeft: 'auto' }}>
-                {localRpes[exId] === 10 ? 'maksimal' : localRpes[exId] === 9 ? '1 sisa' : localRpes[exId] === 8 ? '2 sisa' : localRpes[exId] === 7 ? '3 sisa' : 'ringan'}
-              </span>
-            )}
-          </div>
+
         </div>
         )
       })}
@@ -606,6 +757,25 @@ export default function Session() {
           rows={2}
           placeholder="Cara badan hari ini, PR, dll…"
         />
+      </div>
+
+      {/* RPE sesi 1-10 di bawah — bukan per gerakan */}
+      <div className="card">
+        <div className="card-title">RPE Sesi (1-10)</div>
+        <div className="row wrap" style={{ gap: 6 }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+            <button
+              key={v}
+              className={'rpe-chip' + (localRpe === v ? ' active' : '') + (v > 8 ? ' danger' : '')}
+              onClick={() => patchSessionRpe(localRpe === v ? null : v)}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <div className="small muted" style={{ marginTop: 6 }}>
+          1:sangat ringan · 5:sedang · 8:berat · 10:maksimal {localRpe != null && `(terpilih ${localRpe})`}
+        </div>
       </div>
 
       {settings.rehabMode === true && (

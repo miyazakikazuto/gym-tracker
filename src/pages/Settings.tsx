@@ -9,6 +9,7 @@ import { rotationOf } from '../lib/rotation'
 import { cycleShiftAt, DEFAULT_SHIFT_ANCHOR, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { presetByKey, dotColorFor } from '../lib/templates'
 import { computePosition, getFullLabel, dynamicCycleLength, computeExcludedTypes } from '../lib/progression'
+import { isCountedSession } from '../lib/helpers'
 import { suggestTm } from '../lib/tmSuggestion'
 import { fmtNumber } from '../lib/helpers'
 import Modal from '../components/Modal'
@@ -257,21 +258,49 @@ export default function Settings() {
         <div className="small muted" style={{ marginBottom: 8 }}>
           Saran harian mengikuti urutan rotasi & sesi terakhir — cocok untuk jadwal kerja shift.
         </div>
-            <div className="card-title" style={{ marginTop: 4 }}>Urutan rotasi</div>
-            {rot.rotation.map((k, i) => {
-              const name = presetByKey(k)?.name ?? k
-              return (
-                <div className="rotate-item" key={k}>
-                  <span className="dot" style={{ background: dotColorFor(name) ?? 'var(--accent)' }} />
-                  <span className="name">{name}</span>
-                  <button className="mv" aria-label={`Naikkan ${name}`} disabled={i === 0} onClick={() => moveRotation(i, -1)}>↑</button>
-                  <button className="mv" aria-label={`Turunkan ${name}`} disabled={i === rot.rotation.length - 1} onClick={() => moveRotation(i, 1)}>↓</button>
-                </div>
-              )
-            })}
-            <div className="small muted" style={{ marginTop: 4 }}>
-              Saran = item setelah sesi terakhir yang selesai. Urutan bisa diubah bebas.
+            <div className="card-title" style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Urutan rotasi</span>
+              <label className="row small" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!settings.freeOrder} onChange={(e) => {
+                  const on = e.target.checked
+                  if (on) {
+                    const counted = sessions.filter(isCountedSession).length
+                    saveSettings({ freeOrder: true, freeOrderSince: todayKey(), freeOrderOffset: counted })
+                  } else saveSettings({ freeOrder: false })
+                }} />
+                Mode bebas Week-3
+              </label>
             </div>
+            {settings.freeOrder ? (
+              <>
+                <div className="small muted" style={{ marginTop: 4 }}>
+                  Week-3 bebas: <b>Pull / Push / Leg</b> bebas urut, hitam kalau selesai. Harus <b>3/3</b> baru bisa Lanjut week — duplicate dihitung 1. 5/3/1 wave tetap urut.
+                </div>
+                <div className="small" style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {['pull', 'push', 'leg'].map((k) => (
+                    <span key={k} className="badge accent">{presetByKey(k)?.shortLabel ?? k.toUpperCase()}</span>
+                  ))}
+                  <span className="small muted">→ bebas pilih di Hari Ini</span>
+                </div>
+              </>
+            ) : (
+              <>
+                {rot.rotation.map((k, i) => {
+                  const name = presetByKey(k)?.name ?? k
+                  return (
+                    <div className="rotate-item" key={k}>
+                      <span className="dot" style={{ background: dotColorFor(name) ?? 'var(--accent)' }} />
+                      <span className="name">{name}</span>
+                      <button className="mv" aria-label={`Naikkan ${name}`} disabled={i === 0} onClick={() => moveRotation(i, -1)}>↑</button>
+                      <button className="mv" aria-label={`Turunkan ${name}`} disabled={i === rot.rotation.length - 1} onClick={() => moveRotation(i, 1)}>↓</button>
+                    </div>
+                  )
+                })}
+                <div className="small muted" style={{ marginTop: 4 }}>
+                  Saran = item setelah sesi terakhir yang selesai. Urutan bisa diubah bebas.
+                </div>
+              </>
+            )}
 
             <div className="divider" />
             <div className="card-title" style={{ marginTop: 4 }}>Shift kerja</div>
@@ -318,7 +347,7 @@ export default function Settings() {
         </div>
         <div className="small muted">
           {settings.rehabMode
-            ? 'ON — 5/3/1 & Training Max dimatikan. Saran ikut siklus rehab 8 sesi (iso → ringan → upper kanan → easy). Leg Curl tetap ada, stop bila nyeri/panas >5/10.'
+            ? 'ON — 5/3/1 & Training Max dimatikan. Saran ikut siklus rehab 16 sesi (W1 Pondasi → W4 Deload, iso 30→35→40→30 dtk) — leg-iso/ringan/upper-r/cardio ×4, Leg Curl tetap, stop >5/10.'
             : 'OFF — jadwal normal 5/3/1 + rotasi.'}
         </div>
       </div>
@@ -327,7 +356,7 @@ export default function Settings() {
       <div className="card">
         <div className="card-title">5/3/1 Training Max</div>
         <div className="small muted" style={{ marginBottom: 8 }}>
-          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — Sesi {cyclePos.sessionIndex + 1}/{cycleLen}
+          {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — Sesi {cyclePos.sessionIndex + 1}/{cycleLen} · 4 tingkat (W1 3×5 → W2 3×3 → W3 5/3/1 → W4 Deload) × {cycleLen / 4}/minggu
         </div>
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <div className="field" style={{ flex: 1 }}>

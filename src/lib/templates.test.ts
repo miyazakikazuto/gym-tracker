@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PLAN_PRESETS, presetByKey, presetByName, isRest, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise } from './templates'
+import { PLAN_PRESETS, presetByKey, presetByName, isRest, isRestLoose, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise } from './templates'
 
 describe('PLAN_PRESETS', () => {
   it('memiliki 9 preset: leg/push/pull/easy/cardio/rest + rehab (leg-iso/leg-light/upper-r)', () => {
@@ -35,6 +35,19 @@ describe('isRest', () => {
   })
   it('case-sensitive? preset name exact → false bila beda case', () => {
     expect(isRest('rest day')).toBe(false)
+  })
+})
+
+describe('isRestLoose', () => {
+  it('Rest Day kanonis → true', () => {
+    expect(isRestLoose('Rest Day')).toBe(true)
+  })
+  it('Rest berstiker siklus → tetap true (bug 13 Okt)', () => {
+    expect(isRestLoose('[C5-S05] Rest Day — 3×3')).toBe(true)
+  })
+  it('workout berstiker → false', () => {
+    expect(isRestLoose('[C1-S01] Leg Day — 3×5')).toBe(false)
+    expect(isRestLoose('Leg Day')).toBe(false)
   })
 })
 

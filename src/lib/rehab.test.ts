@@ -75,11 +75,22 @@ describe('hasIsoSet', () => {
   ]
   const isoSess = (id: string, planName: string, sets: Session['sets']) =>
     sess({ id, planName, sets })
-  it('set hold 30 dtk di gerakan Kaki → true', () => {
+  it('set hold 30 dtk di gerakan Kaki → true (hasIsoSet mentah)', () => {
     const s = isoSess('a', 'Leg Day', [
       { id: 's1', exerciseId: 'iso1', setNumber: 1, weightKg: 0, reps: 0, durationSec: 30 },
     ])
     expect(hasIsoSet(s, exs)).toBe(true)
+  })
+  it('Leg Day + hold (plank/aksesori) BUKAN rehab — tetap tampil saat OFF', () => {
+    const s = isoSess('a', 'Leg Day', [
+      { id: 's1', exerciseId: 'iso1', setNumber: 1, weightKg: 0, reps: 0, durationSec: 30 },
+    ])
+    expect(isRehabSession(s, exs)).toBe(false)
+  })
+  it('judul rehab + hold (custom plan "Rehab Lutut") tetap rehab', () => {
+    const s = isoSess('d', 'Rehab Lutut', [
+      { id: 's1', exerciseId: 'iso1', setNumber: 1, weightKg: 0, reps: 0, durationSec: 30 },
+    ])
     expect(isRehabSession(s, exs)).toBe(true)
   })
   it('set durasi di gerakan Cardio → false', () => {
@@ -102,6 +113,9 @@ describe('isRehabSession', () => {
   it('preset khusus rehab tanpa stiker tetap dihitung', () => {
     expect(isRehabSession(sess({ id: 'a', planName: 'Leg Rehab Iso' }))).toBe(true)
     expect(isRehabSession(sess({ id: 'b', planName: 'Upper Kanan' }))).toBe(true)
+  })
+  it('preset rehab berstiker plan ([C..] prefix) tetap dihitung', () => {
+    expect(isRehabSession(sess({ id: 'a', planName: '[C12-S03] Leg Rehab Iso — W1' }))).toBe(true)
   })
   it('sesi era 5/3/1 (Push/Pull/Leg/Cardio tanpa [R..]) TIDAK dihitung', () => {
     expect(isRehabSession(sess({ id: 'a', planName: 'Pull Day' }))).toBe(false)

@@ -8,15 +8,18 @@
 // Standar riset (Rio 2015, van Ark 2016) memakai 5x45s @70-80% MVIC — terlalu
 // berat untuk fase awal, jadi wave disepakati: 3x30s → 3x35s → 3x40s → deload 2x30s.
 
-import { isRest, presetByName } from './templates'
+import { isRest, presetByLooseName } from './templates'
 import type { Exercise, Session } from '../types'
 
-// Sesi rehab = berstiker [R..] ATAU pakai preset khusus rehab ATAU berisi
-// set isometrik (hold durasi di gerakan non-cardio — mis. leg day yang isinya
-// "Isometrik Quad 60°"). Easy/Cardio TANPA stiker [R..] (era lama) tidak
+// Sesi rehab = berstiker [R..] ATAU preset khusus rehab (nama longgar —
+// "[C..] Leg Rehab Iso — …" ikut) ATAU sesi berjudul rehab yang berisi set
+// isometrik. Set hold/durasi di plan umum (Leg Day + plank) BUKAN rehab:
+// aturan lama "ada hold = rehab" terlalu luas sampai Leg Day hilang dari
+// History saat mode OFF. Easy/Cardio TANPA stiker [R..] (era lama) tidak
 // dihitung — easy/cardio era rehab selalu berstiker [R..] lewat
 // createAndOpen/handleCreate.
 const REHAB_ONLY_KEYS = new Set(['leg-iso', 'leg-light', 'upper-r'])
+const REHAB_NAME_HINT = /rehab|ringan|iso|isometr/i
 
 export function hasIsoSet(s: Session, exercises: Exercise[]): boolean {
   for (const set of s.sets) {
@@ -32,8 +35,9 @@ export function hasIsoSet(s: Session, exercises: Exercise[]): boolean {
 export function isRehabSession(s: Session, exercises: Exercise[] = []): boolean {
   if (s.endedAt === null || s.isExtra || isRest(s.planName)) return false
   if (s.cycleLabel?.startsWith('[R')) return true
-  if (REHAB_ONLY_KEYS.has(presetByName(s.planName)?.key ?? '')) return true
-  return hasIsoSet(s, exercises)
+  if (REHAB_ONLY_KEYS.has(presetByLooseName(s.planName)?.key ?? '')) return true
+  // Hold tanpa judul rehab = aksesori biasa (plank di Leg Day) — bukan rehab.
+  return REHAB_NAME_HINT.test(s.planName) && hasIsoSet(s, exercises)
 }
 
 // 16 sesi: [iso, ringan, upper-kanan, cardio] x4.

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   formatPeriodForAI,
   weekWindow,
+  monSunWeekAgo,
+  fmtRange,
   monthWindow,
   prevWeekWindow,
   prevMonthWindow,
@@ -9,6 +11,10 @@ import {
   listMonthOptions,
   cardioWeekTotal,
   cardioWeekStatus,
+  cardioCategoryOf,
+  cardioMonthBreakdown,
+  weeksInMonthWindow,
+  cardioMonthAvgWeekly,
 } from './periodSummary'
 import type { Bodyweight, Exercise, Session } from '../types'
 
@@ -52,9 +58,9 @@ describe('cardioWeekTotal / cardioWeekStatus', () => {
     expect(t.dur).toBe(4200)
     expect(t.sessions).toBe(2)
   })
-  it('status kurang/pas/lebih vs 15-25 km', () => {
-    expect(cardioWeekStatus(12.4)).toEqual({ status: 'kurang', diff: expect.closeTo(2.6) })
-    expect(cardioWeekStatus(15).status).toBe('pas')
+  it('status kurang/pas/lebih vs 12-25 km', () => {
+    expect(cardioWeekStatus(10)).toEqual({ status: 'kurang', diff: expect.closeTo(2) })
+    expect(cardioWeekStatus(12).status).toBe('pas')
     expect(cardioWeekStatus(25).status).toBe('pas')
     expect(cardioWeekStatus(30)).toEqual({ status: 'lebih', diff: 5 })
   })
@@ -103,6 +109,25 @@ describe('windows', () => {
     const w = weekWindow('2026-08-26')
     expect(w.start).toBe('2026-08-23')
     expect(w.end).toBe('2026-08-29')
+  })
+
+  it('monSunWeekAgo: offset 0 = Senin–Minggu berjalan (Kamis 24 Sep → 21–27)', () => {
+    expect(monSunWeekAgo('2026-09-24', 0)).toEqual({ start: '2026-09-21', end: '2026-09-27' })
+    expect(monSunWeekAgo('2026-09-24', 1)).toEqual({ start: '2026-09-14', end: '2026-09-20' })
+  })
+
+  it('monSunWeekAgo edge: Minggu masuk week sama, Senin buka week baru', () => {
+    expect(monSunWeekAgo('2026-09-27', 0)).toEqual({ start: '2026-09-21', end: '2026-09-27' })
+    expect(monSunWeekAgo('2026-09-28', 0)).toEqual({ start: '2026-09-28', end: '2026-10-04' })
+  })
+
+  it('monSunWeekAgo offset negatif dijepit ke 0', () => {
+    expect(monSunWeekAgo('2026-09-24', -2)).toEqual({ start: '2026-09-21', end: '2026-09-27' })
+  })
+
+  it('fmtRange label rentang se-bulan & lintas bulan', () => {
+    expect(fmtRange({ start: '2026-09-21', end: '2026-09-27' })).toBe('21–27 Sep 2026')
+    expect(fmtRange({ start: '2026-09-28', end: '2026-10-04' })).toBe('28 Sep – 04 Okt 2026')
   })
 
   it('monthWindow batas bulan & tahun kabisat', () => {
@@ -206,5 +231,63 @@ describe('formatPeriodForAI', () => {
     const s = mkSession('a', '2026-08-25', [{ id: 'x', exerciseId: 'squat', setNumber: 1, weightKg: 100, reps: 5 }])
     const out = formatPeriodForAI({ sessions: [s], exercises, bodyweights: bw, window: WIN })
     expect(out).toContain('Berat badan: 71 → 70,2 kg')
+  })
+})
+
+describe('cardioCategoryOf / cardioMonthBreakdown / weeksInMonthWindow', () => {
+  const exs: Exercise[] = [
+    { id: 'jk', name: 'Jalan Kaki', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+    { id: 'hik', name: 'Hiking', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+    { id: 'run', name: 'Easy Running', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+    { id: 'tm', name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+    { id: 'bike', name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Bodyweight' },
+  ]
+  const cSet = (exerciseId: string, distanceKm: number, durationSec: number, elevationM = 0) => ({
+    id: `${exerciseId}-${distanceKm}-${durationSec}`, exerciseId, setNumber: 1, weightKg: 0, reps: 0, durationSec, distanceKm, elevationM,
+  })
+  it('cardioCategoryOf 5 kategori (treadmill sebelum running)', () => {
+    expect(cardioCategoryOf('Jalan Kaki')).toBe('jalan')
+    expect(cardioCategoryOf('Hiking Trail Ungaran')).toBe('hiking')
+    expect(cardioCategoryOf('Easy Running')).toBe('running')
+    expect(cardioCategoryOf('Treadmill')).toBe('treadmill')
+    expect(cardioCategoryOf('Stationary Bike')).toBe('lain')
+    expect(cardioCategoryOf('Lari Pagi')).toBe('running')
+  })
+  it('breakdown September: 5 kategori, treadmill elev 0 tidak campur running', () => {
+    const m = monthWindow('2026-09-15') // 2026-09-01 — 2026-09-30
+    const sessions = [
+      mkSession('a', '2026-09-05', [cSet('jk', 5, 1800, 20)]),
+      mkSession('b', '2026-09-10', [cSet('hik', 4, 2000, 300), cSet('run', 3, 1200, 50)]),
+      mkSession('c', '2026-09-12', [cSet('tm', 6, 1800, 0)]),
+      mkSession('d', '2026-08-20', [cSet('jk', 99, 9999)]), // luar bulan
+      mkSession('e', '2026-09-15', [cSet('jk', 2, 600)], { endedAt: null }), // berjalan
+    ]
+    const { total, byCat } = cardioMonthBreakdown(sessions, exs, m)
+    expect(total.dist).toBeCloseTo(18)
+    expect(total.sessions).toBe(3)
+    const jalan = byCat.find((c) => c.key === 'jalan')!
+    const hik = byCat.find((c) => c.key === 'hiking')!
+    const run = byCat.find((c) => c.key === 'running')!
+    const tm = byCat.find((c) => c.key === 'treadmill')!
+    expect(jalan.dist).toBeCloseTo(5)
+    expect(hik.dist).toBeCloseTo(4)
+    expect(hik.elev).toBe(300)
+    expect(run.elev).toBe(50)
+    expect(tm.elev).toBe(0) // tidak terdilusi ke running
+    expect(byCat.find((c) => c.key === 'lain')).toBeUndefined()
+  })
+  it('weeksInMonth: bulan penuh 31 hari =5, bulan berjalan 09 Sep =2, kabisat Feb 2024=5', () => {
+    expect(weeksInMonthWindow({ start: '2026-09-01', end: '2026-09-30' }, '2026-09-09')).toBe(2) // 9 hari → 2 minggu
+    expect(weeksInMonthWindow({ start: '2026-09-01', end: '2026-09-30' }, '2026-09-30')).toBe(5) // 30 hari →5
+    expect(weeksInMonthWindow({ start: '2024-02-01', end: '2024-02-29' }, '2024-02-29')).toBe(5) // 29 hari →5
+    expect(cardioMonthAvgWeekly(18, 2)).toBe(9)
+  })
+  it('sesi mix jalan+hiking dalam 1 sesi: sesi dihitung di kedua kategori tapi total 1', () => {
+    const m = monthWindow('2026-09-15')
+    const sessions = [mkSession('mix', '2026-09-10', [cSet('jk', 2, 600), cSet('hik', 3, 900, 100)])]
+    const { total, byCat } = cardioMonthBreakdown(sessions, exs, m)
+    expect(total.sessions).toBe(1)
+    expect(byCat.find((c) => c.key === 'jalan')!.sessions).toBe(1)
+    expect(byCat.find((c) => c.key === 'hiking')!.sessions).toBe(1)
   })
 })
