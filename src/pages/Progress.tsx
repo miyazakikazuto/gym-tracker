@@ -4,8 +4,9 @@ import { volumeOf, todayKey, addDays, mondayOf, MONTHS } from '../lib/date'
 import { fmtNumber, getExerciseName, exerciseIsDuration } from '../lib/helpers'
 import { isRehabSession } from '../lib/rehab'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
-import { e1rm, e1rmStr, e1rmKg } from '../lib/e1rm'
+import { e1rm, e1rmStr, e1rmKg, E1RM_MAX_REPS } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
+import { buildTrendWeeks, buildTrendMap, type TrendPoint } from '../lib/trend'
 import {
   formatPeriodForAI,
   weekWindow,
@@ -25,7 +26,6 @@ import {
   CARDIO_WEEK_MAX_KM,
 } from '../lib/periodSummary'
 import StatCard from '../components/StatCard'
-import type { Exercise, Session } from '../types'
 
 export default function Progress() {
   const { sessions, exercises, bodyweights, settings, showToast } = useData()
@@ -124,8 +124,8 @@ export default function Progress() {
   const trendWins = buildTrendWeeks(today)
   const trendMap = buildTrendMap(visibleSessions, exercises, trendWins)
   const trends = Array.from(trendMap.entries())
-    .filter(([, vals]) => vals.some((v) => v > 0))
-    .map(([exId, vals]) => {
+    .map(([exId, points]) => {
+      const vals = points.map((p) => p?.e1rm ?? 0)
       let lastIdx = -1
       for (let i = 7; i >= 0; i--) {
         if (vals[i] > 0) { lastIdx = i; break }
@@ -135,18 +135,26 @@ export default function Progress() {
         if (vals[i] > 0) { prev = vals[i]; break }
       }
       const lastVal = lastIdx >= 0 ? vals[lastIdx] : 0
-      return { exId, vals, lastVal, delta: lastVal > 0 && prev > 0 ? lastVal - prev : null }
+      return {
+        exId,
+        vals,
+        lastVal,
+        delta: lastVal > 0 && prev > 0 ? lastVal - prev : null,
+        src: lastIdx >= 0 ? points[lastIdx] : null,
+      }
     })
+    .filter((t) => t.vals.some((v) => v > 0))
     .sort((a, b) => b.lastVal - a.lastVal)
     .slice(0, 8)
 
   // Tren e1RM per lift (SBD): Squat, Bench Press, Deadlift
-  interface SbdRow { exId: string; vals: number[]; lastVal: number; delta: number | null; bestIdx: number }
+  interface SbdRow { exId: string; vals: number[]; lastVal: number; delta: number | null; bestIdx: number; src: TrendPoint | null }
   const sbdLifts = SBD_LIFTS.map((lift) => {
     const rows: SbdRow[] = exercises
       .filter((ex) => isSbdExercise(ex, lift.key))
       .map((ex) => {
-        const vals = trendMap.get(ex.id) ?? new Array(8).fill(0)
+        const points = trendMap.get(ex.id) ?? []
+        const vals = points.map((p) => p?.e1rm ?? 0)
         let lastIdx = -1
         for (let i = 7; i >= 0; i--) {
           if (vals[i] > 0) { lastIdx = i; break }
@@ -167,6 +175,7 @@ export default function Progress() {
           lastVal,
           delta: lastVal > 0 && prev > 0 ? lastVal - prev : null,
           bestIdx: best > 0 ? bestIdx : -1,
+          src: lastIdx >= 0 ? points[lastIdx] : null,
         }
       })
       .filter((r) => r.lastVal > 0)
@@ -189,19 +198,19 @@ export default function Progress() {
     for (const set of s.sets) {
       const cur = prMap.get(set.exerciseId) ?? {}
       const durEx = exerciseIsDuration(exercises, set.exerciseId)
-      const e1rm = set.weightKg * (1 + set.reps / 30)
+      const e1 = e1rm(set.weightKg, set.reps)
       const sec = set.durationSec ?? 0
       if (set.weightKg > 0 && (!cur.weight || set.weightKg > cur.weight.weight || (set.weightKg === cur.weight.weight && (durEx ? sec : set.reps) > (durEx ? cur.weight.durationSec : cur.weight.reps)))) {
-        cur.weight = { weight: set.weightKg, reps: set.reps, durationSec: sec, e1rm, date: s.date }
+        cur.weight = { weight: set.weightKg, reps: set.reps, durationSec: sec, e1rm: e1, date: s.date }
       }
       if (!durEx && set.reps > 0 && (!cur.reps || set.reps > cur.reps.reps || (set.reps === cur.reps.reps && set.weightKg > cur.reps.weight))) {
-        cur.reps = { weight: set.weightKg, reps: set.reps, durationSec: 0, e1rm, date: s.date }
+        cur.reps = { weight: set.weightKg, reps: set.reps, durationSec: 0, e1rm: e1, date: s.date }
       }
       if (durEx && sec > 0 && (!cur.dur || sec > cur.dur.durationSec)) {
         cur.dur = { weight: set.weightKg, reps: 0, durationSec: sec, e1rm: 0, date: s.date }
       }
-      if (!durEx && set.weightKg > 0 && (!cur.e1rm || e1rm > cur.e1rm.e1rm)) {
-        cur.e1rm = { weight: set.weightKg, reps: set.reps, durationSec: 0, e1rm, date: s.date }
+      if (!durEx && e1 > 0 && (!cur.e1rm || e1 > cur.e1rm.e1rm)) {
+        cur.e1rm = { weight: set.weightKg, reps: set.reps, durationSec: 0, e1rm: e1, date: s.date }
       }
       prMap.set(set.exerciseId, cur)
     }
@@ -495,6 +504,9 @@ export default function Progress() {
         </div>
         {openCards.sbd && (
         <>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Estimasi Epley dari set ≤{E1RM_MAX_REPS} rep. Angka kecil di bawah bar = set asal angkanya.
+        </div>
         {!sbdAnyData ? (
           <div className="small muted">Belum ada data SBD. Catat Squat, Bench Press, dan Deadlift dengan beban & reps di sesi latihan.</div>
         ) : (
@@ -543,6 +555,11 @@ export default function Progress() {
                             />
                           ))}
                         </div>
+                        {t.src && (
+                          <div className="small muted" style={{ marginTop: 2 }}>
+                            {fmtNumber(t.src.weightKg)} kg × {t.src.reps} rep · {t.src.date.slice(8, 10)}/{t.src.date.slice(5, 7)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -705,37 +722,6 @@ export default function Progress() {
 }
 
 
-
-
-function buildTrendWeeks(today: string): { start: string; end: string }[] {
-  return [7, 6, 5, 4, 3, 2, 1, 0].map((w) => {
-    const start = addDays(mondayOf(today), -w * 7)
-    const end = addDays(start, 6)
-    return { start, end }
-  })
-}
-
-function buildTrendMap(
-  sessions: Session[],
-  exercises: Exercise[],
-  weeks: { start: string; end: string }[],
-): Map<string, number[]> {
-  const map = new Map<string, number[]>()
-  for (const s of sessions) {
-    if (s.endedAt === null) continue
-    const winIdx = weeks.findIndex((win) => s.date >= win.start && s.date <= win.end)
-    if (winIdx < 0) continue
-    for (const set of s.sets) {
-      if (set.weightKg > 0 && !exerciseIsDuration(exercises, set.exerciseId)) {
-        const e = e1rm(set.weightKg, set.reps)
-        const arr = map.get(set.exerciseId) ?? new Array(weeks.length).fill(0)
-        if (e > arr[winIdx]) arr[winIdx] = e
-        map.set(set.exerciseId, arr)
-      }
-    }
-  }
-  return map
-}
 
 
 function fmtHM(sec: number): string {

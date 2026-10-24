@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { e1rm, e1rmStr, e1rmKg } from './e1rm'
+import { e1rm, e1rmStr, e1rmKg, E1RM_MAX_REPS } from './e1rm'
 
 describe('e1rm (Epley)', () => {
-  it('rumus mentah: 1 rep pun tetap ×(1 + reps/30) — sedikit overestimate', () => {
-    expect(e1rm(100, 1)).toBeCloseTo(103.333, 3)
+  it('single = beban asli, tanpa inflasi Epley', () => {
+    expect(e1rm(100, 1)).toBe(100)
   })
 
   it('0 rep = beban', () => {
@@ -14,8 +14,23 @@ describe('e1rm (Epley)', () => {
     expect(e1rm(100, 10)).toBeCloseTo(133.333, 3)
   })
 
-  it('0 rep = beban', () => {
-    expect(e1rm(80, 0)).toBe(80)
+  it('set di atas batas reps tidak diestimasi (0)', () => {
+    expect(e1rm(60, 30)).toBe(0)
+    expect(e1rm(50, 20)).toBe(0)
+    expect(e1rm(100, E1RM_MAX_REPS + 1)).toBe(0)
+  })
+
+  it('tepat di batas masih dihitung', () => {
+    expect(e1rm(100, E1RM_MAX_REPS)).toBeCloseTo(140, 5)
+  })
+
+  it('beban tidak valid = 0', () => {
+    expect(e1rm(0, 5)).toBe(0)
+    expect(e1rm(-10, 5)).toBe(0)
+  })
+
+  it('set 60 kg × 30 rep tidak lagi mengalahkan 100 kg × 5 rep', () => {
+    expect(e1rm(60, 30)).toBeLessThan(e1rm(100, 5))
   })
 })
 
@@ -34,14 +49,15 @@ describe('e1rmStr formatting', () => {
 
 describe('e1rmKg composite', () => {
   it('gabungan rumus + format', () => {
-    expect(e1rmKg(100, 1)).toBe('103.5') // 103.333 → round(206.667)=207 → 103.5
+    expect(e1rmKg(100, 1)).toBe('100') // single = beban asli
     expect(e1rmKg(60, 0)).toBe('60') // 0 rep = beban persis
     expect(e1rmKg(100, 8)).toBe('126.5') // 126.666 → round(253.33)=253 → 126.5
+    expect(e1rmKg(60, 30)).toBe('0') // di luar rentang valid
   })
 })
 describe('e1rm edge intervals', () => {
-  it('20 rep', () => {
-    expect(e1rm(50, 20)).toBeCloseTo(83.333, 2)
+  it('20 rep di luar batas → 0', () => {
+    expect(e1rm(50, 20)).toBe(0)
   })
   it('5 rep', () => {
     expect(e1rm(80, 5)).toBeCloseTo(93.333, 2)
