@@ -20,6 +20,7 @@ import {
   patchExerciseCategories,
 } from '../lib/gymstore'
 import { categoryOfExercise, isCountedSession } from '../lib/helpers'
+import { todayKey } from '../lib/date'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
 import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
 
@@ -230,9 +231,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Migrasi freeOrder Week-13 → Week-1: yang sudah ON tapi tanpa jangkar → set since/offset biar Week-1
   useEffect(() => {
     if (!uid || !ready || !settings.freeOrder || settings.freeOrderSince) return
-    const { isCountedSession } = require('../lib/helpers')
-    const cnt = sessions.filter((s: import('../types').Session) => isCountedSession(s)).length
-    const { todayKey } = require('../lib/date')
+    const cnt = sessions.filter((s) => isCountedSession(s)).length
     saveSettings({ freeOrderSince: todayKey(), freeOrderOffset: cnt } as Partial<UserSettings>)
   }, [uid, ready, settings.freeOrder, settings.freeOrderSince, sessions])
 
