@@ -11,6 +11,7 @@ import { presetByKey, dotColorFor } from '../lib/templates'
 import { computePosition, getFullLabel, dynamicCycleLength, computeExcludedTypes } from '../lib/progression'
 import { isCountedSession } from '../lib/helpers'
 import { suggestTm } from '../lib/tmSuggestion'
+import { E1RM_MAX_REPS } from '../lib/e1rm'
 import { fmtNumber } from '../lib/helpers'
 import Modal from '../components/Modal'
 import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
@@ -395,7 +396,7 @@ export default function Settings() {
                 {s.label}:{' '}
                 {s.hasData
                   ? `e1RM ${fmtNumber(s.bestE1rm)} kg${s.fallbackAllTime ? ' (semua riwayat)' : ''}`
-                  : 'belum ada data 8 minggu terakhir'}
+                  : `belum ada set ≤${E1RM_MAX_REPS} rep di 8 minggu terakhir`}
               </span>
               {s.hasData && (
                 <span className="row" style={{ gap: 8, alignItems: 'center' }}>
