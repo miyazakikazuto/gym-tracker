@@ -4,12 +4,14 @@
 // Batas validitas: Epley hanya masuk akal s.d. 12 reps. Set di atas itu tidak
 // diestimasi (0) supaya set AMRAP/reps tinggi tidak menggelembungkan tren, PR,
 // saran Training Max, dan rekap AI. Set tetap tersimpan & tetap dihitung volume.
-// Single (1 rep) = beban itu sendiri; Epley mentah menambah ~3% palsu.
+// Rentang valid = 1–12 rep: single (1 rep) = beban itu sendiri (Epley mentah
+// menambah ~3% palsu), dan reps 0 berarti set tidak terjadi → 0 (bukan beban),
+// supaya set yang cuma diisi beban tanpa reps tidak menyamar jadi PR e1RM.
 export const E1RM_MAX_REPS = 12
 
 export function e1rm(weightKg: number, reps: number): number {
-  if (!(weightKg > 0) || !Number.isFinite(reps) || reps < 0) return 0
-  if (reps <= 1) return weightKg
+  if (!(weightKg > 0) || !Number.isFinite(reps) || reps < 1) return 0
+  if (reps === 1) return weightKg
   if (reps > E1RM_MAX_REPS) return 0
   return weightKg * (1 + reps / 30)
 }
