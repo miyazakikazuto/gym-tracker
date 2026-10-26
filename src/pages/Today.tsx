@@ -20,7 +20,6 @@ import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, reh
 import { FREE_WEEK_KEYS, weekProgressFreeOrder, freeNextKey } from '../lib/rotation'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
-import QuickWalkCard from '../components/QuickWalkCard'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -521,7 +520,10 @@ export default function Today() {
             )}
           </div>
 
-          <QuickWalkCard />
+          {/* Quick-log "Catat jalan" dihapus (24 Okt 2026): user pakai Huawei band
+              yang mendeteksi jalan otomatis. Komponen & helper tetap ada
+              (src/components/QuickWalkCard.tsx) bila mau dipasang lagi;
+              mileage mingguan di Progress tetap jalan dari sesi Cardio Day. */}
 
           {freeOrder && !rehabMode ? (
             <div className="card">
