@@ -57,6 +57,8 @@ export default function Session() {
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [editingTime, setEditingTime] = useState(false)
+  // Daftar gerakan di luar kategori hari ini — dibuka manual, default tertutup
+  const [showOtherEx, setShowOtherEx] = useState(false)
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
@@ -483,6 +485,16 @@ export default function Session() {
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 
+  // Gerakan di luar kategori hari ini — tetap bisa ditambahkan (mis. Bench Press
+  // di Leg Day). Dipisah dari daftar saran supaya urutan saran tetap fokus
+  // pada kategori hari, tapi tidak ada lagi yang benar-benar terkunci.
+  const otherExercises = (() => {
+    const inPool = new Set(addPool.map((e) => e.id))
+    return exercises
+      .filter((e) => !inPool.has(e.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  })()
+
   // Dihitung SEKALI per render — hybrid Opsi A: 6 knee-safe di atas + sisa leg di bawah
   const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
   const rankedSuggestions = (() => {
@@ -713,12 +725,14 @@ export default function Session() {
         <div className="card-title">Tambahkan gerakan</div>
         {exercises.length === 0 ? (
           <div className="small muted">Belum ada gerakan di database. Tambahkan di tab Gerakan.</div>
-        ) : addPool.length === 0 ? (
-          <div className="small muted">
-            Belum ada gerakan kategori {presetByName(session.planName)?.name}. Tambahkan di tab Gerakan.
-          </div>
         ) : (
           <>
+            {addPool.length === 0 && (
+              <div className="small muted" style={{ marginBottom: 8 }}>
+                Belum ada gerakan kategori {presetByName(session.planName)?.name}. Tambahkan di tab Gerakan,
+                atau pakai gerakan kategori lain di bawah.
+              </div>
+            )}
             {(() => {
               const top = rankedSuggestions.slice(0, 5)
               const rest = rankedSuggestions.slice(5)
@@ -744,6 +758,22 @@ export default function Session() {
                 </button>
               ))}
             </div>
+            {otherExercises.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <button className="btn sm ghost" onClick={() => setShowOtherEx((v) => !v)}>
+                  {showOtherEx ? '▾' : '▸'} Gerakan kategori lain ({otherExercises.length})
+                </button>
+                {showOtherEx && (
+                  <div className="row wrap" style={{ marginTop: 8 }}>
+                    {otherExercises.map((ex) => (
+                      <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                        + {ex.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
