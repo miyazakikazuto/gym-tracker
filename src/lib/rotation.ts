@@ -96,7 +96,9 @@ export function planForKey(plans: WorkoutPlan[], key: string): WorkoutPlan | und
   return plans.find((p) => p.name === preset.name || p.name === (OLD_PRESET_NAMES[key] ?? ''))
 }
 
-// Mode bebas Week-3: Upper/Arm & Shoulder/Lower bebas urut, 3/3 baru lanjut, duplicate=1
+// Mode bebas Week-3: Upper/Arm & Shoulder/Lower bebas urut, 3/3 baru lanjut, duplicate=1.
+// Full Body (key 'easy', bukan hari rutin) juga dihitung: satu sesi Full Body
+// mencakup Upper + Lower sekaligus — Arm & Shoulder TIDAK tercakup.
 export const FREE_WEEK_KEYS = ['pull', 'push', 'leg'] as const
 
 export function freeNextKey(doneKeys: Set<string>): string | null {
@@ -124,7 +126,15 @@ export function weekProgressFreeOrder(
   const doneKeys = new Set<string>()
   for (const s of weekSessions) {
     const k = (presetByLooseName(s.planName) ?? presetByName(s.planName))?.key
-    if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) doneKeys.add(k)
+    if (k === 'easy') {
+      // Full Body = Upper + Lower sekaligus (dada+back & kaki kena semua
+      // dalam satu sesi). Arm & Shoulder TIDAK tercakup — tetap harus
+      // dilatih sendiri kalau mau week 3/3.
+      doneKeys.add('pull')
+      doneKeys.add('leg')
+    } else if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) {
+      doneKeys.add(k)
+    }
   }
   // Nomor week = index minggu kalender sejak jangkar (snap ke Senin, min 1)
   const anchorMon = mondayOf(settings?.freeOrderSince ?? ref)

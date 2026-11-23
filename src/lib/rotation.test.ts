@@ -223,6 +223,31 @@ describe('weekProgressFreeOrder (kalender Senin–Minggu)', () => {
     expect(r.doneKeys).toEqual(new Set(['pull', 'push']))
   })
 
+  it("Full Body saja → 2/3 (Upper + Lower selesai, sisa Arm & Shoulder)", () => {
+    const r = prog([['Full Body', '2026-09-22']])
+    expect(r).toMatchObject({ cycle: 1, progress: '2/3', isWeekComplete: false })
+    expect(r.doneKeys).toEqual(new Set(['pull', 'leg']))
+    expect(freeNextKey(r.doneKeys)).toBe('push')
+  })
+
+  it("Full Body + Arm & Shoulder → 3/3 komplet", () => {
+    const r = prog([['Full Body', '2026-09-22'], ['Push Day', '2026-09-23']])
+    expect(r).toMatchObject({ cycle: 1, progress: '3/3', isWeekComplete: true })
+    expect(r.doneKeys).toEqual(new Set(['pull', 'push', 'leg']))
+  })
+
+  it('Full Body + Upper tidak ganda: tetap 2/3', () => {
+    const r = prog([['Full Body', '2026-09-22'], ['Pull Day', '2026-09-23']])
+    expect(r).toMatchObject({ cycle: 1, progress: '2/3', isWeekComplete: false })
+    expect(r.doneKeys).toEqual(new Set(['pull', 'leg']))
+  })
+
+  it("nama lama 'Easy Day' sama seperti Full Body", () => {
+    const r = prog([['Easy Day', '2026-09-22']])
+    expect(r).toMatchObject({ progress: '2/3' })
+    expect(r.doneKeys).toEqual(new Set(['pull', 'leg']))
+  })
+
   it('batas Minggu: sesi Minggu 27 kehitung, Senin 28 masuk week baru', () => {
     const r = prog([['Leg Day', '2026-09-27']], '2026-09-27')
     expect(r.doneKeys).toEqual(new Set(['leg']))
