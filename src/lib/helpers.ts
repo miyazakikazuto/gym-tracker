@@ -186,3 +186,15 @@ export function moveExerciseSets(sets: SessionSet[], exerciseId: string, dir: -1
 export function toggleFlag(map: Record<string, boolean>, id: string): Record<string, boolean> {
   return { ...map, [id]: !map[id] }
 }
+
+// Perbaiki sesi yang jam selesainya lebih awal dari jam mulai (bug placeholder
+// 12:00 lama): jam mulai diset 90 menit sebelum selesai — durasi estimasi yang
+// sama dengan auto-close sesi yang ditinggalkan. Sesi yang sudah benar
+// dikembalikan apa adanya (referensi yang sama).
+export function fixReversedSessionTimes(sessions: Session[]): Session[] {
+  return sessions.map((s) =>
+    s.endedAt !== null && s.endedAt < s.startedAt
+      ? { ...s, startedAt: s.endedAt - 90 * 60 * 1000 }
+      : s,
+  )
+}

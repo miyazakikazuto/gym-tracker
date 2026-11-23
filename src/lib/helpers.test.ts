@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets, moveExerciseSets, toggleFlag } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets, moveExerciseSets, toggleFlag, fixReversedSessionTimes } from './helpers'
 import { parseDecimal } from './parse'
 import type { Exercise, Session, SessionSet } from '../types'
 
@@ -274,5 +274,34 @@ describe('toggleFlag (hide/unhide tambah set cepat)', () => {
     const r = toggleFlag(m, 'exB')
     expect(r).toEqual({ exA: true, exB: true })
     expect(m).toEqual({ exA: true, exB: false })
+  })
+})
+
+describe('fixReversedSessionTimes (sesi selesai < mulai → mulai = selesai − 90 mnt)', () => {
+  const mk = (startedAt: number, endedAt: number | null) =>
+    ({ id: 'x', startedAt, endedAt }) as Session
+
+  it('sesi kebalik: mulai digeser ke selesai − 90 menit, selesai tidak berubah', () => {
+    const s = mk(1788152400000, 1788147053058)
+    const r = fixReversedSessionTimes([s])
+    expect(r[0].startedAt).toBe(1788147053058 - 90 * 60 * 1000)
+    expect(r[0].endedAt).toBe(1788147053058)
+    expect(r[0]).not.toBe(s)
+  })
+  it('sesi normal, sesi berjalan, dan mulai = selesai: tidak berubah (referensi sama)', () => {
+    const ok = mk(1000, 2000)
+    const running = mk(1000, null)
+    const equal = mk(1000, 1000)
+    const r = fixReversedSessionTimes([ok, running, equal])
+    expect(r[0]).toBe(ok)
+    expect(r[1]).toBe(running)
+    expect(r[2]).toBe(equal)
+  })
+  it('campuran: hanya yang kebalik yang berubah', () => {
+    const bad = mk(5000, 4000)
+    const good = mk(1000, 2000)
+    const r = fixReversedSessionTimes([bad, good])
+    expect(r[0].startedAt).toBe(4000 - 90 * 60 * 1000)
+    expect(r[1]).toBe(good)
   })
 })

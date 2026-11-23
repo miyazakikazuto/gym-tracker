@@ -19,7 +19,7 @@ import {
   deleteBodyweight,
   patchExerciseCategories,
 } from '../lib/gymstore'
-import { categoryOfExercise, isCountedSession, renumberExerciseSets } from '../lib/helpers'
+import { categoryOfExercise, isCountedSession, renumberExerciseSets, fixReversedSessionTimes } from '../lib/helpers'
 import { presetByLooseName, presetByName, stripSticker, newNameForOldPlan } from '../lib/templates'
 import { todayKey } from '../lib/date'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
@@ -233,6 +233,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
         showToast('Perapian nomor set gagal — coba lagi', 'error')
       } finally {
         setRenumberRef.current = false
+      }
+    })()
+  }, [uid, ready, sessions])
+
+  // Migrasi sekali jalan: sesi yang jam selesainya lebih awal dari jam mulai
+  // (bug placeholder 12:00 lama, Agt–Okt 2026) — jam mulai diset 90 menit
+  // sebelum selesai. Idempoten: sesi yang sudah benar tidak ditulis ulang.
+  const timeFixRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || sessions.length === 0 || timeFixRef.current) return
+    const fixed = fixReversedSessionTimes(sessions)
+    const changed: { id: string; startedAt: number }[] = []
+    sessions.forEach((s, i) => {
+      if (fixed[i] !== s) changed.push({ id: s.id, startedAt: fixed[i].startedAt })
+    })
+    if (changed.length === 0) return
+    timeFixRef.current = true
+    void (async () => {
+      try {
+        for (const c of changed) {
+          await updateSession(uid, c.id, { startedAt: c.startedAt })
+        }
+        showToast(`${changed.length} sesi diperbaiki jam mulainya`)
+      } catch (err) {
+        console.warn('[DataContext] migrasi jam sesi gagal:', err)
+        showToast('Perbaikan jam sesi gagal — coba lagi', 'error')
+      } finally {
+        timeFixRef.current = false
       }
     })()
   }, [uid, ready, sessions])
