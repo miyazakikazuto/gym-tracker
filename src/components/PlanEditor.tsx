@@ -15,7 +15,12 @@ interface Item {
 
 export default function PlanEditor({ onClose }: { onClose: () => void }) {
   const uid = useUid()
-  const { plans, exercises, showToast } = useData()
+  const { plans, exercises, settings, showToast } = useData()
+  // Preset rehab (Leg Rehab Iso / Leg Ringan / Upper Kanan) cuma untuk mode
+  // rehab — di mode normal disembunyikan dari picker, sama seperti di
+  // Beranda & Riwayat. Plan rehab yang sudah tersimpan tetap bisa dibuka.
+  const rehabMode = settings.rehabMode === true
+  const REHAB_PRESET_KEYS = ['leg-iso', 'leg-light', 'upper-r']
 
   const [selDay, setSelDay] = useState<number>(new Date().getDay())
   const plan = plans.find((p) => p.dayOfWeek === selDay)
@@ -176,7 +181,7 @@ export default function PlanEditor({ onClose }: { onClose: () => void }) {
         <div className="field">
           <label>Jenis jadwal</label>
           <div className="row wrap" style={{ gap: 8 }}>
-            {PLAN_PRESETS.map((p) => (
+            {PLAN_PRESETS.filter((p) => rehabMode || !REHAB_PRESET_KEYS.includes(p.key)).map((p) => (
               <button
                 key={p.key}
                 className={'btn sm' + (presetKey === p.key ? ' primary' : ' ghost')}
