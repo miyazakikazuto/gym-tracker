@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { isRestLoose, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import { isRestLoose, dotColorFor, shortLabelFor, presetByLooseName, stripSticker, PLAN_PRESETS } from '../lib/templates'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
@@ -94,7 +94,10 @@ export default function History() {
     .sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessionsAll2 = selKey ? sessions.filter((s) => s.date === selKey) : []
   const daySessions = rehabMode ? daySessionsAll2 : daySessionsAll2.filter((s) => !isRehabSession(s, exercises))
-  const usedPlanNames = daySessions.map((s) => s.planName)
+  // Nama kanonis (polos) — sesi lama berstiker "[C1-S01] Leg Day — 3×5"
+  // harus tetap terhitung sudah dipakai, kalau tidak tombol "+ Leg Day"
+  // muncul lagi dan sesi duplikat bisa dibuat di tanggal yang sama.
+  const usedPlanNames = daySessions.map((s) => presetByLooseName(s.planName)?.name ?? stripSticker(s.planName))
   const presetNames = PLAN_PRESETS.map((p) => p.name)
   // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
   // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PLAN_PRESETS, presetByKey, presetByName, isRest, isRestLoose, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise } from './templates'
+import { PLAN_PRESETS, presetByKey, presetByName, presetByLooseName, stripSticker, isRest, isRestLoose, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise } from './templates'
 
 describe('PLAN_PRESETS', () => {
   it('memiliki 9 preset: leg/push/pull/easy/cardio/rest + rehab (leg-iso/leg-light/upper-r)', () => {
@@ -79,5 +79,46 @@ describe('shortLabelFor / dotColorFor', () => {
   it('dotColorFor', () => {
     expect(dotColorFor('Leg Day')).toBe('#44cc88')
     expect(dotColorFor('Tidak Ada')).toBeUndefined()
+  })
+  it('nama berstiker tetap ter-resolve (Fase 1)', () => {
+    expect(shortLabelFor('[C1-S01] Leg Day — 3×5')).toBe('LEG')
+    expect(shortLabelFor('[C1-S01] [C1-S01] Leg Day — 3×5 — 3×5')).toBe('LEG')
+    expect(dotColorFor('[C1-S02] Push — 3×5')).toBe('#6699ff')
+  })
+})
+
+// Fase 1 — planName berstiker: kupas stiker jadi nama plan polos.
+describe('stripSticker', () => {
+  it('nama polos tidak berubah', () => {
+    expect(stripSticker('Leg Day')).toBe('Leg Day')
+    expect(stripSticker('Push Day')).toBe('Push Day')
+  })
+  it('kupas prefix + wave', () => {
+    expect(stripSticker('[C1-S01] Leg Day — 3×5')).toBe('Leg Day')
+    expect(stripSticker('[C1-S02] Push — 3×5')).toBe('Push')
+  })
+  it('kupas label ganda (bug tombol Mulai)', () => {
+    expect(stripSticker('[C1-S01] [C1-S01] Leg Day — 3×5 — 3×5')).toBe('Leg Day')
+  })
+  it('kupas stiker rehab', () => {
+    expect(stripSticker('[R1-S05] Leg Rehab Iso — W2')).toBe('Leg Rehab Iso')
+  })
+})
+
+describe('presetByLooseName', () => {
+  it('nama polos tetap jalan', () => {
+    expect(presetByLooseName('Leg Day')?.key).toBe('leg')
+    expect(presetByLooseName('Push Day')?.key).toBe('push')
+  })
+  it('nama berstiker siklus ter-resolve', () => {
+    expect(presetByLooseName('[C1-S01] Leg Day — 3×5')?.key).toBe('leg')
+    expect(presetByLooseName('[C1-S01] [C1-S01] Leg Day — 3×5 — 3×5')?.key).toBe('leg')
+  })
+  it('label siklus "Push" (tanpa Day) ter-resolve ke Push Day', () => {
+    expect(presetByLooseName('[C1-S02] Push — 3×5')?.key).toBe('push')
+    expect(presetByLooseName('Push')?.key).toBe('push')
+  })
+  it('unknown → undefined', () => {
+    expect(presetByLooseName('[C1-S01] Tidak Ada — 3×5')).toBeUndefined()
   })
 })

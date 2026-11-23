@@ -6,7 +6,7 @@ import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
 import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
-import { presetByName, isRestLoose } from '../lib/templates'
+import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
 import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
@@ -478,7 +478,7 @@ export default function Session() {
   }
 
   const addPool = (() => {
-    const cat = presetByName(session.planName)?.key
+    const cat = (presetByLooseName(session.planName) ?? presetByName(session.planName))?.key
     if (!cat) return exercises
     // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
     const keys = rehabPoolKeys(cat)
@@ -499,7 +499,7 @@ export default function Session() {
   const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
   const rankedSuggestions = (() => {
     const base = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-    const cat = presetByName(session.planName)?.key
+    const cat = (presetByLooseName(session.planName) ?? presetByName(session.planName))?.key
     if (cat !== 'leg') return base
     const prio = (name: string) => (LEG_SUGGEST.includes(name) ? 0 : 1)
     const rank: Record<string, number> = { gap: 0, baru: 1, lupa: 2, biasa: 3 }
@@ -591,7 +591,10 @@ export default function Session() {
           // Stiker salah (mis. Leg Day ditempel Easy Day) → benerin di layar langsung
           let label: string | null = session.cycleLabel ?? null
           let wave: string | null = session.scheme ?? null
-          const mismatch = !!(label && !label.includes(session.planName))
+          // Nama kanonis polos — planName berstiker ("[C1-S01] Leg Day — 3×5")
+          // membuat includes() lama selalu true, jadi label ganda lolos.
+          const barePlan = presetByLooseName(session.planName)?.name ?? stripSticker(session.planName)
+          const mismatch = !!(label && !label.includes(barePlan))
           if (!label || mismatch) {
             const before = sessions.filter(
               (x) => isCountedSession(x) && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)),
@@ -600,7 +603,7 @@ export default function Session() {
               const ex = computeExcludedTypes(settings)
               const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
               const correctWave = getScheme(pos.sessionIndex, ex)?.label ?? wave
-              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${session.planName}${correctWave ? ` — ${correctWave}` : ''}`
+              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${barePlan}${correctWave ? ` — ${correctWave}` : ''}`
               label = correctLabel
               wave = correctWave
             } catch { /* biarkan label lama */ }
@@ -729,7 +732,7 @@ export default function Session() {
           <>
             {addPool.length === 0 && (
               <div className="small muted" style={{ marginBottom: 8 }}>
-                Belum ada gerakan kategori {presetByName(session.planName)?.name}. Tambahkan di tab Gerakan,
+                Belum ada gerakan kategori {(presetByLooseName(session.planName) ?? presetByName(session.planName))?.name}. Tambahkan di tab Gerakan,
                 atau pakai gerakan kategori lain di bawah.
               </div>
             )}
@@ -739,7 +742,7 @@ export default function Session() {
               if (top.length === 0) return null
               return (
                 <>
-                  <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Saran untuk {presetByName(session.planName)?.name ?? 'sesi ini'}</div>
+                  <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Saran untuk {(presetByLooseName(session.planName) ?? presetByName(session.planName))?.name ?? 'sesi ini'}</div>
                   <div className="row wrap" style={{ marginBottom: rest.length > 0 ? 10 : 0 }}>
                     {top.map(({ exercise: ex, reason }) => (
                       <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>

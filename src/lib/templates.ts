@@ -170,9 +170,25 @@ export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
 }
 
+// Kupas stiker siklus dari nama/label: "[C1-S01] [C1-S01] Leg Day — 3×5"
+// → "Leg Day", "[R1-S05] Leg Rehab Iso — W2" → "Leg Rehab Iso", "Leg Day" → "Leg Day".
+// Dipakai supaya data lama berstiker bisa dinormalisasi ke nama plan polos,
+// bukan ditulis ulang tiap load (bug Fase 1: planName berstiker).
+export function stripSticker(name: string): string {
+  let bare = name.trim()
+  // Kupas prefix berulang — label ganda punya dua prefix berurutan.
+  while (/^\[(C|R)\d+-S\d+\]\s*/.test(bare)) {
+    bare = bare.replace(/^\[(C|R)\d+-S\d+\]\s*/, '')
+  }
+  return bare.split(' — ')[0].trim()
+}
+
 export function presetByLooseName(name: string): PlanPreset | undefined {
-  const bare = name.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0].trim().toLowerCase()
+  const bare = stripSticker(name).toLowerCase()
   return PLAN_PRESETS.find((p) => p.name.toLowerCase() === bare)
+    // Label siklus pakai bentuk pendek: "Push" (bukan "Push Day"), "Cardio" (bukan "Cardio Day").
+    ?? PLAN_PRESETS.find((p) => p.name.toLowerCase() === `${bare} day`)
+    ?? PLAN_PRESETS.find((p) => p.shortLabel.toLowerCase() === bare)
 }
 
 export function isRest(name: string): boolean {
@@ -186,9 +202,9 @@ export function isRestLoose(name: string): boolean {
 }
 
 export function shortLabelFor(name: string): string {
-  return presetByName(name)?.shortLabel ?? ''
+  return (presetByName(name) ?? presetByLooseName(name))?.shortLabel ?? ''
 }
 
 export function dotColorFor(name: string): string | undefined {
-  return presetByName(name)?.dotColor
+  return (presetByName(name) ?? presetByLooseName(name))?.dotColor
 }

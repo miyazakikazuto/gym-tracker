@@ -20,6 +20,7 @@ import {
   patchExerciseCategories,
 } from '../lib/gymstore'
 import { categoryOfExercise, isCountedSession } from '../lib/helpers'
+import { presetByLooseName, presetByName, stripSticker } from '../lib/templates'
 import { todayKey } from '../lib/date'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
 import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
@@ -131,15 +132,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [uid, exercises])
 
   // Migrasi stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
-  // Per-session: cek tiap sessions change, bukan once-per-mount — supaya mismatch baru tetap ke-patch
+  // + normalisasi planName berstiker ("[C1-S01] Leg Day — 3×5" → "Leg Day").
+  // Idempoten: sesi yang sudah polos & labelnya sudah benar tidak ditulis
+  // ulang — sebelumnya perbandingan pakai planName mentah berstiker, jadi
+  // semua sesi dari tombol Mulai selalu dianggap mismatch di tiap load.
   const cycleMigratingRef = useRef(false)
   useEffect(() => {
     if (!uid || !ready || sessions.length === 0 || cycleMigratingRef.current) return
-    // Exact: "[C?-S??] Nama Plan" harus diakhiri planName, bukan substring includes (Leg vs Leg Press)
+    // Nama kanonis: preset yang cocok (longgar) atau hasil kupas stiker.
+    // "Push" dari label siklus → preset "Push Day" lewat presetByLooseName.
+    const canonicalName = (name: string): string => {
+      const preset = presetByLooseName(name) ?? presetByName(name)
+      return preset?.name ?? stripSticker(name)
+    }
     const mismatched = sessions.filter((s) => {
+      const barePlan = canonicalName(s.planName)
+      if (barePlan !== s.planName) return true // planName berstiker
       if (!s.cycleLabel) return false
-      const labelPlan = s.cycleLabel.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0]?.trim().toLowerCase()
-      return labelPlan !== s.planName.trim().toLowerCase()
+      const labelPlan = canonicalName(s.cycleLabel)
+      const labelPrefix = s.cycleLabel.replace(/^\[(C|R)\d+-S\d+\]\s*/, '')
+      // Label ganda: prefix masih berstiker setelah satu kali kupas.
+      if (/^\[(C|R)\d+-S\d+\]/.test(labelPrefix)) return true
+      return labelPlan !== barePlan
     })
     if (mismatched.length === 0) return
     cycleMigratingRef.current = true
@@ -154,12 +168,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
               (x) => isCountedSession(x) && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
             )
             try {
+              const barePlan = canonicalName(s.planName)
+              // Tanpa cycleLabel (mis. sesi extra) jangan karang label baru —
+              // cukup normalisasi planName-nya saja.
+              if (!s.cycleLabel) {
+                if (barePlan !== s.planName) {
+                  batch.update(doc(db, 'users', uid, 'sessions', s.id), { planName: barePlan } as object)
+                  count++
+                }
+                continue
+              }
               const ex = computeExcludedTypes(settings)
               const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
               const wave = getScheme(pos.sessionIndex, ex)?.label ?? s.scheme
-              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${s.planName}${wave ? ` — ${wave}` : ''}`
+              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${barePlan}${wave ? ` — ${wave}` : ''}`
+              // Skip bila hasil hitung sama dengan yang tersimpan — jangan tulis ulang.
+              if (correctLabel === s.cycleLabel && barePlan === s.planName) continue
               const fields: Record<string, unknown> = { cycleLabel: correctLabel, cycle: pos.cycle, sessionIndex: pos.sessionIndex }
               if (wave) fields.scheme = wave
+              if (barePlan !== s.planName) fields.planName = barePlan
               batch.update(doc(db, 'users', uid, 'sessions', s.id), fields as object)
               count++
             } catch { /* ignore */ }

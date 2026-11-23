@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan, type PlanItem } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession, createExercise } from '../lib/gymstore'
-import { shortLabelFor, isRestLoose, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
+import { shortLabelFor, isRestLoose, presetByKey, presetByName, presetByLooseName, stripSticker, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -137,7 +137,7 @@ export default function Today() {
   // ===== Rotasi (satu-satunya mode jadwal — mode Mingguan dihapus) =====
   const rot = rotationOf(settings)
   const last = lastFinishedSession(sessions)
-  const lastKey = last ? presetByName(last.planName)?.key : undefined
+  const lastKey = last ? (presetByLooseName(last.planName) ?? presetByName(last.planName))?.key : undefined
   const todayShift = shiftForDate(base, settings)
   const sug = suggestKey(settings, sessions, todayShift)
   const dsl = daysSinceLast(sessions, base)
@@ -276,7 +276,8 @@ export default function Today() {
       if (name) payload.planName = name
     } else if (rehabMode) {
       // Rehab: stiker [R..-S..] tanpa wave/scheme TM
-      const chosenName = name ?? plan?.name ?? presetByKey(rehabKey)?.name ?? rehabKey
+      const rawName = name ?? plan?.name ?? presetByKey(rehabKey)?.name ?? rehabKey
+      const chosenName = stripSticker(rawName)
       const snapLabel = rehabFullLabel(rehabPos.sessionIndex, chosenName)
       payload = buildSession(
         plan,
@@ -288,10 +289,15 @@ export default function Today() {
       )
       if (chosenName) payload.planName = chosenName
     } else {
-      // Stiker ngikut plan yang dipilih: wave tetap dari siklus, nama ikut plan
-      const chosenName = name ?? plan?.name ?? null
+      // planName harus nama plan POLOS ("Leg Day"), bukan cycleLabel
+      // ("[C1-S01] Leg Day — 3×5"). Kalau name yang dioper ternyata label
+      // siklus, kupas stikernya dan pakai nama plan — "Push" dari label
+      // bukan nama preset, jadi fallback ke plan?.name ("Push Day").
+      const bareName = name ? stripSticker(name) : plan?.name ?? null
+      const preset = bareName ? (presetByLooseName(bareName) ?? presetByName(bareName)) : undefined
+      const chosenName = plan?.name ?? preset?.name ?? bareName
       const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
-      const stikerName = chosenName ?? getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes).replace(/^\[C\d+-S\d+\]\s*/, '')
+      const stikerName = chosenName ?? stripSticker(getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes))
       const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
       payload = buildSession(
         plan,
@@ -325,8 +331,10 @@ export default function Today() {
       setShowPlan(true)
       return
     }
-    // Rehab: nama ikut plan (jangan oper cycleLabel 5/3/1 — stiker rehab dihitung di createAndOpen)
-    void createAndOpen(effectivePlan, rehabMode ? undefined : cycleLabel)
+    // Nama ikut plan polos ("Leg Day") — JANGAN oper cycleLabel 5/3/1
+    // ("[C1-S01] Leg Day — 3×5"), itu yang bikin planName berstiker dan
+    // cycleLabel ganda. Stiker siklus dihitung di createAndOpen.
+    void createAndOpen(effectivePlan, rehabMode ? undefined : effectivePlan.name)
   }
 
   async function handleSkip() {
