@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession, renumberExerciseSets } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
 import { autoIntensityOf, autoPrefillWeight } from '../lib/autoreg'
@@ -203,7 +203,9 @@ export default function Session() {
       setLocalSets((cur) => {
         const index = cur.findIndex((s) => s.id === setId)
         if (index >= 0) removed = { set: cur[index], index }
-        const next = index >= 0 ? cur.filter((s) => s.id !== setId) : cur
+        if (index < 0) return cur
+        // Set yang tersisa dinomori ulang 1..n — daftar jangan mulai dari 2.
+        const next = renumberExerciseSets(cur.filter((s) => s.id !== setId), cur[index].exerciseId)
         scheduleSync(next)
         return next
       })
@@ -233,8 +235,10 @@ export default function Session() {
       if (cur.some((s) => s.id === d.set.id)) return cur
       const next = [...cur]
       next.splice(Math.min(d.index, next.length), 0, d.set)
-      scheduleSync(next)
-      return next
+      // Set yang dikembalikan ikut dihitung ulang dari posisinya.
+      const renumbered = renumberExerciseSets(next, d.set.exerciseId)
+      scheduleSync(renumbered)
+      return renumbered
     })
   }, [scheduleSync])
 

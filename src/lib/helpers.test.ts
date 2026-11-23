@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets } from './helpers'
 import { parseDecimal } from './parse'
-import type { Exercise, Session } from '../types'
+import type { Exercise, Session, SessionSet } from '../types'
 
 function mkSession(over: Partial<Session>): Session {
   return {
@@ -188,5 +188,38 @@ describe('fmtInput', () => {
     for (const n of [2.29, 10.5, 27.5, 0.5]) {
       expect(parseDecimal(fmtInput(n))).toBe(n)
     }
+  })
+})
+
+describe('renumberExerciseSets (hapus set → nomor dirapikan 1..n)', () => {
+  const mkSet = (id: string, exerciseId: string, setNumber: number, weightKg = 10): SessionSet => ({
+    id, exerciseId, setNumber, weightKg, reps: 8,
+  })
+  const nums = (sets: SessionSet[], ex = 'ex1') =>
+    sets.filter((s) => s.exerciseId === ex).map((s) => s.setNumber)
+
+  it('hapus set #1: 2,3,4 jadi 1,2,3 (kasus screenshot)', () => {
+    const sets = [mkSet('a', 'ex1', 2), mkSet('b', 'ex1', 3), mkSet('c', 'ex1', 4)]
+    expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2, 3])
+  })
+  it('hapus set tengah: 1,3 jadi 1,2', () => {
+    const sets = [mkSet('a', 'ex1', 1), mkSet('b', 'ex1', 3)]
+    expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2])
+  })
+  it('gerakan lain tidak ikut berubah', () => {
+    const sets = [mkSet('a', 'ex1', 2), mkSet('b', 'ex2', 2), mkSet('c', 'ex2', 3)]
+    const r = renumberExerciseSets(sets, 'ex1')
+    expect(nums(r, 'ex1')).toEqual([1])
+    expect(nums(r, 'ex2')).toEqual([2, 3])
+  })
+  it('beban/rep tiap set tetap sama, hanya nomor berubah', () => {
+    const sets = [mkSet('a', 'ex1', 2, 15), mkSet('b', 'ex1', 3, 20)]
+    const r = renumberExerciseSets(sets, 'ex1')
+    expect(r.map((s) => [s.setNumber, s.weightKg])).toEqual([[1, 15], [2, 20]])
+  })
+  it('urungkan hapus: nomor ganda ikut dirapikan', () => {
+    // Hapus #1 lalu urungkan: [A#1, B#1, C#2] → [1, 2, 3]
+    const sets = [mkSet('a', 'ex1', 1), mkSet('b', 'ex1', 1), mkSet('c', 'ex1', 2)]
+    expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2, 3])
   })
 })

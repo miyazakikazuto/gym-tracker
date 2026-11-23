@@ -1,4 +1,4 @@
-import type { Exercise, Session } from '../types'
+import type { Exercise, Session, SessionSet } from '../types'
 import { isRestLoose } from './templates'
 import { volumeOf } from './date'
 
@@ -142,4 +142,19 @@ export function findOrphanedExercises(
     }
   }
   return map
+}
+// Nomor set dirapikan per gerakan: setelah hapus set, set yang tersisa
+// dinomori ulang 1..n sesuai urutan — daftar jangan mulai dari 2.
+// Dipakai juga saat urungkan hapus: set yang dikembalikan ikut dihitung
+// ulang dari posisinya, jadi tidak ada nomor ganda. Gerakan lain tidak
+// ikut berubah; beban/rep tiap set tetap sama.
+export function renumberExerciseSets(sets: SessionSet[], exerciseId: string): SessionSet[] {
+  const group = sets
+    .filter((s) => s.exerciseId === exerciseId)
+    .slice()
+    .sort((a, b) => a.setNumber - b.setNumber)
+  const nextNo = new Map(group.map((s, i) => [s.id, i + 1] as const))
+  return sets.map((s) =>
+    s.exerciseId === exerciseId && nextNo.has(s.id) ? { ...s, setNumber: nextNo.get(s.id)! } : s,
+  )
 }
