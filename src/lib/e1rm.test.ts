@@ -6,8 +6,13 @@ describe('e1rm (Epley)', () => {
     expect(e1rm(100, 1)).toBe(100)
   })
 
-  it('0 rep = beban', () => {
-    expect(e1rm(80, 0)).toBe(80)
+  it('0 rep (set tidak terjadi) = 0, bukan beban', () => {
+    expect(e1rm(80, 0)).toBe(0)
+    expect(e1rm(80, -3)).toBe(0)
+  })
+  it('beban tanpa reps tidak bisa jadi PR e1RM', () => {
+    // Set yang cuma diisi beban (reps default 0) tidak boleh mengalahkan set nyata
+    expect(e1rm(200, 0)).toBeLessThan(e1rm(100, 5))
   })
 
   it('10 rep', () => {
@@ -50,7 +55,7 @@ describe('e1rmStr formatting', () => {
 describe('e1rmKg composite', () => {
   it('gabungan rumus + format', () => {
     expect(e1rmKg(100, 1)).toBe('100') // single = beban asli
-    expect(e1rmKg(60, 0)).toBe('60') // 0 rep = beban persis
+    expect(e1rmKg(60, 0)).toBe('0') // reps 0 = set tidak terjadi
     expect(e1rmKg(100, 8)).toBe('126.5') // 126.666 → round(253.33)=253 → 126.5
     expect(e1rmKg(60, 30)).toBe('0') // di luar rentang valid
   })

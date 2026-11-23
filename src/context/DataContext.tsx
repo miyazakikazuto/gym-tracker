@@ -19,10 +19,11 @@ import {
   deleteBodyweight,
   patchExerciseCategories,
 } from '../lib/gymstore'
-import { categoryOfExercise, isCountedSession } from '../lib/helpers'
+import { categoryOfExercise, isCountedSession, renumberExerciseSets, fixReversedSessionTimes } from '../lib/helpers'
+import { presetByLooseName, presetByName, stripSticker, newNameForOldPlan } from '../lib/templates'
 import { todayKey } from '../lib/date'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
-import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
+import type { Exercise, WorkoutPlan, Session, SessionSet, Bodyweight, UserSettings } from '../types'
 
 interface DataState {
   exercises: Exercise[]
@@ -130,16 +131,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [uid, exercises])
 
-  // Migrasi stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
-  // Per-session: cek tiap sessions change, bukan once-per-mount — supaya mismatch baru tetap ke-patch
+  // Migrasi stiker cycle yang salah tempel (mis. Lower ditempel Upper)
+  // + normalisasi planName berstiker ("[C1-S01] Leg Day — 3×5" → "Lower").
+  // Idempoten: sesi yang sudah polos & labelnya sudah benar tidak ditulis
+  // ulang — sebelumnya perbandingan pakai planName mentah berstiker, jadi
+  // semua sesi dari tombol Mulai selalu dianggap mismatch di tiap load.
   const cycleMigratingRef = useRef(false)
   useEffect(() => {
     if (!uid || !ready || sessions.length === 0 || cycleMigratingRef.current) return
-    // Exact: "[C?-S??] Nama Plan" harus diakhiri planName, bukan substring includes (Leg vs Leg Press)
+    // Nama kanonis: preset yang cocok (longgar) atau hasil kupas stiker.
+    // "Push" dari label siklus lama → preset "Arm & Shoulder" lewat presetByLooseName.
+    const canonicalName = (name: string): string => {
+      const preset = presetByLooseName(name) ?? presetByName(name)
+      return preset?.name ?? stripSticker(name)
+    }
     const mismatched = sessions.filter((s) => {
+      const barePlan = canonicalName(s.planName)
+      if (barePlan !== s.planName) return true // planName berstiker
       if (!s.cycleLabel) return false
-      const labelPlan = s.cycleLabel.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0]?.trim().toLowerCase()
-      return labelPlan !== s.planName.trim().toLowerCase()
+      const labelPlan = canonicalName(s.cycleLabel)
+      const labelPrefix = s.cycleLabel.replace(/^\[(C|R)\d+-S\d+\]\s*/, '')
+      // Label ganda: prefix masih berstiker setelah satu kali kupas.
+      if (/^\[(C|R)\d+-S\d+\]/.test(labelPrefix)) return true
+      return labelPlan !== barePlan
     })
     if (mismatched.length === 0) return
     cycleMigratingRef.current = true
@@ -154,12 +168,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
               (x) => isCountedSession(x) && (x.date < s.date || (x.date === s.date && x.startedAt < s.startedAt)),
             )
             try {
+              const barePlan = canonicalName(s.planName)
+              // Tanpa cycleLabel (mis. sesi extra) jangan karang label baru —
+              // cukup normalisasi planName-nya saja.
+              if (!s.cycleLabel) {
+                if (barePlan !== s.planName) {
+                  batch.update(doc(db, 'users', uid, 'sessions', s.id), { planName: barePlan } as object)
+                  count++
+                }
+                continue
+              }
               const ex = computeExcludedTypes(settings)
               const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
               const wave = getScheme(pos.sessionIndex, ex)?.label ?? s.scheme
-              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${s.planName}${wave ? ` — ${wave}` : ''}`
+              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${barePlan}${wave ? ` — ${wave}` : ''}`
+              // Skip bila hasil hitung sama dengan yang tersimpan — jangan tulis ulang.
+              if (correctLabel === s.cycleLabel && barePlan === s.planName) continue
               const fields: Record<string, unknown> = { cycleLabel: correctLabel, cycle: pos.cycle, sessionIndex: pos.sessionIndex }
               if (wave) fields.scheme = wave
+              if (barePlan !== s.planName) fields.planName = barePlan
               batch.update(doc(db, 'users', uid, 'sessions', s.id), fields as object)
               count++
             } catch { /* ignore */ }
@@ -178,6 +205,96 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     })
   }, [uid, ready, sessions, settings])
+
+  // Migrasi sekali jalan: nomor set yang bolong (mis. 2,3,4 karena set #1
+  // pernah dihapus sebelum ada perapian) dinomori ulang 1..n per gerakan.
+  // Idempoten: sesi yang nomornya sudah rapat tidak ditulis ulang, jadi
+  // data lama membaik sendiri tanpa input ulang.
+  const setRenumberRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || sessions.length === 0 || setRenumberRef.current) return
+    const mismatched: { id: string; sets: SessionSet[] }[] = []
+    for (const s of sessions) {
+      let fixed = s.sets
+      for (const ex of [...new Set(s.sets.map((x) => x.exerciseId))]) {
+        fixed = renumberExerciseSets(fixed, ex)
+      }
+      if (JSON.stringify(fixed) !== JSON.stringify(s.sets)) mismatched.push({ id: s.id, sets: fixed })
+    }
+    if (mismatched.length === 0) return
+    setRenumberRef.current = true
+    void (async () => {
+      try {
+        for (const m of mismatched) {
+          await updateSession(uid, m.id, { sets: m.sets })
+        }
+      } catch (err) {
+        console.warn('[DataContext] migrasi nomor set gagal:', err)
+        showToast('Perapian nomor set gagal — coba lagi', 'error')
+      } finally {
+        setRenumberRef.current = false
+      }
+    })()
+  }, [uid, ready, sessions])
+
+  // Migrasi sekali jalan: sesi yang jam selesainya lebih awal dari jam mulai
+  // (bug placeholder 12:00 lama, Agt–Okt 2026) — jam mulai diset 90 menit
+  // sebelum selesai. Idempoten: sesi yang sudah benar tidak ditulis ulang.
+  const timeFixRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || sessions.length === 0 || timeFixRef.current) return
+    const fixed = fixReversedSessionTimes(sessions)
+    const changed: { id: string; startedAt: number }[] = []
+    sessions.forEach((s, i) => {
+      if (fixed[i] !== s) changed.push({ id: s.id, startedAt: fixed[i].startedAt })
+    })
+    if (changed.length === 0) return
+    timeFixRef.current = true
+    void (async () => {
+      try {
+        for (const c of changed) {
+          await updateSession(uid, c.id, { startedAt: c.startedAt })
+        }
+        showToast(`${changed.length} sesi diperbaiki jam mulainya`)
+      } catch (err) {
+        console.warn('[DataContext] migrasi jam sesi gagal:', err)
+        showToast('Perbaikan jam sesi gagal — coba lagi', 'error')
+      } finally {
+        timeFixRef.current = false
+      }
+    })()
+  }, [uid, ready, sessions])
+
+  // Migrasi nama plan lama → nama baru (rename split 23 Nov 2026):
+  // plan "Leg Day" jadi "Lower", "Push Day" → "Arm & Shoulder", dst.
+  // Sekali jalan + idempoten; skip bila nama baru sudah dipakai plan lain
+  // (mis. user sudah bikin "Lower" sendiri) supaya tidak duplikat.
+  const planRenameRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || plans.length === 0 || planRenameRef.current) return
+    const names = new Set(plans.map((p) => p.name))
+    const targets = plans.filter((p) => {
+      const next = newNameForOldPlan(p.name)
+      return next !== undefined && next !== p.name && !names.has(next)
+    })
+    if (targets.length === 0) return
+    planRenameRef.current = true
+    void (async () => {
+      try {
+        const { updatePlan } = await import('../lib/gymstore')
+        for (const p of targets) {
+          const next = newNameForOldPlan(p.name)
+          if (!next) continue
+          const { id, ...rest } = p
+          await updatePlan(uid, id, { ...rest, name: next })
+        }
+        showToast(`Plan diganti nama: ${targets.map((p) => `${p.name} → ${newNameForOldPlan(p.name)}`).join(', ')}`)
+      } catch (err) {
+        console.warn('[DataContext] migrasi nama plan gagal:', err)
+        planRenameRef.current = false
+      }
+    })()
+  }, [uid, ready, plans])
 
   // Sinkronisasi gerakan preset baru ke akun lama (sekali jalan):
   // seed hanya untuk akun kosong + templatePlan di-bypass bila plan sudah ada,

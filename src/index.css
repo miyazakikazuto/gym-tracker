@@ -357,7 +357,7 @@ body {
 .cal-cell.empty { background: transparent; cursor: default; }
 .cal-cell.today { border: 2px solid var(--accent); color: var(--accent); font-weight: 800; }
 .cal-cell.selected { background: var(--accent); border: 2px solid var(--accent); color: #1b1230; font-weight: 800; }
-.cal-cell.rest-day { background: rgba(255, 60, 60, 0.15); }
+.cal-grid.detail .cal-cell.rest-day { background: rgba(255, 60, 60, 0.15); }
 .cal-grid .cal-cell { height:62px; flex-direction:column; gap:2px; padding-top:4px; }
 .cal-grid.detail .cal-day { font-size:11px; line-height:1; }
 .cal-tag { font-size:9px; font-weight:800; letter-spacing:.2px; line-height:1.15; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

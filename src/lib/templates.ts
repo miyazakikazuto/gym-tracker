@@ -15,8 +15,8 @@ export interface PlanPreset {
 export const PLAN_PRESETS: PlanPreset[] = [
   {
     key: 'leg',
-    name: 'Leg Day',
-    shortLabel: 'LEG',
+    name: 'Lower',
+    shortLabel: 'LOW',
     dotColor: '#44cc88',
     exercises: [
       // Nama disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts) supaya
@@ -34,49 +34,51 @@ export const PLAN_PRESETS: PlanPreset[] = [
   },
   {
     key: 'push',
-    name: 'Push Day',
-    shortLabel: 'PUSH',
+    name: 'Arm & Shoulder',
+    shortLabel: 'ARM',
     dotColor: '#6699ff',
     exercises: [
-      { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
-      { name: 'Incline DB press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
       { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
       { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Bicep Curl DB', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+      { name: 'Zottman Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+      { name: 'Hammer Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Tricep Pushdown', muscleGroup: 'Trisep', equipment: 'Kabel' },
       { name: 'Pec Fly (Machine)', muscleGroup: 'Dada', equipment: 'Machine' },
     ],
   },
   {
     key: 'pull',
-    name: 'Pull Day',
-    shortLabel: 'PULL',
+    name: 'Upper',
+    shortLabel: 'UPP',
     dotColor: '#aa77ff',
     exercises: [
+      // Dada + punggung bersamaan, ringan — Bench & Row tetap, tapi tanpa skema berat.
+      { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
+      { name: 'Incline DB press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
       { name: 'Lat Pulldown', muscleGroup: 'Punggung', equipment: 'Kabel' },
       { name: 'Barbell Row', muscleGroup: 'Punggung', equipment: 'Barbell' },
       { name: 'Seated Cable Row', muscleGroup: 'Punggung', equipment: 'Kabel' },
-      { name: 'Bicep Curl DB', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
-      { name: 'Hammer Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Face Pull', muscleGroup: 'Bahu', equipment: 'Kabel' },
     ],
   },
   {
     key: 'easy',
-    name: 'Easy Day',
-    shortLabel: 'EASY',
+    name: 'Full Body',
+    shortLabel: 'FULL',
     dotColor: '#7ee787',
     exercises: [
-      { name: 'Cable Hip Abduction', muscleGroup: 'Kaki', equipment: 'Kabel' },
-      { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight' },
-      { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
-      { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
-      { name: 'Dead Hang', muscleGroup: 'Forearm', equipment: 'Bodyweight' },
+      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
+      { name: 'Lat Pulldown', muscleGroup: 'Punggung', equipment: 'Kabel' },
+      { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
+      { name: 'Hip Thrust', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
     ],
   },
   {
     key: 'cardio',
-    name: 'Cardio Day',
+    name: 'Cardio',
     shortLabel: 'CARDIO',
     dotColor: '#ff6699',
     exercises: [
@@ -88,7 +90,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
   },
   {
     key: 'rest',
-    name: 'Rest Day',
+    name: 'Rest',
     shortLabel: 'REST',
     exercises: [],
   },
@@ -166,29 +168,69 @@ export function typeForPresetExercise(name: string, muscleGroup: string): 'reps'
   return /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
 }
 
+// Nama lama (sebelum rename 23 Nov 2026) → key preset. Key TIDAK berubah
+// (leg/push/pull/easy) supaya plan & sesi lama tetap kepakai: planForKey
+// dan semua guard mencocokkan nama lama juga.
+export const OLD_PRESET_NAMES: Record<string, string> = {
+  leg: 'Leg Day',
+  push: 'Push Day',
+  pull: 'Pull Day',
+  easy: 'Easy Day',
+  rest: 'Rest Day',
+  cardio: 'Cardio Day',
+}
+
 export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
+    ?? PLAN_PRESETS.find((p) => OLD_PRESET_NAMES[p.key] === name)
+}
+
+// Nama baru untuk plan lama bernama preset lama ("Leg Day" → "Lower").
+// Dipakai migrasi plan di DataContext. undefined = bukan nama lama.
+export function newNameForOldPlan(name: string): string | undefined {
+  const entry = Object.entries(OLD_PRESET_NAMES).find(([, old]) => old === name)
+  if (!entry) return undefined
+  return presetByKey(entry[0])?.name
+}
+
+// Kupas stiker siklus dari nama/label: "[C1-S01] [C1-S01] Leg Day — 3×5"
+// → "Leg Day", "[R1-S05] Leg Rehab Iso — W2" → "Leg Rehab Iso", "Leg Day" → "Leg Day".
+// Dipakai supaya data lama berstiker bisa dinormalisasi ke nama plan polos,
+// bukan ditulis ulang tiap load (bug Fase 1: planName berstiker).
+export function stripSticker(name: string): string {
+  let bare = name.trim()
+  // Kupas prefix berulang — label ganda punya dua prefix berurutan.
+  while (/^\[(C|R)\d+-S\d+\]\s*/.test(bare)) {
+    bare = bare.replace(/^\[(C|R)\d+-S\d+\]\s*/, '')
+  }
+  return bare.split(' — ')[0].trim()
 }
 
 export function presetByLooseName(name: string): PlanPreset | undefined {
-  const bare = name.replace(/^\[C\d+-S\d+\]\s*/, '').split(' — ')[0].trim().toLowerCase()
+  const bare = stripSticker(name).toLowerCase()
   return PLAN_PRESETS.find((p) => p.name.toLowerCase() === bare)
+    // Nama lama ("Leg Day", "Push Day", ...) tetap ter-resolve ke preset baru.
+    ?? PLAN_PRESETS.find((p) => (OLD_PRESET_NAMES[p.key] ?? '').toLowerCase() === bare)
+    // Label siklus pakai bentuk pendek: "Push" (bukan "Push Day").
+    ?? PLAN_PRESETS.find((p) => p.name.toLowerCase() === `${bare} day`)
+    ?? PLAN_PRESETS.find((p) => (OLD_PRESET_NAMES[p.key] ?? '').toLowerCase() === `${bare} day`)
+    ?? PLAN_PRESETS.find((p) => p.shortLabel.toLowerCase() === bare)
 }
 
 export function isRest(name: string): boolean {
   return presetByName(name)?.key === 'rest'
 }
 
-// Longgar: benar juga bila nama ditempeli stiker siklus ("[C5-S05] Rest Day — 3×3").
+// Longgar: benar juga bila nama ditempeli stiker siklus ("[C5-S05] Rest — 3×3").
 // Dipakai semua guard runtime agar Rest rusak-data tetap diperlakukan sebagai istirahat.
 export function isRestLoose(name: string): boolean {
   return presetByLooseName(name)?.key === 'rest'
 }
 
 export function shortLabelFor(name: string): string {
-  return presetByName(name)?.shortLabel ?? ''
+  return (presetByName(name) ?? presetByLooseName(name))?.shortLabel ?? ''
 }
 
 export function dotColorFor(name: string): string | undefined {
-  return presetByName(name)?.dotColor
+  return (presetByName(name) ?? presetByLooseName(name))?.dotColor
 }

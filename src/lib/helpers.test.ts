@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets, moveExerciseSets, toggleFlag, fixReversedSessionTimes } from './helpers'
 import { parseDecimal } from './parse'
-import type { Exercise, Session } from '../types'
+import type { Exercise, Session, SessionSet } from '../types'
 
 function mkSession(over: Partial<Session>): Session {
   return {
@@ -116,10 +116,13 @@ describe('normalizeRestSession', () => {
       endedAt: null,
       sets: [{ id: 'x', exerciseId: 'e1', setNumber: 1, weightKg: 0, reps: 0 } as never],
     })
-    expect(normalizeRestSession(s)).toEqual({ planName: 'Rest Day', isExtra: false, endedAt: 1000, sets: [] })
+    expect(normalizeRestSession(s)).toEqual({ planName: 'Rest', isExtra: false, endedAt: 1000, sets: [] })
   })
   it('Rest kanonis → patch kosong (idempoten)', () => {
-    expect(normalizeRestSession(mkSession({ planName: 'Rest Day' }))).toEqual({})
+    expect(normalizeRestSession(mkSession({ planName: 'Rest' }))).toEqual({})
+  })
+  it('Rest nama lama → patch ganti nama ke Rest', () => {
+    expect(normalizeRestSession(mkSession({ planName: 'Rest Day' }))).toEqual({ planName: 'Rest' })
   })
   it('bukan rest → patch kosong', () => {
     expect(normalizeRestSession(mkSession({ planName: 'Leg Day' }))).toEqual({})
@@ -185,5 +188,120 @@ describe('fmtInput', () => {
     for (const n of [2.29, 10.5, 27.5, 0.5]) {
       expect(parseDecimal(fmtInput(n))).toBe(n)
     }
+  })
+})
+
+describe('renumberExerciseSets (hapus set → nomor dirapikan 1..n)', () => {
+  const mkSet = (id: string, exerciseId: string, setNumber: number, weightKg = 10): SessionSet => ({
+    id, exerciseId, setNumber, weightKg, reps: 8,
+  })
+  const nums = (sets: SessionSet[], ex = 'ex1') =>
+    sets.filter((s) => s.exerciseId === ex).map((s) => s.setNumber)
+
+  it('hapus set #1: 2,3,4 jadi 1,2,3 (kasus screenshot)', () => {
+    const sets = [mkSet('a', 'ex1', 2), mkSet('b', 'ex1', 3), mkSet('c', 'ex1', 4)]
+    expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2, 3])
+  })
+  it('hapus set tengah: 1,3 jadi 1,2', () => {
+    const sets = [mkSet('a', 'ex1', 1), mkSet('b', 'ex1', 3)]
+    expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2])
+  })
+  it('gerakan lain tidak ikut berubah', () => {
+    const sets = [mkSet('a', 'ex1', 2), mkSet('b', 'ex2', 2), mkSet('c', 'ex2', 3)]
+    const r = renumberExerciseSets(sets, 'ex1')
+    expect(nums(r, 'ex1')).toEqual([1])
+    expect(nums(r, 'ex2')).toEqual([2, 3])
+  })
+  it('beban/rep tiap set tetap sama, hanya nomor berubah', () => {
+    const sets = [mkSet('a', 'ex1', 2, 15), mkSet('b', 'ex1', 3, 20)]
+    const r = renumberExerciseSets(sets, 'ex1')
+    expect(r.map((s) => [s.setNumber, s.weightKg])).toEqual([[1, 15], [2, 20]])
+  })
+  it('urungkan hapus: nomor ganda ikut dirapikan', () => {
+    // Hapus #1 lalu urungkan: [A#1, B#1, C#2] → [1, 2, 3]
+    const sets = [mkSet('a', 'ex1', 1), mkSet('b', 'ex1', 1), mkSet('c', 'ex1', 2)]
+    expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2, 3])
+  })
+})
+
+describe('moveExerciseSets (pindah urutan gerakan ↑ ↓)', () => {
+  const mkSet = (id: string, exerciseId: string, setNumber: number, weightKg = 10): SessionSet => ({
+    id, exerciseId, setNumber, weightKg, reps: 8,
+  })
+  const orderOf = (sets: SessionSet[]) => {
+    const order: string[] = []
+    for (const s of sets) if (!order.includes(s.exerciseId)) order.push(s.exerciseId)
+    return order
+  }
+  // exA 2 set, exB 1 set, exC 1 set
+  const base = [
+    mkSet('a1', 'exA', 1), mkSet('a2', 'exA', 2),
+    mkSet('b1', 'exB', 1),
+    mkSet('c1', 'exC', 1),
+  ]
+
+  it('gerakan tengah naik: B ke atas → B, A, C', () => {
+    expect(orderOf(moveExerciseSets(base, 'exB', -1))).toEqual(['exB', 'exA', 'exC'])
+  })
+  it('gerakan tengah turun: B ke bawah → A, C, B', () => {
+    expect(orderOf(moveExerciseSets(base, 'exB', 1))).toEqual(['exA', 'exC', 'exB'])
+  })
+  it('paling atas naik / paling bawah turun: tidak berubah', () => {
+    expect(moveExerciseSets(base, 'exA', -1)).toBe(base)
+    expect(moveExerciseSets(base, 'exC', 1)).toBe(base)
+  })
+  it('gerakan tidak dikenal: tidak berubah', () => {
+    expect(moveExerciseSets(base, 'exX', -1)).toBe(base)
+  })
+  it('set dalam gerakan tetap berurutan & datanya utuh', () => {
+    const r = moveExerciseSets(base, 'exB', -1)
+    expect(r.filter((s) => s.exerciseId === 'exA').map((s) => [s.setNumber, s.weightKg]))
+      .toEqual([[1, 10], [2, 10]])
+    expect(r.map((s) => s.id)).toEqual(['b1', 'a1', 'a2', 'c1'])
+  })
+})
+
+describe('toggleFlag (hide/unhide tambah set cepat)', () => {
+  it('id belum ada → true', () => {
+    expect(toggleFlag({}, 'exA')).toEqual({ exA: true })
+  })
+  it('true → false dan sebaliknya', () => {
+    expect(toggleFlag({ exA: true }, 'exA')).toEqual({ exA: false })
+    expect(toggleFlag({ exA: false }, 'exA')).toEqual({ exA: true })
+  })
+  it('id lain tidak berubah, record lama tidak dimutasi', () => {
+    const m = { exA: true, exB: false }
+    const r = toggleFlag(m, 'exB')
+    expect(r).toEqual({ exA: true, exB: true })
+    expect(m).toEqual({ exA: true, exB: false })
+  })
+})
+
+describe('fixReversedSessionTimes (sesi selesai < mulai → mulai = selesai − 90 mnt)', () => {
+  const mk = (startedAt: number, endedAt: number | null) =>
+    ({ id: 'x', startedAt, endedAt }) as Session
+
+  it('sesi kebalik: mulai digeser ke selesai − 90 menit, selesai tidak berubah', () => {
+    const s = mk(1788152400000, 1788147053058)
+    const r = fixReversedSessionTimes([s])
+    expect(r[0].startedAt).toBe(1788147053058 - 90 * 60 * 1000)
+    expect(r[0].endedAt).toBe(1788147053058)
+    expect(r[0]).not.toBe(s)
+  })
+  it('sesi normal, sesi berjalan, dan mulai = selesai: tidak berubah (referensi sama)', () => {
+    const ok = mk(1000, 2000)
+    const running = mk(1000, null)
+    const equal = mk(1000, 1000)
+    const r = fixReversedSessionTimes([ok, running, equal])
+    expect(r[0]).toBe(ok)
+    expect(r[1]).toBe(running)
+    expect(r[2]).toBe(equal)
+  })
+  it('campuran: hanya yang kebalik yang berubah', () => {
+    const bad = mk(5000, 4000)
+    const good = mk(1000, 2000)
+    const r = fixReversedSessionTimes([bad, good])
+    expect(r[0].startedAt).toBe(4000 - 90 * 60 * 1000)
+    expect(r[1]).toBe(good)
   })
 })

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
-import { buildSession, createSession } from '../lib/gymstore'
-import { isRestLoose, dotColorFor, shortLabelFor, PLAN_PRESETS } from '../lib/templates'
+import { buildSession, createSession, removeShiftOverride, removeShiftNote } from '../lib/gymstore'
+import { isRestLoose, dotColorFor, shortLabelFor, presetByLooseName, presetByName, stripSticker, PLAN_PRESETS } from '../lib/templates'
+import { planForKey } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
@@ -26,7 +27,7 @@ function monthGrid(year: number, month: number): (string | null)[] {
 }
 
 export default function History() {
-  const { sessions, plans, exercises, settings, saveSettings } = useData()
+  const { sessions, plans, exercises, settings, saveSettings, showToast } = useData()
   const uid = useUid()
   const navigate = useNavigate()
 
@@ -94,8 +95,10 @@ export default function History() {
     .sort((a, b) => (b.date < a.date ? -1 : 1))
   const daySessionsAll2 = selKey ? sessions.filter((s) => s.date === selKey) : []
   const daySessions = rehabMode ? daySessionsAll2 : daySessionsAll2.filter((s) => !isRehabSession(s, exercises))
-  const usedPlanNames = daySessions.map((s) => s.planName)
-  const presetNames = PLAN_PRESETS.map((p) => p.name)
+  // Nama kanonis (polos) — sesi lama berstiker "[C1-S01] Leg Day — 3×5"
+  // harus tetap terhitung sudah dipakai, kalau tidak tombol "+ Leg Day"
+  // muncul lagi dan sesi duplikat bisa dibuat di tanggal yang sama.
+  const usedPlanNames = daySessions.map((s) => presetByLooseName(s.planName)?.name ?? stripSticker(s.planName))
   // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
   // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.
   // Rehab OFF (Opsi A): sembunyikan preset rehab dari picker + list
@@ -104,11 +107,13 @@ export default function History() {
     .filter(({ key }) => rehabMode ? REHAB_PRESET_KEYS.includes(key) : !['leg-iso', 'leg-light', 'upper-r'].includes(key))
     .map((preset) => ({
       preset,
-      plan: plans.find((p) => p.name === preset.name),
+      // planForKey menerima nama lama juga — plan "Leg Day" tetap kepakai untuk Lower.
+      plan: planForKey(plans, preset.key),
     }))
     .filter(({ preset }) => !usedPlanNames.includes(preset.name))
-  // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual
-  const customPlans = plans.filter((p) => !presetNames.includes(p.name) && !usedPlanNames.includes(p.name))
+  // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual.
+  // presetByName alias-aware: plan "Leg Day" bukan kustom, itu Lower.
+  const customPlans = plans.filter((p) => !presetByName(p.name) && !usedPlanNames.includes(p.name))
 
   async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
     if (!selKey) return
@@ -120,7 +125,7 @@ export default function History() {
       if (isRestLoose(name)) {
         // Rest Day langsung selesai (tanpa stiker/extra) — tidak ada Rest "Berlangsung"
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
-        payload.planName = 'Rest Day'
+        payload.planName = 'Rest'
         payload.endedAt = payload.startedAt
         payload.sets = []
       } else if (settings.rehabMode === true) {
@@ -134,6 +139,16 @@ export default function History() {
           (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
           startAt,
           { cycle: 0, sessionIndex: idx, cycleLabel: stiker },
+          false,
+        )
+      } else if (settings.autoRegMode === true) {
+        // Autoregulasi: tanpa label siklus 5/3/1.
+        payload = buildSession(
+          plan,
+          selKey,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          startAt,
+          undefined,
           false,
         )
       } else {
@@ -240,6 +255,9 @@ export default function History() {
               <span><span className="legend-dot" style={{ background: SHIFT_COLORS.sore }} />Sore</span>
               <span><span className="legend-dot" style={{ background: SHIFT_COLORS.malam }} />Malam</span>
               <span><span className="legend-dot" style={{ background: SHIFT_COLORS.libur }} />Libur</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.cuti }} />Cuti</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.backup }} />Backup Cuti</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.tukar }} />Tukar Shift</span>
             </div>
             <div className="small muted" style={{ margin: '10px 0 4px' }}>Rekap {MONTHS[viewMonth]} {viewYear}:</div>
             <div className="row wrap" style={{ gap: 6, marginBottom: 4 }}>
@@ -309,15 +327,40 @@ export default function History() {
                   className="btn sm ghost"
                   style={{ marginLeft: 4 }}
                   onClick={() => {
-                    const o = { ...settings.shiftOverride }
-                    delete o[selKey]
-                    saveSettings({ shiftOverride: o })
+                    // Jangan hapus key lalu saveSettings: setDoc merge tidak
+                    // menghapus key map yang absen — override akan tetap ada.
+                    removeShiftOverride(uid, selKey).catch(() =>
+                      showToast('Gagal mengembalikan — cek koneksi internet', 'error'),
+                    )
                   }}
                 >
                   Kembalikan ke siklus otomatis
                 </button>
               </div>
             )}
+            <div className="small muted" style={{ marginBottom: 6 }}>
+              Keterangan shift (opsional):
+            </div>
+            <input
+              key={selKey}
+              className="input"
+              defaultValue={settings.shiftNote?.[selKey] ?? ''}
+              placeholder="mis. Pagi→Sore, libur 20 Nov"
+              aria-label="Keterangan shift"
+              onBlur={(e) => {
+                const t = e.target.value.trim()
+                if (t) saveSettings({ shiftNote: { ...settings.shiftNote, [selKey]: t } })
+                else if (settings.shiftNote?.[selKey]) {
+                  removeShiftNote(uid, selKey).catch(() =>
+                    showToast('Gagal menghapus keterangan — cek koneksi internet', 'error'),
+                  )
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              }}
+              style={{ marginBottom: 12 }}
+            />
 
             {daySessions.length > 0 && (
               <>
@@ -355,7 +398,9 @@ export default function History() {
                     className="btn ghost wide"
                     style={{ justifyContent: 'flex-start', marginBottom: 8 }}
                     disabled={creating}
-                    onClick={() => void handleCreate(plan, preset.name)}
+                    // Sesi mulai kosong — gerakan ditambah manual di halaman
+                    // sesi. Mode rehab tetap pakai plan (gerakan terprogram).
+                    onClick={() => void handleCreate(settings.rehabMode === true ? plan : null, preset.name)}
                   >
                     + {preset.name}
                   </button>

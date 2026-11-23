@@ -45,6 +45,26 @@ describe('shiftForDate override', () => {
   it('override menang atas siklus', () => {
     expect(shiftForDate('2026-08-12', { shiftOverride: { '2026-08-12': 'pagi' } })).toBe('pagi')
   })
+  it("override 'cuti' (cuti di hari kerja) menang atas siklus", () => {
+    expect(shiftForDate('2026-08-12', { shiftOverride: { '2026-08-12': 'cuti' } })).toBe('cuti')
+    expect(shiftForDate('2026-11-17', { shiftOverride: { '2026-11-17': 'cuti' } })).toBe('cuti')
+  })
+  it("override 'backup' (gantikan rekan yang cuti) menang atas siklus", () => {
+    expect(shiftForDate('2026-08-12', { shiftOverride: { '2026-08-12': 'backup' } })).toBe('backup')
+  })
+  it("override 'tukar' (tukar shift dengan rekan) menang atas siklus", () => {
+    expect(shiftForDate('2026-08-12', { shiftOverride: { '2026-08-12': 'tukar' } })).toBe('tukar')
+  })
+  it('siklus tidak pernah menghasilkan cuti', () => {
+    const seq = []
+    for (let i = 0; i < 12; i++) {
+      const date = `2026-08-${String(12 + i).padStart(2, '0')}`
+      seq.push(cycleShiftAt('2026-08-12', date))
+    }
+    expect(seq).not.toContain('cuti')
+    expect(seq).not.toContain('backup')
+    expect(seq).not.toContain('tukar')
+  })
   it('alias siang → sore', () => {
     expect(shiftForDate('2026-08-12', { shiftOverride: { '2026-08-12': 'siang' as any } })).toBe('sore')
   })
@@ -65,5 +85,8 @@ describe('SHIFT_LABELS', () => {
     expect(SHIFT_LABELS.sore).toBe('Sore')
     expect(SHIFT_LABELS.malam).toBe('Malam')
     expect(SHIFT_LABELS.libur).toBe('Libur')
+    expect(SHIFT_LABELS.cuti).toBe('Cuti')
+    expect(SHIFT_LABELS.backup).toBe('Backup Cuti')
+    expect(SHIFT_LABELS.tukar).toBe('Tukar Shift')
   })
 })

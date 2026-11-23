@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext'
 import { DAY_NAMES, type WorkoutPlan, type PlanItem } from '../types'
 import { todayKey, addDays, dayOfWeek } from '../lib/date'
 import { buildSession, createSession, deleteSession, createExercise } from '../lib/gymstore'
-import { shortLabelFor, isRestLoose, presetByKey, presetByName, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
+import { shortLabelFor, isRestLoose, presetByKey, presetByName, presetByLooseName, stripSticker, dotColorFor, PLAN_PRESETS, baseCategoryForPresetKey, typeForPresetExercise, type PlanPreset } from '../lib/templates'
 import { exerciseIsDuration } from '../lib/helpers'
 import {
   rotationOf,
@@ -17,10 +17,10 @@ import {
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, rehabCellStatus, REHAB_WAVES } from '../lib/rehab'
+import { AUTO_INTENSITIES, autoIntensityOf } from '../lib/autoreg'
+import type { AutoIntensity } from '../types'
 import { FREE_WEEK_KEYS, weekProgressFreeOrder, freeNextKey } from '../lib/rotation'
-import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
-import QuickWalkCard from '../components/QuickWalkCard'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -100,7 +100,6 @@ export default function Today() {
   const uid = useUid()
   const navigate = useNavigate()
   const { plans, exercises, sessions, settings, ready, showToast, saveSettings } = useData()
-  const [showPlan, setShowPlan] = useState(false)
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [showPick, setShowPick] = useState(false)
@@ -138,7 +137,7 @@ export default function Today() {
   // ===== Rotasi (satu-satunya mode jadwal — mode Mingguan dihapus) =====
   const rot = rotationOf(settings)
   const last = lastFinishedSession(sessions)
-  const lastKey = last ? presetByName(last.planName)?.key : undefined
+  const lastKey = last ? (presetByLooseName(last.planName) ?? presetByName(last.planName))?.key : undefined
   const todayShift = shiftForDate(base, settings)
   const sug = suggestKey(settings, sessions, todayShift)
   const dsl = daysSinceLast(sessions, base)
@@ -169,8 +168,12 @@ export default function Today() {
       : rehabKey === 'upper-r'
         ? 'ringan bebas'
         : 'santai'
-  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab
-  const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
+  // Mode Autoregulasi: 5/3/1 & TM dimatikan — saran ikut rotasi, tiap sesi
+  // pilih intensitas sesuai kondisi fisik (lib/autoreg.ts).
+  const autoReg = settings.autoRegMode === true
+  const [intensity, setIntensity] = useState<AutoIntensity>('medium')
+  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab/autoreg
+  const is531Active = !rehabMode && !autoReg && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
   const freeOrder = settings.freeOrder === true
   const freeProg = freeOrder ? weekProgressFreeOrder(sessions, excludedTypes, settings.skippedSessions ?? 0, settings) : null
   // Week fresh (0/3, termasuk awal program) = bebas urut tanpa default — saran '—' sampai user pilih via grid
@@ -186,13 +189,13 @@ export default function Today() {
   const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRestLoose(s.planName))
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRestLoose(s.planName))
 
-  // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Pull/Push/
-  // Easy/Cardio selalu bisa dipilih walau belum diatur di "Kelola jadwal".
-  // Rest Day dikecualikan (ada tombol "Istirahat hari ini").
+  // Semua preset — supaya Lower/Upper/Arm & Shoulder/Full Body/Cardio
+  // selalu bisa dipilih langsung. Rest Day dikecualikan (ada tombol
+  // "Istirahat hari ini").
   // Filter ikut mode: rehab OFF = leg/push/pull/cardio (+easy bila tidak di-exclude),
   // rehab ON = leg-iso/leg-light/upper-r/cardio — item rehab tidak muncul di mode normal.
-  // Kalau plan belum dibuat, sesi tetap bisa dimulai dari template preset
-  // (gerakan dicocokkan dengan library lewat templatePlan).
+  // Sesi mulai kosong — gerakan ditambah manual di halaman sesi.
+  // (templatePlan hanya dipakai mode rehab, yang gerakannya terprogram.)
   const REHAB_PICK_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio']
   const NORMAL_PICK_KEYS = ['leg', 'push', 'pull', 'easy', 'cardio']
   const pickOptions = PLAN_PRESETS
@@ -201,11 +204,8 @@ export default function Today() {
     .map((p) => ({
       key: p.key,
       name: p.name,
-      plan: planForKey(plans, p.key),
       suggested: p.key === effectiveKey,
-      sub: planForKey(plans, p.key)
-        ? `${planForKey(plans, p.key)!.items.length} gerakan · plan`
-        : `${p.exercises.length} gerakan`,
+      sub: '',
     }))
     .sort((a, b) => Number(b.suggested) - Number(a.suggested))
 
@@ -216,11 +216,11 @@ export default function Today() {
 
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
-    : effectivePlan
-      ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
-      : 'Buat plan saran dulu'
+    : autoReg
+      ? `Mulai ${effectivePreset?.name ?? effectiveKey} · ${autoIntensityOf(intensity).label}`
+      : `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
 
-  // Plan virtual dari preset — dipakai saat plan belum dibuat di Kelola jadwal.
+  // Plan virtual dari preset — dipakai saat belum ada plan tersimpan.
   // Gerakan preset dicocokkan dengan library; yang belum ada otomatis dibuat ke
   // library (supaya nama gerakan selalu bisa di-resolve untuk volume otot & riwayat).
   async function templatePlan(preset: PlanPreset): Promise<WorkoutPlan> {
@@ -251,7 +251,7 @@ export default function Today() {
     return { id: '', name: preset.name, dayOfWeek: -1, items }
   }
 
-  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean) {
+  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean, autoIntensity?: AutoIntensity) {
     if (creating) return
     setCreating(true)
     // Rest Day bukan workout: paksa payload kanonis (langsung selesai, tanpa
@@ -259,7 +259,7 @@ export default function Today() {
     if (isRestLoose(name ?? plan?.name ?? '')) {
       try {
         const payload = buildSession(null, base, () => 'reps', Date.now(), undefined, false)
-        payload.planName = 'Rest Day'
+        payload.planName = 'Rest'
         payload.endedAt = payload.startedAt
         payload.sets = []
         const ref = await createSession(uid, payload)
@@ -277,7 +277,8 @@ export default function Today() {
       if (name) payload.planName = name
     } else if (rehabMode) {
       // Rehab: stiker [R..-S..] tanpa wave/scheme TM
-      const chosenName = name ?? plan?.name ?? presetByKey(rehabKey)?.name ?? rehabKey
+      const rawName = name ?? plan?.name ?? presetByKey(rehabKey)?.name ?? rehabKey
+      const chosenName = stripSticker(rawName)
       const snapLabel = rehabFullLabel(rehabPos.sessionIndex, chosenName)
       payload = buildSession(
         plan,
@@ -289,22 +290,43 @@ export default function Today() {
       )
       if (chosenName) payload.planName = chosenName
     } else {
-      // Stiker ngikut plan yang dipilih: wave tetap dari siklus, nama ikut plan
-      const chosenName = name ?? plan?.name ?? null
-      const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
-      const stikerName = chosenName ?? getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes).replace(/^\[C\d+-S\d+\]\s*/, '')
-      const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
-      payload = buildSession(
-        plan,
-        base,
-        (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
-        Date.now(),
-        wave
-          ? { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave }
-          : { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel },
-        false,
-      )
-      if (chosenName) payload.planName = chosenName
+      // planName harus nama plan POLOS ("Leg Day"), bukan cycleLabel
+      // ("[C1-S01] Leg Day — 3×5"). Kalau name yang dioper ternyata label
+      // siklus, kupas stikernya dan pakai nama plan — "Push" dari label
+      // bukan nama preset, jadi fallback ke plan?.name ("Push Day").
+      const bareName = name ? stripSticker(name) : plan?.name ?? null
+      const preset = bareName ? (presetByLooseName(bareName) ?? presetByName(bareName)) : undefined
+      const chosenName = plan?.name ?? preset?.name ?? bareName
+      // Autoregulasi: tanpa snapshot siklus 5/3/1 (tanpa cycleLabel/scheme),
+      // intensitas yang dipilih tersimpan di sesi.
+      if (autoReg) {
+        payload = buildSession(
+          plan,
+          base,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          Date.now(),
+          undefined,
+          false,
+        )
+        payload.intensity = autoIntensity ?? 'medium'
+        if (chosenName) payload.planName = chosenName
+        // lanjut ke createSession di bawah
+      } else {
+        const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
+        const stikerName = chosenName ?? stripSticker(getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes))
+        const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
+        payload = buildSession(
+          plan,
+          base,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          Date.now(),
+          wave
+            ? { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave }
+            : { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel },
+          false,
+        )
+        if (chosenName) payload.planName = chosenName
+      }
     }
     try {
       const ref = await createSession(uid, payload)
@@ -316,18 +338,19 @@ export default function Today() {
     }
   }
 
-  function handleStart() {
+  async function handleStart() {
     if (creating) return
     if (activeSession) {
       navigate(`/session/${activeSession.id}`)
       return
     }
-    if (!effectivePlan) {
-      setShowPlan(true)
-      return
-    }
-    // Rehab: nama ikut plan (jangan oper cycleLabel 5/3/1 — stiker rehab dihitung di createAndOpen)
-    void createAndOpen(effectivePlan, rehabMode ? undefined : cycleLabel)
+    // Sesi mulai kosong — gerakan ditambah manual di halaman sesi.
+    // Mode rehab tetap pakai plan/template (gerakan iso-nya terprogram).
+    const plan = rehabMode ? effectivePlan ?? (effectivePreset ? await templatePlan(effectivePreset) : undefined) : null
+    // Nama ikut plan polos ("Lower") — JANGAN oper cycleLabel 5/3/1
+    // ("[C1-S01] Lower — 3×5"), itu yang bikin planName berstiker dan
+    // cycleLabel ganda. Stiker siklus dihitung di createAndOpen.
+    void createAndOpen(plan, rehabMode ? undefined : (effectivePreset?.name ?? effectiveKey), false, autoReg ? intensity : undefined)
   }
 
   async function handleSkip() {
@@ -356,7 +379,7 @@ export default function Today() {
       await createSession(uid, {
         date: base,
         planId: null,
-        planName: 'Rest Day',
+        planName: 'Rest',
         note: '',
         startedAt: Date.now(),
         endedAt: Date.now(),
@@ -446,7 +469,9 @@ export default function Today() {
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
                   {freeOrder && freeProg ? (
-                    freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'} · wave ${cycleScheme?.label ?? '—'} tetap urut`
+                    freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'}`
+                  ) : autoReg ? (
+                    <>Sesi berikutnya: {presetByKey(sug.key)?.name ?? sug.key} — autoregulasi, intensitas ikut kondisi</>
                   ) : (
                     <>Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}</>
                   )}
@@ -457,18 +482,23 @@ export default function Today() {
             ) : (
               <>
                 <div className="suggest-big">
-                  <span className="dot" style={{ background: effectivePlan ? dotColorFor(effectivePlan.name) : 'var(--accent)' }} />
+                  <span className="dot" style={{ background: dotColorFor(effectivePreset?.name ?? '') ?? 'var(--accent)' }} />
                   <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
-                  {rehabMode ? rehabLbl : freeNext ? `${presetByKey(freeNext)?.name ?? freeNext} — bebas ${freeProg?.progress ?? ''}` : cycleLabel}
+                  {rehabMode ? rehabLbl : autoReg ? `${effectivePreset?.name ?? effectiveKey} — autoregulasi` : freeNext ? `${presetByKey(freeNext)?.name ?? freeNext} — bebas ${freeProg?.progress ?? ''}` : cycleLabel}
                 </div>
                 {rehabMode && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
                     {rehabWave.label} {rehabWave.name} · {rehabRx} · {rehabWave.note} · stop bila nyeri/panas &gt;5/10
                   </div>
                 )}
-                {prescribedSummary && (
+                {autoReg && (
+                  <div className="small muted" style={{ marginBottom: 4 }}>
+                    Intensitas ikut kondisi hari ini — beban awal dari set terbaikmu, bukan dari TM.
+                  </div>
+                )}
+                {prescribedSummary && !autoReg && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
                     {cycleScheme?.label} · {tmForLift && cycleTM ? `${tmForLift.charAt(0).toUpperCase() + tmForLift.slice(1)} TM ${cycleTM[tmForLift]}kg` : ''} · {prescribedSummary}
                   </div>
@@ -479,32 +509,33 @@ export default function Today() {
                     : 'Belum ada sesi — rotasi mulai dari Leg'}
                   {sug.isNightLight && ' · disarankan ringan (shift malam)'}
                 </div>
-                {!effectivePlan ? (
-                  <div className="small muted" style={{ marginBottom: 10 }}>
-                    Plan {effectivePreset?.name ?? effectiveKey} belum dibuat — atur lewat "Kelola jadwal" dulu.
-                  </div>
-                ) : (
-                  effectivePlan.items.map((it, i) => {
-                    const ex = exercises.find((e) => e.id === it.exerciseId)
-                    return (
-                      <div className="row" key={i} style={{ padding: '5px 0' }}>
-                        <span className="num">{i + 1}.</span>
-                        <span className="grow">{ex?.name ?? 'Gerakan'}</span>
-                        <span className="badge">
-                          {it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}
-                        </span>
-                      </div>
-                    )
-                  })
-                )}
                 <div style={{ height: 10 }} />
+                {autoReg && !restToday && (
+                  <>
+                    <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Intensitas hari ini — ikut kondisi badan:</div>
+                    <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+                      {AUTO_INTENSITIES.map((o) => (
+                        <button
+                          key={o.key}
+                          className={'chipb' + (intensity === o.key ? ' on' : '')}
+                          style={intensity === o.key ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' } : undefined}
+                          onClick={() => setIntensity(o.key)}
+                          title={o.desc}
+                        >
+                          {o.label} · {o.rpe}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="small muted" style={{ marginBottom: 10 }}>{autoIntensityOf(intensity).desc}</div>
+                  </>
+                )}
                 {restToday ? (
                   <button className="btn sm ghost wide" onClick={() => void cancelRestToday()}>Batalkan istirahat</button>
                 ) : (
                   <>
                     <div className="action-row">
                       <button className="btn primary" disabled={creating} onClick={handleStart}>
-                        {effectivePlan ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}` : 'Buat plan dulu'}
+                        {startLabel}
                       </button>
                       <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                       <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>
@@ -521,14 +552,17 @@ export default function Today() {
             )}
           </div>
 
-          <QuickWalkCard />
+          {/* Quick-log "Catat jalan" dihapus (24 Okt 2026): user pakai Huawei band
+              yang mendeteksi jalan otomatis. Komponen & helper tetap ada
+              (src/components/QuickWalkCard.tsx) bila mau dipasang lagi;
+              mileage mingguan di Progress tetap jalan dari sesi Cardio Day. */}
 
           {freeOrder && !rehabMode ? (
             <div className="card">
               <div className="card-title">
                 Week-{freeProg!.cycle} <span className="badge accent">{freeProg!.progress}</span>
               </div>
-              <div className="small muted" style={{ marginBottom: 8 }}>Bebas urut · wave {cycleScheme?.label ?? '—'} tetap urut</div>
+              <div className="small muted" style={{ marginBottom: 8 }}>Bebas urut · 3 hari dalam seminggu</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                 {FREE_WEEK_KEYS.map((k) => {
                   const preset = presetByKey(k)!
@@ -541,9 +575,8 @@ export default function Today() {
                       disabled={creating || !!activeSession}
                       onClick={async () => {
                         if (activeSession) { navigate(`/session/${activeSession.id}`); return }
-                        const p = planForKey(plans, k) ?? (await templatePlan(preset))
                         const already = done
-                        void createAndOpen(p, preset.name, false).then(() => {
+                        void createAndOpen(null, preset.name, false).then(() => {
                           if (already) showToast(`${preset.shortLabel} sudah di week ini — tetap 1`)
                         })
                       }}
@@ -689,8 +722,6 @@ export default function Today() {
         </>
       )}
 
-      {showPlan && <PlanEditor onClose={() => setShowPlan(false)} />}
-
       {showPick && (
         <Modal onClose={() => setShowPick(false)} label="Pilih plan">
           <h3>Pilih plan untuk hari ini</h3>
@@ -698,7 +729,7 @@ export default function Today() {
             Butuh sesi tambahan? Buat seperti biasa — centang Extra di dalam halaman sesi (bisa juga setelah selesai).
           </div>
           {pickOptions.length === 0 ? (
-            <div className="small muted">Belum ada plan. Atur lewat "Kelola jadwal" dulu.</div>
+            <div className="small muted">Tidak ada plan yang bisa dipilih.</div>
           ) : (
             pickOptions.map((o) => (
               <button
@@ -706,9 +737,7 @@ export default function Today() {
                 className={'opt' + (o.suggested ? ' suggested' : '')}
                 onClick={async () => {
                   setShowPick(false)
-                  const preset = PLAN_PRESETS.find((p) => p.key === o.key)!
-                  const plan = o.plan ?? (await templatePlan(preset))
-                  void createAndOpen(plan, o.name, false)
+                  void createAndOpen(null, o.name, false)
                 }}
               >
                 {o.name}{o.suggested && <span className="tag" style={{ marginLeft: 6 }}>saran</span>}

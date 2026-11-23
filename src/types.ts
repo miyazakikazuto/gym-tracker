@@ -14,10 +14,10 @@ export const EXERCISE_TYPES = [
 ] as const
 
 export const EXERCISE_CATEGORIES = [
-  { key: 'leg', name: 'Leg', shortLabel: 'LEG' },
-  { key: 'push', name: 'Push', shortLabel: 'PUSH' },
-  { key: 'pull', name: 'Pull', shortLabel: 'PULL' },
-  { key: 'easy', name: 'Easy Day', shortLabel: 'EASY' },
+  { key: 'leg', name: 'Lower', shortLabel: 'LOW' },
+  { key: 'push', name: 'Arm & Shoulder', shortLabel: 'ARM' },
+  { key: 'pull', name: 'Upper', shortLabel: 'UPP' },
+  { key: 'easy', name: 'Full Body', shortLabel: 'FULL' },
   { key: 'cardio', name: 'Cardio', shortLabel: 'CARDIO' },
 ] as const
 
@@ -55,6 +55,10 @@ export interface SessionSet {
   elevationM?: number // elevasi/ketinggian naik dalam meter (cardio outdoor)
 }
 
+// Intensitas mode autoregulasi — dipilih per sesi sesuai kondisi fisik
+// (bukan skema 5/3/1). Lihat src/lib/autoreg.ts untuk faktor bebannya.
+export type AutoIntensity = 'light' | 'medium' | 'heavy'
+
 export interface Session {
   id: string
   date: string // YYYY-MM-DD (WIB)
@@ -64,6 +68,7 @@ export interface Session {
   startedAt: number // epoch ms
   endedAt: number | null
   sets: SessionSet[]
+  intensity?: AutoIntensity // mode autoregulasi: Ringan/Sedang/Berat saat sesi dibuat
   rpe?: number // RPE sesi 1..10 (di footer, bukan per gerakan)
   rpes?: Record<string, number> // LEGACY per-gerakan 6..10 — dibaca sebagai fallback avg→rpe
   // Snapshot 5/3/1 saat sesi dibuat — stiker cycle biar history/rekap tetap kebal perubahan setting
@@ -87,7 +92,8 @@ export interface UserSettings {
   shiftAnchor: string // tanggal patokan siklus shift — hari ke-1 blok Sore (default '2026-08-12')
   weightTarget: number | null // target berat badan (kg) — null = tanpa target
   weightTargetBase: number | null // berat awal saat target diset (baseline kemajuan)
-  shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur' (timpa manual per hari)
+  shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur'|'cuti'|'backup'|'tukar' (timpa manual per hari)
+  shiftNote?: Record<string, string> // tanggal 'YYYY-MM-DD' → keterangan timpaan shift (mis. 'Pagi→Sore, libur 20 Nov')
 
   // 5/3/1 Wendler periodization
   cycleNumber: number // cycle saat ini (1-based)
@@ -100,7 +106,8 @@ export interface UserSettings {
   excludeEasyDay?: boolean // true = Easy Day dihapus dari siklus 5/3/1 (cycle jadi 12 sesi)
   skippedSessions?: number // jumlah sesi yang di-skip (posisi tetap maju)
   rehabMode?: boolean // true = Mode Rehab: 5/3/1 & TM dimatikan, saran ikut REHAB_CYCLE (lib/rehab.ts)
-  freeOrder?: boolean // true = Week-3 Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+  autoRegMode?: boolean // true = Mode Autoregulasi: 5/3/1 & TM dimatikan, tiap sesi pilih intensitas (Ringan/Sedang/Berat) sesuai kondisi fisik (lib/autoreg.ts)
+  freeOrder?: boolean // true = Week-3 Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1
   freeOrderSince?: string // YYYY-MM-DD jangkar mulai Week-3 (biar Week tidak loncat ke 13)
   freeOrderOffset?: number // counted snapshot saat ON (untuk hitung Week dari 1)
 }

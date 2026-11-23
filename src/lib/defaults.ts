@@ -41,6 +41,7 @@ export const DEFAULT_EXERCISES: DefaultExercise[] = [
   { name: 'DB Bench Press', muscleGroup: 'Dada', equipment: 'Dumbbell', category: 'push', extraCategories: ['easy'] },
   { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell', category: 'push', extraCategories: ['easy'] },
   { name: 'Tricep Pushdown', muscleGroup: 'Trisep', equipment: 'Kabel', category: 'push', extraCategories: ['easy'] },
+  { name: 'Zottman Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell', category: 'push', extraCategories: ['easy'] },
 
   // ===== PULL =====
   { name: 'Single DB row', muscleGroup: 'Punggung', equipment: 'Dumbbell', category: 'pull' },

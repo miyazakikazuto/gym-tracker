@@ -1,4 +1,4 @@
-import type { Exercise, Session } from '../types'
+import type { Exercise, Session, SessionSet } from '../types'
 import { isRestLoose } from './templates'
 import { volumeOf } from './date'
 
@@ -46,15 +46,15 @@ export function isCountedSession(s: Session): boolean {
 }
 
 /**
- * Patch kanonis untuk sesi Rest Day: nama bersih tanpa stiker, bukan extra,
+ * Patch kanonis untuk sesi Rest: nama bersih tanpa stiker, bukan extra,
  * langsung selesai, tanpa set. Idempoten — return {} bila sudah kanonis
- * atau bukan rest (cek longgar: stiker "[C5-S05] Rest Day — 3×3" ikut kena).
+ * atau bukan rest (cek longgar: stiker "[C5-S05] Rest — 3×3" ikut kena).
  * Field snapshot 5/3/1 (cycleLabel/scheme/…) dihapus pemanggil via deleteField.
  */
 export function normalizeRestSession(s: Session): Partial<Session> {
   if (!isRestLoose(s.planName)) return {}
   const patch: Partial<Session> = {}
-  if (s.planName !== 'Rest Day') patch.planName = 'Rest Day'
+  if (s.planName !== 'Rest') patch.planName = 'Rest'
   if (s.isExtra === true) patch.isExtra = false
   if (s.endedAt === null) patch.endedAt = s.startedAt
   if (s.sets.length > 0) patch.sets = []
@@ -142,4 +142,59 @@ export function findOrphanedExercises(
     }
   }
   return map
+}
+// Nomor set dirapikan per gerakan: setelah hapus set, set yang tersisa
+// dinomori ulang 1..n sesuai urutan — daftar jangan mulai dari 2.
+// Dipakai juga saat urungkan hapus: set yang dikembalikan ikut dihitung
+// ulang dari posisinya, jadi tidak ada nomor ganda. Gerakan lain tidak
+// ikut berubah; beban/rep tiap set tetap sama.
+export function renumberExerciseSets(sets: SessionSet[], exerciseId: string): SessionSet[] {
+  const group = sets
+    .filter((s) => s.exerciseId === exerciseId)
+    .slice()
+    .sort((a, b) => a.setNumber - b.setNumber)
+  const nextNo = new Map(group.map((s, i) => [s.id, i + 1] as const))
+  return sets.map((s) =>
+    s.exerciseId === exerciseId && nextNo.has(s.id) ? { ...s, setNumber: nextNo.get(s.id)! } : s,
+  )
+}
+
+// Pindah urutan satu gerakan dalam sesi (naik/turun satu posisi) —
+// mis. Bench Press yang kelupaan dan baru ditambah belakangan bisa
+// dipindah ke atas. Urutan gerakan = urutan kemunculan pertama set-nya
+// di array; set dalam satu gerakan tetap berurutan menurut nomor set-nya.
+// Di ujung (paling atas/bawah) atau gerakan tidak dikenal: tidak berubah
+// (referensi array yang sama dikembalikan).
+export function moveExerciseSets(sets: SessionSet[], exerciseId: string, dir: -1 | 1): SessionSet[] {
+  const order: string[] = []
+  for (const s of sets) if (!order.includes(s.exerciseId)) order.push(s.exerciseId)
+  const i = order.indexOf(exerciseId)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= order.length) return sets
+  ;[order[i], order[j]] = [order[j], order[i]]
+  const byEx = new Map<string, SessionSet[]>()
+  for (const s of sets) {
+    const arr = byEx.get(s.exerciseId) ?? []
+    arr.push(s)
+    byEx.set(s.exerciseId, arr)
+  }
+  return order.flatMap((ex) => (byEx.get(ex) ?? []).slice().sort((a, b) => a.setNumber - b.setNumber))
+}
+
+// Balik flag boolean untuk satu id dalam record; kembalikan record baru.
+// Dipakai untuk hide/unhide kotak "Tambah set cepat" per gerakan.
+export function toggleFlag(map: Record<string, boolean>, id: string): Record<string, boolean> {
+  return { ...map, [id]: !map[id] }
+}
+
+// Perbaiki sesi yang jam selesainya lebih awal dari jam mulai (bug placeholder
+// 12:00 lama): jam mulai diset 90 menit sebelum selesai — durasi estimasi yang
+// sama dengan auto-close sesi yang ditinggalkan. Sesi yang sudah benar
+// dikembalikan apa adanya (referensi yang sama).
+export function fixReversedSessionTimes(sessions: Session[]): Session[] {
+  return sessions.map((s) =>
+    s.endedAt !== null && s.endedAt < s.startedAt
+      ? { ...s, startedAt: s.endedAt - 90 * 60 * 1000 }
+      : s,
+  )
 }

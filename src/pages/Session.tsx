@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession, renumberExerciseSets, moveExerciseSets, toggleFlag } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
-import { presetByName, isRestLoose } from '../lib/templates'
+import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
+import { autoIntensityOf, autoPrefillWeight } from '../lib/autoreg'
+import { rampWeights } from '../lib/setRamp'
 import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
-import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
 import DecimalInput from '../components/DecimalInput'
 import type { SessionSet } from '../types'
@@ -22,6 +23,32 @@ interface SetResult {
   durationSec?: number
   distanceKm?: number
   elevationM?: number
+}
+
+// Jam mulai/selesai di header sesi bisa diedit (ketuk jamnya) — picker
+// time bawaan HP, 24 jam tanpa PM (ikut format jam HP, HP Miya sudah 24 jam).
+const TIME_BTN_STYLE: CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  font: 'inherit',
+  fontSize: 'inherit',
+  color: 'var(--muted)',
+  textDecoration: 'underline',
+  textDecorationStyle: 'dashed',
+  textUnderlineOffset: 2,
+  cursor: 'pointer',
+}
+
+const TIME_INPUT_STYLE: CSSProperties = {
+  background: 'transparent',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  padding: '1px 6px',
+  font: 'inherit',
+  fontSize: 'inherit',
+  color: 'var(--text)',
+  width: 92,
 }
 
 // Kode error Firebase (permission-denied/unavailable/…) — toast generik
@@ -56,7 +83,13 @@ export default function Session() {
   const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [editingTime, setEditingTime] = useState(false)
+  const [editingWhich, setEditingWhich] = useState<'start' | 'end' | null>(null)
+  // Daftar gerakan di luar kategori hari ini — dibuka manual, default tertutup
+  const [showOtherEx, setShowOtherEx] = useState(false)
+  const [exQuery, setExQuery] = useState('')
+  // Kotak "Tambah set cepat" yang ditampilkan per gerakan — default tersembunyi,
+  // tampilkan lewat tombol "▸ Tambah set cepat" (sementara, selama halaman sesi dibuka).
+  const [quickAddShown, setQuickAddShown] = useState<Record<string, boolean>>({})
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
@@ -173,7 +206,9 @@ export default function Session() {
       setLocalSets((cur) => {
         const index = cur.findIndex((s) => s.id === setId)
         if (index >= 0) removed = { set: cur[index], index }
-        const next = index >= 0 ? cur.filter((s) => s.id !== setId) : cur
+        if (index < 0) return cur
+        // Set yang tersisa dinomori ulang 1..n — daftar jangan mulai dari 2.
+        const next = renumberExerciseSets(cur.filter((s) => s.id !== setId), cur[index].exerciseId)
         scheduleSync(next)
         return next
       })
@@ -193,6 +228,25 @@ export default function Session() {
     [scheduleSync],
   )
 
+  // Pindah urutan satu gerakan dalam sesi (naik/turun satu posisi) —
+  // gerakan yang kelupaan dan baru ditambah belakangan bisa dipindah ke atas.
+  const moveExercise = useCallback(
+    (exerciseId: string, dir: -1 | 1) => {
+      setLocalSets((cur) => {
+        const next = moveExerciseSets(cur, exerciseId, dir)
+        if (next === cur) return cur
+        scheduleSync(next)
+        return next
+      })
+    },
+    [scheduleSync],
+  )
+
+  // Sembunyikan / tampilkan kotak "Tambah set cepat" per gerakan.
+  const toggleQuickAdd = useCallback((exerciseId: string) => {
+    setQuickAddShown((cur) => toggleFlag(cur, exerciseId))
+  }, [])
+
   const restoreDeleted = useCallback(() => {
     const d = undoRef.current
     window.clearTimeout(undoTimer.current)
@@ -203,8 +257,10 @@ export default function Session() {
       if (cur.some((s) => s.id === d.set.id)) return cur
       const next = [...cur]
       next.splice(Math.min(d.index, next.length), 0, d.set)
-      scheduleSync(next)
-      return next
+      // Set yang dikembalikan ikut dihitung ulang dari posisinya.
+      const renumbered = renumberExerciseSets(next, d.set.exerciseId)
+      scheduleSync(renumbered)
+      return renumbered
     })
   }, [scheduleSync])
 
@@ -285,7 +341,7 @@ export default function Session() {
       <div className="page">
         <div className="row spread">
           <div>
-            <div className="page-title">😴 Rest Day</div>
+            <div className="page-title">😴 Rest</div>
             <div className="subtitle" style={{ marginBottom: 0 }}>
               {formatDMYWIB(session.date)} · hari istirahat — tanpa gerakan
             </div>
@@ -305,7 +361,7 @@ export default function Session() {
           <Modal onClose={() => setConfirmDel(false)} label="Hapus sesi">
             <h3>Hapus sesi ini?</h3>
             <div className="small muted" style={{ marginBottom: 10 }}>
-              "Rest Day" ({formatDMYWIB(session.date)}) akan dihapus permanen.
+              "Rest" ({formatDMYWIB(session.date)}) akan dihapus permanen.
             </div>
             <div className="form-actions sticky">
               <button className="btn ghost" onClick={() => setConfirmDel(false)}>Batal</button>
@@ -326,6 +382,12 @@ export default function Session() {
   const planScheme = planSessionIdx >= 0 ? getScheme(planSessionIdx, planExcluded) : null
   const planLift = planSessionIdx >= 0 ? getSbdLiftForSession(planSessionIdx, planExcluded) : undefined
   const planTM = settings.trainingMax
+  // 5/3/1 aktif hanya bila TM diset dan bukan autoregulasi/rehab — label
+  // siklus & wave ("[C7-S03] Upper — 3×5") cuma tampil di mode itu.
+  const is531Active =
+    settings.autoRegMode !== true &&
+    settings.rehabMode !== true &&
+    !!(planTM && (planTM.squat > 0 || planTM.bench > 0 || planTM.deadlift > 0))
 
   function addSet(exerciseId: string) {
     const dur = exerciseIsDuration(exercises, exerciseId)
@@ -356,6 +418,16 @@ export default function Session() {
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
       elev = prev.elevationM
+    } else if (!cardio && settings.autoRegMode === true && session?.intensity) {
+      // Autoregulasi: pre-fill dari set terbaik sebelumnya, dikali faktor
+      // intensitas sesi (Ringan 80% / Sedang 90% / Berat 100%) — bukan dari TM.
+      const best = bestSetResult(sessions, sid, exerciseId)
+      if (best) {
+        w = autoPrefillWeight(best.weightKg, session.intensity)
+        r = dur ? 0 : best.reps
+        d = dur ? best.durationSec ?? 0 : undefined
+        d2 = best.distanceKm
+      }
     } else if (!cardio && planScheme && planTM && planLift) {
       // 5/3/1: pre-fill dari TM sesuai tipe sesi (Leg→Squat, Push→Bench, Pull→Deadlift)
       if (planTM[planLift] > 0) {
@@ -384,6 +456,40 @@ export default function Session() {
     mutateSets([
       ...localSets,
       { id: makeSetId(), exerciseId, setNumber: setNo, weightKg: w, reps: r, ...(d !== undefined ? { durationSec: d } : {}), ...(d2 !== undefined ? { distanceKm: d2 } : {}), ...(elev !== undefined ? { elevationM: elev } : {}) },
+    ])
+  }
+
+  // Prefill tambah-set-cepat: set terakhir sesi ini → set terbaik sesi lalu
+  // (× faktor intensitas kalau autoregulasi). Awal & puncak mulai dari nilai
+  // yang sama (ramp datar) sampai user mengubahnya.
+  function quickPrefill(exerciseId: string): { w: number; r: number } {
+    const prev = localSets
+      .filter((s) => s.exerciseId === exerciseId)
+      .slice()
+      .sort((a, b) => b.setNumber - a.setNumber)[0]
+    if (prev) return { w: prev.weightKg, r: prev.reps }
+    const best = bestSetResult(sessions, sid, exerciseId)
+    if (!best) return { w: 0, r: 0 }
+    const w = settings.autoRegMode === true && session?.intensity
+      ? autoPrefillWeight(best.weightKg, session.intensity)
+      : best.weightKg
+    return { w, r: best.reps }
+  }
+
+  // Buat N set sekaligus dengan bobot ramp awal → puncak (lihat setRamp.ts).
+  function addQuickSets(exerciseId: string, weights: number[], reps: number) {
+    const maxNo = localSets
+      .filter((s) => s.exerciseId === exerciseId)
+      .reduce((m, s) => Math.max(m, s.setNumber), 0)
+    mutateSets([
+      ...localSets,
+      ...weights.map((weightKg, i) => ({
+        id: makeSetId(),
+        exerciseId,
+        setNumber: maxNo + i + 1,
+        weightKg,
+        reps,
+      })),
     ])
   }
 
@@ -476,33 +582,50 @@ export default function Session() {
   }
 
   const addPool = (() => {
-    const cat = presetByName(session.planName)?.key
+    const cat = (presetByLooseName(session.planName) ?? presetByName(session.planName))?.key
     if (!cat) return exercises
+    // Full Body (key 'easy') bisa akses SEMUA gerakan — tanpa filter.
+    if (cat === 'easy') return exercises
+    // Arm & Shoulder (key 'push'): bahu + lengan — filter per muscleGroup,
+    // karena kategori push/pull tidak membedakan lengan dari dada/punggung.
+    if (cat === 'push') {
+      return exercises.filter((e) => ['Bahu', 'Bisep', 'Trisep', 'Forearm'].includes(e.muscleGroup))
+    }
+    // Upper (key 'pull'): dada + punggung → kategori push + pull.
     // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
-    const keys = rehabPoolKeys(cat)
+    const keys = cat === 'pull' ? ['push', 'pull'] : rehabPoolKeys(cat)
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 
-  // Dihitung SEKALI per render — hybrid Opsi A: 6 knee-safe di atas + sisa leg di bawah
-  const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
-  const rankedSuggestions = (() => {
-    const base = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-    const cat = presetByName(session.planName)?.key
-    if (cat !== 'leg') return base
-    const prio = (name: string) => (LEG_SUGGEST.includes(name) ? 0 : 1)
-    const rank: Record<string, number> = { gap: 0, baru: 1, lupa: 2, biasa: 3 }
-    return [...base].sort((a, b) => {
-      const pa = prio(a.exercise.name)
-      const pb = prio(b.exercise.name)
-      if (pa !== pb) return pa - pb
-      const ra = rank[a.reason] ?? 3
-      const rb = rank[b.reason] ?? 3
-      if (ra !== rb) return ra - rb
-      return (b.daysSinceLast ?? 9999) - (a.daysSinceLast ?? 9999)
-    })
+  // Gerakan di luar kategori hari ini — tetap bisa ditambahkan (mis. Bench Press
+  // di Leg Day). Dipisah dari daftar saran supaya urutan saran tetap fokus
+  // pada kategori hari, tapi tidak ada lagi yang benar-benar terkunci.
+  const otherExercises = (() => {
+    const inPool = new Set(addPool.map((e) => e.id))
+    return exercises
+      .filter((e) => !inPool.has(e.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
   })()
-  const suggestBadge = (ex: { muscleGroup: string }, r: string) =>
-    r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
+
+  // Daftar tambah gerakan polos (alfabetis) — tanpa saran/ranking.
+  // Gerakan yang sudah ada di sesi tidak ditampilkan lagi.
+  const usedExerciseIds = new Set(localSets.map((s) => s.exerciseId))
+  const poolToAdd = [...addPool]
+    .filter((e) => !usedExerciseIds.has(e.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  // Cari gerakan: ketik nama / grup otot → hasil dari SEMUA gerakan
+  // (bukan cuma pool hari ini), alfabetis, tanpa yang sudah ada di sesi.
+  const exQueryNorm = exQuery.trim().toLowerCase()
+  const searchResults =
+    exQueryNorm.length === 0
+      ? null
+      : exercises
+          .filter(
+            (e) =>
+              !usedExerciseIds.has(e.id) &&
+              (e.name.toLowerCase().includes(exQueryNorm) || e.muscleGroup.toLowerCase().includes(exQueryNorm)),
+          )
+          .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className="page">
@@ -510,62 +633,75 @@ export default function Session() {
         <div>
           <div className="page-title">{session.planName}</div>
           <div className="subtitle" style={{ marginBottom: 0 }}>
-            {formatDMYWIB(session.date)} · mulai {formatHM(session.startedAt)}
-            {isNoonPlaceholder(session.startedAt, session.date) && !editingTime && (
+            {formatDMYWIB(session.date)} · mulai{' '}
+            {editingWhich === 'start' ? (
+              <input
+                type="time"
+                autoFocus
+                value={formatHM(session.startedAt)}
+                onBlur={() => setEditingWhich(null)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setEditingWhich(null) }}
+                onChange={(e) => {
+                  const [h, m] = e.target.value.split(':').map(Number)
+                  if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                  const base = parseKey(session.date).getTime()
+                  const next = base + h * 3600000 + m * 60000
+                  if (session.endedAt && next >= session.endedAt) {
+                    showToast('Jam mulai harus sebelum jam selesai', 'error')
+                    return
+                  }
+                  void updateSession(uid, session.id, { startedAt: next } as never)
+                    .then(() => setEditingWhich(null))
+                    .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
+                }}
+                style={TIME_INPUT_STYLE}
+              />
+            ) : (
+              <button
+                onClick={() => setEditingWhich('start')}
+                title="ubah jam mulai"
+                style={TIME_BTN_STYLE}
+              >
+                {formatHM(session.startedAt)}
+                {isNoonPlaceholder(session.startedAt, session.date) ? ' · estimasi ✎' : ' ✎'}
+              </button>
+            )}
+            {session.endedAt && (
               <>
-                {' · '}
-                <button
-                  onClick={() => setEditingTime(true)}
-                  title="sesuaikan jam mulai"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    font: 'inherit',
-                    fontSize: 'inherit',
-                    color: 'var(--muted)',
-                    textDecoration: 'underline',
-                    textDecorationStyle: 'dashed',
-                    textUnderlineOffset: 2,
-                    cursor: 'pointer',
-                  }}
-                >
-                  estimasi ✎
-                </button>
+                {' · selesai '}
+                {editingWhich === 'end' ? (
+                  <input
+                    type="time"
+                    autoFocus
+                    value={formatHM(session.endedAt)}
+                    onBlur={() => setEditingWhich(null)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingWhich(null) }}
+                    onChange={(e) => {
+                      const [h, m] = e.target.value.split(':').map(Number)
+                      if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                      const base = parseKey(session.date).getTime()
+                      const next = base + h * 3600000 + m * 60000
+                      if (next <= session.startedAt) {
+                        showToast('Jam selesai harus setelah jam mulai', 'error')
+                        return
+                      }
+                      void updateSession(uid, session.id, { endedAt: next } as never)
+                        .then(() => setEditingWhich(null))
+                        .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
+                    }}
+                    style={TIME_INPUT_STYLE}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setEditingWhich('end')}
+                    title="ubah jam selesai"
+                    style={TIME_BTN_STYLE}
+                  >
+                    {formatHM(session.endedAt)} ✎
+                  </button>
+                )}
               </>
             )}
-            {isNoonPlaceholder(session.startedAt, session.date) && editingTime && (
-              <>
-                {' · '}
-                <input
-                  type="time"
-                  autoFocus
-                  value={formatHM(session.startedAt)}
-                  onBlur={() => setEditingTime(false)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') setEditingTime(false) }}
-                  onChange={(e) => {
-                    const [h, m] = e.target.value.split(':').map(Number)
-                    if (!Number.isFinite(h) || !Number.isFinite(m)) return
-                    const base = parseKey(session.date).getTime()
-                    const next = base + h * 3600000 + m * 60000
-                    void updateSession(uid, session.id, { startedAt: next } as never)
-                      .then(() => setEditingTime(false))
-                      .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    borderRadius: 6,
-                    padding: '1px 6px',
-                    font: 'inherit',
-                    fontSize: 'inherit',
-                    color: 'var(--text)',
-                    width: 92,
-                  }}
-                />
-              </>
-            )}
-            {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
         </div>
         <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
@@ -576,10 +712,28 @@ export default function Session() {
           {isActive ? 'Berlangsung' : 'Selesai'}
         </span>
         {(() => {
+          // 5/3/1 mati (autoreg/rehab/TM kosong) — tidak ada label siklus /
+          // wave; cuma badge Extra & intensitas yang tampil.
+          if (!is531Active) {
+            if (!session.isExtra && !session.intensity) return null
+            return (
+              <>
+                {session.isExtra && <span className="badge warn">Extra</span>}
+                {session.intensity && (
+                  <span className="badge accent">
+                    {autoIntensityOf(session.intensity).label} · {autoIntensityOf(session.intensity).rpe}
+                  </span>
+                )}
+              </>
+            )
+          }
           // Stiker salah (mis. Leg Day ditempel Easy Day) → benerin di layar langsung
           let label: string | null = session.cycleLabel ?? null
           let wave: string | null = session.scheme ?? null
-          const mismatch = !!(label && !label.includes(session.planName))
+          // Nama kanonis polos — planName berstiker ("[C1-S01] Leg Day — 3×5")
+          // membuat includes() lama selalu true, jadi label ganda lolos.
+          const barePlan = presetByLooseName(session.planName)?.name ?? stripSticker(session.planName)
+          const mismatch = !!(label && !label.includes(barePlan))
           if (!label || mismatch) {
             const before = sessions.filter(
               (x) => isCountedSession(x) && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)),
@@ -588,7 +742,7 @@ export default function Session() {
               const ex = computeExcludedTypes(settings)
               const pos = computePosition(before, ex, settings.skippedSessions ?? 0)
               const correctWave = getScheme(pos.sessionIndex, ex)?.label ?? wave
-              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${session.planName}${correctWave ? ` — ${correctWave}` : ''}`
+              const correctLabel = `[C${pos.cycle}-S${String(pos.sessionIndex + 1).padStart(2, '0')}] ${barePlan}${correctWave ? ` — ${correctWave}` : ''}`
               label = correctLabel
               wave = correctWave
             } catch { /* biarkan label lama */ }
@@ -598,10 +752,15 @@ export default function Session() {
           }
           // Deteksi diluar jadwal untuk info (bukan error): planName beda dari yang dihitung retroaktif
           // Sudah ditangani oleh guard mismatch di atas — badge warning tidak perlu lagi bila sudah dibenerin
-          if (!label && !wave && !session.isExtra) return null
+          if (!label && !wave && !session.isExtra && !session.intensity) return null
           return (
             <>
               {session.isExtra && <span className="badge warn">Extra</span>}
+              {session.intensity && (
+                <span className="badge accent">
+                  {autoIntensityOf(session.intensity).label} · {autoIntensityOf(session.intensity).rpe}
+                </span>
+              )}
               {label && <span className="badge accent">{label}</span>}
               {wave && <span className="badge">{wave}</span>}
             </>
@@ -651,7 +810,7 @@ export default function Session() {
         <div className="card empty">Belum ada gerakan. Tambahkan lewat tombol di bawah.</div>
       )}
 
-      {Array.from(grouped.entries()).map(([exId, sets]) => {
+      {Array.from(grouped.entries()).map(([exId, sets], idx) => {
         const dur = exerciseIsDuration(exercises, exId)
         const cardio = isCardio(exId)
         const e1RmRef = bestE1RmMap.get(exId) ?? 0
@@ -665,7 +824,11 @@ export default function Session() {
                   <span className="badge accent" style={{ marginLeft: 8 }}>e1RM ~{fmtNumber(e1RmRef)} kg</span>
                 )}
               </span>
-              <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
+              <div className="row" style={{ gap: 4 }}>
+                <button className="btn sm ghost" disabled={idx === 0} onClick={() => moveExercise(exId, -1)} aria-label="Pindah gerakan ke atas">↑</button>
+                <button className="btn sm ghost" disabled={idx === grouped.size - 1} onClick={() => moveExercise(exId, 1)} aria-label="Pindah gerakan ke bawah">↓</button>
+                <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
+              </div>
             </div>
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>
@@ -704,6 +867,16 @@ export default function Session() {
               />
             )
           })}
+          {!cardio && !dur && (
+            <>
+              <div style={{ display: quickAddShown[exId] ? undefined : 'none' }}>
+                <QuickAddSets prefill={quickPrefill(exId)} onAdd={(weights, reps) => addQuickSets(exId, weights, reps)} onHide={() => toggleQuickAdd(exId)} />
+              </div>
+              {!quickAddShown[exId] && (
+                <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => toggleQuickAdd(exId)} aria-label="Tampilkan tambah set cepat">▸ Tambah set cepat</button>
+              )}
+            </>
+          )}
 
         </div>
         )
@@ -713,37 +886,69 @@ export default function Session() {
         <div className="card-title">Tambahkan gerakan</div>
         {exercises.length === 0 ? (
           <div className="small muted">Belum ada gerakan di database. Tambahkan di tab Gerakan.</div>
-        ) : addPool.length === 0 ? (
-          <div className="small muted">
-            Belum ada gerakan kategori {presetByName(session.planName)?.name}. Tambahkan di tab Gerakan.
-          </div>
         ) : (
           <>
-            {(() => {
-              const top = rankedSuggestions.slice(0, 5)
-              const rest = rankedSuggestions.slice(5)
-              if (top.length === 0) return null
-              return (
-                <>
-                  <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Saran untuk {presetByName(session.planName)?.name ?? 'sesi ini'}</div>
-                  <div className="row wrap" style={{ marginBottom: rest.length > 0 ? 10 : 0 }}>
-                    {top.map(({ exercise: ex, reason }) => (
+            {addPool.length === 0 && (
+              <div className="small muted" style={{ marginBottom: 8 }}>
+                Belum ada gerakan kategori {(presetByLooseName(session.planName) ?? presetByName(session.planName))?.name}. Tambahkan di tab Gerakan,
+                atau pakai gerakan kategori lain di bawah.
+              </div>
+            )}
+            <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+              <input
+                className="input"
+                value={exQuery}
+                onChange={(e) => setExQuery(e.target.value)}
+                placeholder="Cari gerakan… (mis. squat, bahu)"
+                aria-label="Cari gerakan"
+              />
+              {exQuery.length > 0 && (
+                <button className="btn sm ghost" onClick={() => setExQuery('')} aria-label="Bersihkan pencarian">
+                  ✕
+                </button>
+              )}
+            </div>
+            {searchResults !== null ? (
+              searchResults.length === 0 ? (
+                <div className="small muted">Tidak ada gerakan yang cocok dengan “{exQuery.trim()}”.</div>
+              ) : (
+                <div className="row wrap">
+                  {searchResults.map((ex) => (
+                    <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                      + {ex.name}
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              <>
+                {poolToAdd.length > 0 && (
+                  <div className="row wrap">
+                    {poolToAdd.map((ex) => (
                       <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                        + {ex.name}{suggestBadge(ex, reason)}
+                        + {ex.name}
                       </button>
                     ))}
                   </div>
-                </>
-              )
-            })()}
-            <div className="small muted" style={{ marginBottom: 6 }}>{rankedSuggestions.length > 5 ? 'Semua gerakan' : ''}</div>
-            <div className="row wrap">
-              {rankedSuggestions.slice(5).map(({ exercise: ex }) => (
-                <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                  + {ex.name}
-                </button>
-              ))}
-            </div>
+                )}
+                {otherExercises.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <button className="btn sm ghost" onClick={() => setShowOtherEx((v) => !v)}>
+                      {showOtherEx ? '▾' : '▸'} Gerakan kategori lain ({otherExercises.length})
+                    </button>
+                    {showOtherEx && (
+                      <div className="row wrap" style={{ marginTop: 8 }}>
+                        {otherExercises.map((ex) => (
+                          <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                            + {ex.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </>
         )}
       </div>
@@ -872,6 +1077,69 @@ function DurInputs({ value, onChange }: { value: number; onChange: (sec: number)
         onChange={(e) => onChange(h * 3600 + m * 60 + num(e.target.value, 0, 59))}
       />
       <span className="small muted">dtk</span>
+    </div>
+  )
+}
+
+// Tambah-set-cepat: slider jumlah set (1–7) + beban awal & puncak + reps
+// sekali isi. Bobot tiap set = ramp awal → puncak (lihat setRamp.ts).
+// Set yang sudah dibuat tetap bisa diubah satu-satu di barisnya.
+function QuickAddSets({ prefill, onAdd, onHide }: {
+  prefill: { w: number; r: number }
+  onAdd: (weights: number[], reps: number) => void
+  onHide: () => void
+}) {
+  const [count, setCount] = useState(3)
+  const [startW, setStartW] = useState(prefill.w)
+  const [peakW, setPeakW] = useState(prefill.w)
+  const [reps, setReps] = useState(prefill.r)
+  const preview = rampWeights(startW, peakW, count)
+  return (
+    <div style={{ border: '1px dashed var(--border)', borderRadius: 10, padding: '10px 12px', marginTop: 8 }}>
+      <div className="row spread small muted" style={{ marginBottom: 2 }}>
+        <span>Tambah set cepat</span>
+        <span>{count} set</span>
+        <button className="btn sm ghost" onClick={onHide} aria-label="Sembunyikan tambah set cepat">Sembunyikan</button>
+      </div>
+      <input
+        type="range"
+        min={1}
+        max={7}
+        step={1}
+        value={count}
+        onChange={(e) => setCount(Number(e.target.value))}
+        aria-label="Jumlah set"
+        style={{ width: '100%', accentColor: 'var(--accent)' }}
+      />
+      <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+        <label className="small muted" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Awal (kg)
+          <DecimalInput value={startW} onCommit={(n) => setStartW(n)} placeholder="0" ariaLabel="Beban awal kg" />
+        </label>
+        <label className="small muted" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Puncak (kg)
+          <DecimalInput value={peakW} onCommit={(n) => setPeakW(n)} placeholder="0" ariaLabel="Beban puncak kg" />
+        </label>
+        <label className="small muted" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Rep
+          <input
+            className="wt"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={reps || ''}
+            placeholder="0"
+            aria-label="Rep per set"
+            onChange={(e) => setReps(Number(e.target.value))}
+          />
+        </label>
+        <button className="btn sm" style={{ alignSelf: 'flex-end' }} onClick={() => onAdd(preview, reps)}>
+          ＋ Buat {count} set
+        </button>
+      </div>
+      <div className="small muted" style={{ marginTop: 6 }}>
+        {preview.map((w) => fmtNumber(w)).join(' → ')} kg · {reps || 0} rep/set
+      </div>
     </div>
   )
 }

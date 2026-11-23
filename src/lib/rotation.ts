@@ -1,11 +1,16 @@
 import { addDays, mondayOf, parseKey, todayKey } from './date'
-import { presetByName, presetByLooseName, presetByKey } from './templates'
+import { presetByName, presetByLooseName, presetByKey, OLD_PRESET_NAMES } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
-// Urutan default: mulai dari Leg, lalu Easy (recovery), Push, Pull.
+// Urutan default: Lower → Upper (dada+back ringan) → Arm & Shoulder.
+// Full Body TIDAK masuk rotasi — cuma untuk ngejar volume mingguan /
+// maintain otot (mis. saat fokus cardio keras seperti naik gunung).
+// Full Body tetap bisa dipilih manual lewat "Pilih plan lain" / kalender.
 // User bisa mengubah urutan di Pengaturan.
-const DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
+const DEFAULT_ROTATION = ['leg', 'pull', 'push']
+// Rotasi default lama (sebelum rename 23 Nov 2026): Leg → Easy → Push → Pull.
+const LEGACY_DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
 
 export interface RotationState {
   rotation: string[]
@@ -13,13 +18,22 @@ export interface RotationState {
 }
 
 export function rotationOf(settings: Partial<UserSettings>): RotationState {
+  const saved = settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION
+  // Migrasi sekali jalan: yang belum pernah ubah urutan (masih default lama)
+  // ikut urutan baru. Yang sudah ubah sendiri tidak disentuh.
+  if (saved.length === LEGACY_DEFAULT_ROTATION.length && saved.every((k, i) => k === LEGACY_DEFAULT_ROTATION[i])) {
+    return { rotation: DEFAULT_ROTATION, anchor: resolveShiftAnchor(settings.shiftAnchor) }
+  }
+  // Full Body keluar dari rotasi — buang 'easy' dari rotasi simpanan apa pun;
+  // kalau kosong, pakai default.
+  const filtered = saved.filter((k) => k !== 'easy')
   return {
-    rotation: settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION,
+    rotation: filtered.length > 0 ? filtered : DEFAULT_ROTATION,
     anchor: resolveShiftAnchor(settings.shiftAnchor),
   }
 }
 
-// Sesi yang tidak dihitung sebagai latihan gym: Rest Day, Cardio, Skip lama
+// Sesi yang tidak dihitung sebagai latihan gym: Rest, Cardio, Skip lama
 // ("Skip — …") dan sesi tambahan manual. Disamakan dengan filter progression
 // agar cycle Wendler dan rotasi tidak divergen — sumber tunggal di helpers.isCountedSession.
 function isNonCountingSession(s: Session): boolean {
@@ -60,7 +74,9 @@ function nextRotationKey(settings: Partial<UserSettings>, sessions: Session[]): 
   return rotation[(idx + 1) % rotation.length]
 }
 
-// Saran final: shift malam → ringankan ke 'easy' (bisa ditimpa manual oleh user).
+// Saran final: shift malam → ringankan ke 'pull' (Upper: dada+back ringan,
+// bisa ditimpa manual oleh user). 'easy' dulu Easy Day, sekarang Full Body —
+// bukan hari ringan lagi, jadi jangan dipakai sebagai night-light.
 // todayShift dihitung dari siklus shift + override (lihat src/lib/shift.ts).
 export function suggestKey(
   settings: Partial<UserSettings>,
@@ -68,18 +84,21 @@ export function suggestKey(
   todayShift?: ShiftType | null,
 ): { key: string; isNightLight: boolean } {
   const key = nextRotationKey(settings, sessions)
-  const isNightLight = todayShift === 'malam' && key !== 'easy'
-  return { key: isNightLight ? 'easy' : key, isNightLight }
+  const isNightLight = todayShift === 'malam' && key !== 'pull'
+  return { key: isNightLight ? 'pull' : key, isNightLight }
 }
 
-// Plan milik user untuk suatu key preset (dicocokkan lewat nama preset)
+// Plan milik user untuk suatu key preset (dicocokkan lewat nama preset,
+// atau nama lama sebelum rename — plan "Leg Day" tetap kepakai untuk Lower).
 export function planForKey(plans: WorkoutPlan[], key: string): WorkoutPlan | undefined {
   const preset = presetByKey(key)
   if (!preset) return undefined
-  return plans.find((p) => p.name === preset.name)
+  return plans.find((p) => p.name === preset.name || p.name === (OLD_PRESET_NAMES[key] ?? ''))
 }
 
-// Mode bebas Week-3: Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+// Mode bebas Week-3: Upper/Arm & Shoulder/Lower bebas urut, 3/3 baru lanjut, duplicate=1.
+// Full Body (key 'easy', bukan hari rutin) juga dihitung: satu sesi Full Body
+// mencakup Upper + Lower sekaligus — Arm & Shoulder TIDAK tercakup.
 export const FREE_WEEK_KEYS = ['pull', 'push', 'leg'] as const
 
 export function freeNextKey(doneKeys: Set<string>): string | null {
@@ -107,7 +126,15 @@ export function weekProgressFreeOrder(
   const doneKeys = new Set<string>()
   for (const s of weekSessions) {
     const k = (presetByLooseName(s.planName) ?? presetByName(s.planName))?.key
-    if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) doneKeys.add(k)
+    if (k === 'easy') {
+      // Full Body = Upper + Lower sekaligus (dada+back & kaki kena semua
+      // dalam satu sesi). Arm & Shoulder TIDAK tercakup — tetap harus
+      // dilatih sendiri kalau mau week 3/3.
+      doneKeys.add('pull')
+      doneKeys.add('leg')
+    } else if (k && (FREE_WEEK_KEYS as readonly string[]).includes(k)) {
+      doneKeys.add(k)
+    }
   }
   // Nomor week = index minggu kalender sejak jangkar (snap ke Senin, min 1)
   const anchorMon = mondayOf(settings?.freeOrderSince ?? ref)
