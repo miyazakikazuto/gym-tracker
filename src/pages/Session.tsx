@@ -87,8 +87,9 @@ export default function Session() {
   // Daftar gerakan di luar kategori hari ini — dibuka manual, default tertutup
   const [showOtherEx, setShowOtherEx] = useState(false)
   const [exQuery, setExQuery] = useState('')
-  // Kotak "Tambah set cepat" yang disembunyikan per gerakan (sementara, selama halaman sesi dibuka).
-  const [quickAddHidden, setQuickAddHidden] = useState<Record<string, boolean>>({})
+  // Kotak "Tambah set cepat" yang ditampilkan per gerakan — default tersembunyi,
+  // tampilkan lewat tombol "▸ Tambah set cepat" (sementara, selama halaman sesi dibuka).
+  const [quickAddShown, setQuickAddShown] = useState<Record<string, boolean>>({})
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
@@ -243,7 +244,7 @@ export default function Session() {
 
   // Sembunyikan / tampilkan kotak "Tambah set cepat" per gerakan.
   const toggleQuickAdd = useCallback((exerciseId: string) => {
-    setQuickAddHidden((cur) => toggleFlag(cur, exerciseId))
+    setQuickAddShown((cur) => toggleFlag(cur, exerciseId))
   }, [])
 
   const restoreDeleted = useCallback(() => {
@@ -868,10 +869,10 @@ export default function Session() {
           })}
           {!cardio && !dur && (
             <>
-              <div style={{ display: quickAddHidden[exId] ? 'none' : undefined }}>
+              <div style={{ display: quickAddShown[exId] ? undefined : 'none' }}>
                 <QuickAddSets prefill={quickPrefill(exId)} onAdd={(weights, reps) => addQuickSets(exId, weights, reps)} onHide={() => toggleQuickAdd(exId)} />
               </div>
-              {quickAddHidden[exId] && (
+              {!quickAddShown[exId] && (
                 <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => toggleQuickAdd(exId)} aria-label="Tampilkan tambah set cepat">▸ Tambah set cepat</button>
               )}
             </>
