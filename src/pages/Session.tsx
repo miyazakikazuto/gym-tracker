@@ -329,6 +329,12 @@ export default function Session() {
   const planScheme = planSessionIdx >= 0 ? getScheme(planSessionIdx, planExcluded) : null
   const planLift = planSessionIdx >= 0 ? getSbdLiftForSession(planSessionIdx, planExcluded) : undefined
   const planTM = settings.trainingMax
+  // 5/3/1 aktif hanya bila TM diset dan bukan autoregulasi/rehab — label
+  // siklus & wave ("[C7-S03] Upper — 3×5") cuma tampil di mode itu.
+  const is531Active =
+    settings.autoRegMode !== true &&
+    settings.rehabMode !== true &&
+    !!(planTM && (planTM.squat > 0 || planTM.bench > 0 || planTM.deadlift > 0))
 
   function addSet(exerciseId: string) {
     const dur = exerciseIsDuration(exercises, exerciseId)
@@ -606,6 +612,21 @@ export default function Session() {
           {isActive ? 'Berlangsung' : 'Selesai'}
         </span>
         {(() => {
+          // 5/3/1 mati (autoreg/rehab/TM kosong) — tidak ada label siklus /
+          // wave; cuma badge Extra & intensitas yang tampil.
+          if (!is531Active) {
+            if (!session.isExtra && !session.intensity) return null
+            return (
+              <>
+                {session.isExtra && <span className="badge warn">Extra</span>}
+                {session.intensity && (
+                  <span className="badge accent">
+                    {autoIntensityOf(session.intensity).label} · {autoIntensityOf(session.intensity).rpe}
+                  </span>
+                )}
+              </>
+            )
+          }
           // Stiker salah (mis. Leg Day ditempel Easy Day) → benerin di layar langsung
           let label: string | null = session.cycleLabel ?? null
           let wave: string | null = session.scheme ?? null

@@ -141,6 +141,16 @@ export default function History() {
           { cycle: 0, sessionIndex: idx, cycleLabel: stiker },
           false,
         )
+      } else if (settings.autoRegMode === true) {
+        // Autoregulasi: tanpa label siklus 5/3/1.
+        payload = buildSession(
+          plan,
+          selKey,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          startAt,
+          undefined,
+          false,
+        )
       } else {
         const ex = computeExcludedTypes(settings)
         const before = sessions.filter((x) => x.endedAt !== null && !x.isExtra && (x.date < selKey || (x.date === selKey && x.startedAt < startAt)))
