@@ -256,6 +256,8 @@ export default function History() {
               <span><span className="legend-dot" style={{ background: SHIFT_COLORS.malam }} />Malam</span>
               <span><span className="legend-dot" style={{ background: SHIFT_COLORS.libur }} />Libur</span>
               <span><span className="legend-dot" style={{ background: SHIFT_COLORS.cuti }} />Cuti</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.backup }} />Backup Cuti</span>
+              <span><span className="legend-dot" style={{ background: SHIFT_COLORS.tukar }} />Tukar Shift</span>
             </div>
             <div className="small muted" style={{ margin: '10px 0 4px' }}>Rekap {MONTHS[viewMonth]} {viewYear}:</div>
             <div className="row wrap" style={{ gap: 6, marginBottom: 4 }}>
