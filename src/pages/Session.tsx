@@ -7,6 +7,7 @@ import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date
 import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
+import { autoIntensityOf, autoPrefillWeight } from '../lib/autoreg'
 import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
@@ -358,6 +359,16 @@ export default function Session() {
       d = dur ? prev.durationSec ?? 0 : undefined
       d2 = prev.distanceKm
       elev = prev.elevationM
+    } else if (!cardio && settings.autoRegMode === true && session?.intensity) {
+      // Autoregulasi: pre-fill dari set terbaik sebelumnya, dikali faktor
+      // intensitas sesi (Ringan 80% / Sedang 90% / Berat 100%) — bukan dari TM.
+      const best = bestSetResult(sessions, sid, exerciseId)
+      if (best) {
+        w = autoPrefillWeight(best.weightKg, session.intensity)
+        r = dur ? 0 : best.reps
+        d = dur ? best.durationSec ?? 0 : undefined
+        d2 = best.distanceKm
+      }
     } else if (!cardio && planScheme && planTM && planLift) {
       // 5/3/1: pre-fill dari TM sesuai tipe sesi (Leg→Squat, Push→Bench, Pull→Deadlift)
       if (planTM[planLift] > 0) {
@@ -613,10 +624,15 @@ export default function Session() {
           }
           // Deteksi diluar jadwal untuk info (bukan error): planName beda dari yang dihitung retroaktif
           // Sudah ditangani oleh guard mismatch di atas — badge warning tidak perlu lagi bila sudah dibenerin
-          if (!label && !wave && !session.isExtra) return null
+          if (!label && !wave && !session.isExtra && !session.intensity) return null
           return (
             <>
               {session.isExtra && <span className="badge warn">Extra</span>}
+              {session.intensity && (
+                <span className="badge accent">
+                  {autoIntensityOf(session.intensity).label} · {autoIntensityOf(session.intensity).rpe}
+                </span>
+              )}
               {label && <span className="badge accent">{label}</span>}
               {wave && <span className="badge">{wave}</span>}
             </>

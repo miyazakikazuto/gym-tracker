@@ -17,6 +17,8 @@ import {
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS } from '../lib/shift'
 import { computePosition, getFullLabel, getScheme, getPrescribedWeights, getSbdLiftForSession, suggestKey531, get531Sequence, computeExcludedTypes, dynamicCycleLength } from '../lib/progression'
 import { rehabPosition, rehabKeyAt, rehabFullLabel, rehabWaveAt, rehabRound, rehabCellStatus, REHAB_WAVES } from '../lib/rehab'
+import { AUTO_INTENSITIES, autoIntensityOf } from '../lib/autoreg'
+import type { AutoIntensity } from '../types'
 import { FREE_WEEK_KEYS, weekProgressFreeOrder, freeNextKey } from '../lib/rotation'
 import PlanEditor from '../components/PlanEditor'
 import Modal from '../components/Modal'
@@ -168,8 +170,12 @@ export default function Today() {
       : rehabKey === 'upper-r'
         ? 'ringan bebas'
         : 'santai'
-  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab
-  const is531Active = !rehabMode && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
+  // Mode Autoregulasi: 5/3/1 & TM dimatikan — saran ikut rotasi, tiap sesi
+  // pilih intensitas sesuai kondisi fisik (lib/autoreg.ts).
+  const autoReg = settings.autoRegMode === true
+  const [intensity, setIntensity] = useState<AutoIntensity>('medium')
+  // 5/3/1 aktif jika TM sudah diset (minimal satu lift > 0) dan bukan rehab/autoreg
+  const is531Active = !rehabMode && !autoReg && !!(cycleTM && (cycleTM.squat > 0 || cycleTM.bench > 0 || cycleTM.deadlift > 0))
   const freeOrder = settings.freeOrder === true
   const freeProg = freeOrder ? weekProgressFreeOrder(sessions, excludedTypes, settings.skippedSessions ?? 0, settings) : null
   // Week fresh (0/3, termasuk awal program) = bebas urut tanpa default — saran '—' sampai user pilih via grid
@@ -216,7 +222,9 @@ export default function Today() {
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
     : effectivePlan
-      ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
+      ? autoReg
+        ? `Mulai ${effectivePlan.name} · ${autoIntensityOf(intensity).label}`
+        : `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
       : 'Buat plan saran dulu'
 
   // Plan virtual dari preset — dipakai saat plan belum dibuat di Kelola jadwal.
@@ -250,7 +258,7 @@ export default function Today() {
     return { id: '', name: preset.name, dayOfWeek: -1, items }
   }
 
-  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean) {
+  async function createAndOpen(plan: WorkoutPlan | undefined | null, name?: string, isExtra?: boolean, autoIntensity?: AutoIntensity) {
     if (creating) return
     setCreating(true)
     // Rest Day bukan workout: paksa payload kanonis (langsung selesai, tanpa
@@ -296,20 +304,36 @@ export default function Today() {
       const bareName = name ? stripSticker(name) : plan?.name ?? null
       const preset = bareName ? (presetByLooseName(bareName) ?? presetByName(bareName)) : undefined
       const chosenName = plan?.name ?? preset?.name ?? bareName
-      const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
-      const stikerName = chosenName ?? stripSticker(getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes))
-      const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
-      payload = buildSession(
-        plan,
-        base,
-        (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
-        Date.now(),
-        wave
-          ? { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave }
-          : { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel },
-        false,
-      )
-      if (chosenName) payload.planName = chosenName
+      // Autoregulasi: tanpa snapshot siklus 5/3/1 (tanpa cycleLabel/scheme),
+      // intensitas yang dipilih tersimpan di sesi.
+      if (autoReg) {
+        payload = buildSession(
+          plan,
+          base,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          Date.now(),
+          undefined,
+          false,
+        )
+        payload.intensity = autoIntensity ?? 'medium'
+        if (chosenName) payload.planName = chosenName
+        // lanjut ke createSession di bawah
+      } else {
+        const wave = getScheme(cyclePos.sessionIndex, excludedTypes)?.label ?? null
+        const stikerName = chosenName ?? stripSticker(getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes))
+        const snapLabel = `[C${cyclePos.cycle}-S${String(cyclePos.sessionIndex + 1).padStart(2, '0')}] ${stikerName}${wave ? ` — ${wave}` : ''}`
+        payload = buildSession(
+          plan,
+          base,
+          (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'),
+          Date.now(),
+          wave
+            ? { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel, scheme: wave }
+            : { cycle: cyclePos.cycle, sessionIndex: cyclePos.sessionIndex, cycleLabel: snapLabel },
+          false,
+        )
+        if (chosenName) payload.planName = chosenName
+      }
     }
     try {
       const ref = await createSession(uid, payload)
@@ -334,7 +358,7 @@ export default function Today() {
     // Nama ikut plan polos ("Leg Day") — JANGAN oper cycleLabel 5/3/1
     // ("[C1-S01] Leg Day — 3×5"), itu yang bikin planName berstiker dan
     // cycleLabel ganda. Stiker siklus dihitung di createAndOpen.
-    void createAndOpen(effectivePlan, rehabMode ? undefined : effectivePlan.name)
+    void createAndOpen(effectivePlan, rehabMode ? undefined : effectivePlan.name, false, autoReg ? intensity : undefined)
   }
 
   async function handleSkip() {
@@ -454,6 +478,8 @@ export default function Today() {
                 <div className="small muted" style={{ marginTop: 4 }}>
                   {freeOrder && freeProg ? (
                     freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'} · wave ${cycleScheme?.label ?? '—'} tetap urut`
+                  ) : autoReg ? (
+                    <>Sesi berikutnya: {presetByKey(sug.key)?.name ?? sug.key} — autoregulasi, intensitas ikut kondisi</>
                   ) : (
                     <>Sesi berikutnya: {getFullLabel(cyclePos.cycle, cyclePos.sessionIndex, excludedTypes)} — {presetByKey(suggestKey531(cyclePos.sessionIndex, excludedTypes))?.shortLabel ?? ''}</>
                   )}
@@ -468,14 +494,19 @@ export default function Today() {
                   <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
-                  {rehabMode ? rehabLbl : freeNext ? `${presetByKey(freeNext)?.name ?? freeNext} — bebas ${freeProg?.progress ?? ''}` : cycleLabel}
+                  {rehabMode ? rehabLbl : autoReg ? `${effectivePreset?.name ?? effectiveKey} — autoregulasi` : freeNext ? `${presetByKey(freeNext)?.name ?? freeNext} — bebas ${freeProg?.progress ?? ''}` : cycleLabel}
                 </div>
                 {rehabMode && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
                     {rehabWave.label} {rehabWave.name} · {rehabRx} · {rehabWave.note} · stop bila nyeri/panas &gt;5/10
                   </div>
                 )}
-                {prescribedSummary && (
+                {autoReg && (
+                  <div className="small muted" style={{ marginBottom: 4 }}>
+                    Intensitas ikut kondisi hari ini — beban awal dari set terbaikmu, bukan dari TM.
+                  </div>
+                )}
+                {prescribedSummary && !autoReg && (
                   <div className="small muted" style={{ marginBottom: 4 }}>
                     {cycleScheme?.label} · {tmForLift && cycleTM ? `${tmForLift.charAt(0).toUpperCase() + tmForLift.slice(1)} TM ${cycleTM[tmForLift]}kg` : ''} · {prescribedSummary}
                   </div>
@@ -505,13 +536,32 @@ export default function Today() {
                   })
                 )}
                 <div style={{ height: 10 }} />
+                {autoReg && !restToday && (
+                  <>
+                    <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Intensitas hari ini — ikut kondisi badan:</div>
+                    <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+                      {AUTO_INTENSITIES.map((o) => (
+                        <button
+                          key={o.key}
+                          className={'chipb' + (intensity === o.key ? ' on' : '')}
+                          style={intensity === o.key ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' } : undefined}
+                          onClick={() => setIntensity(o.key)}
+                          title={o.desc}
+                        >
+                          {o.label} · {o.rpe}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="small muted" style={{ marginBottom: 10 }}>{autoIntensityOf(intensity).desc}</div>
+                  </>
+                )}
                 {restToday ? (
                   <button className="btn sm ghost wide" onClick={() => void cancelRestToday()}>Batalkan istirahat</button>
                 ) : (
                   <>
                     <div className="action-row">
                       <button className="btn primary" disabled={creating} onClick={handleStart}>
-                        {effectivePlan ? `Mulai ${rehabMode ? rehabLbl : cycleLabel}` : 'Buat plan dulu'}
+                        {startLabel}
                       </button>
                       <button className="btn ghost" onClick={() => setShowPick(true)}>Pilih plan lain</button>
                       <button className="btn ghost" onClick={() => void markRestToday()}>Istirahat</button>

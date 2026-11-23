@@ -353,6 +353,27 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* ===== Mode Autoregulasi ===== */}
+      <div className="card">
+        <div className="card-title">Mode Autoregulasi</div>
+        <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <label className="small" style={{ fontWeight: 700, flex: 1 }}>
+            Intensitas ikut kondisi fisik (bukan 5/3/1)
+          </label>
+          <button
+            className={'btn sm ' + (settings.autoRegMode ? 'primary' : 'ghost')}
+            onClick={() => saveSettings({ autoRegMode: !settings.autoRegMode })}
+          >
+            {settings.autoRegMode ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <div className="small muted">
+          {settings.autoRegMode
+            ? 'ON — 5/3/1 & Training Max dimatikan. Tiap sesi pilih intensitas (Ringan/Sedang/Berat) sesuai kondisi — beban awal dihitung dari set terbaikmu, bukan dari TM. Cocok saat recovery tidak menentu karena shift.'
+            : 'OFF — jadwal normal 5/3/1 + rotasi.'}
+        </div>
+      </div>
+
       {/* ===== 5/3/1 Training Max ===== */}
       <div className="card">
         <div className="card-title">5/3/1 Training Max</div>

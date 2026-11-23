@@ -1,5 +1,6 @@
 import { volumeOf } from '../lib/date'
 import { fmtNumber } from '../lib/helpers'
+import { autoIntensityOf } from '../lib/autoreg'
 import type { Session } from '../types'
 
 export default function SessionRow({ s, onOpen }: { s: Session; onOpen: () => void }) {
@@ -15,6 +16,7 @@ export default function SessionRow({ s, onOpen }: { s: Session; onOpen: () => vo
       </div>
       <div className="row" style={{ marginTop: 8, gap: 6 }}>
         {s.isExtra && <span className="badge warn">Extra</span>}
+        {s.intensity && <span className="badge accent">{autoIntensityOf(s.intensity).label}</span>}
         <span className="badge">{s.sets.length} set</span>
         <span className="badge">{fmtNumber(vol)} kg volume</span>
         {topKg > 0 && <span className="badge accent">Top {fmtNumber(topKg)} kg</span>}
