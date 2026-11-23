@@ -1,7 +1,11 @@
 import { parseKey } from './date'
 import type { UserSettings } from '../types'
 
-export type ShiftType = 'pagi' | 'sore' | 'malam' | 'libur'
+// 'cuti' = cuti/izin di hari yang seharusnya kerja — HANYA lewat timpa
+// manual (override), bukan bagian siklus 12 hari. Di kalender tampil
+// hijau; untuk saran latihan diperlakukan seperti hari tanpa shift malam
+// (tidak memicu night-light).
+export type ShiftType = 'pagi' | 'sore' | 'malam' | 'libur' | 'cuti'
 
 // Pola siklus shift user (dari jadwal resmi Agustus 2026): 3 hari kerja → 1 hari libur,
 // rotasi maju Shift 2 (Sore) → Shift 3 (Malam) → Shift 1 (Pagi) → ulang.
@@ -31,15 +35,17 @@ export const SHIFT_LABELS: Record<ShiftType, string> = {
   sore: 'Sore',
   malam: 'Malam',
   libur: 'Libur',
+  cuti: 'Cuti',
 }
 
-export const SHIFT_TYPES: ShiftType[] = ['pagi', 'sore', 'malam', 'libur']
+export const SHIFT_TYPES: ShiftType[] = ['pagi', 'sore', 'malam', 'libur', 'cuti']
 
 export const SHIFT_COLORS: Record<ShiftType, string> = {
   pagi: '#fbbf24', // kuning — pagi
   sore: '#60a5fa', // biru — sore
   malam: '#a78bfa', // ungu — malam
   libur: '#6b7280', // abu — libur
+  cuti: '#34d399', // hijau — cuti
 }
 
 // Shift pada tanggal tertentu menurut siklus (tanpa override)
@@ -52,7 +58,7 @@ export function cycleShiftAt(anchor: string, date: string): ShiftType {
 export function shiftForDate(date: string, settings: Partial<UserSettings>): ShiftType {
   const ov = settings.shiftOverride?.[date]
   // 'siang' = alias lama untuk 'sore' (sebelum pola shift dikoreksi dari jadwal resmi)
-  if (ov === 'pagi' || ov === 'siang' || ov === 'sore' || ov === 'malam' || ov === 'libur') {
+  if (ov === 'pagi' || ov === 'siang' || ov === 'sore' || ov === 'malam' || ov === 'libur' || ov === 'cuti') {
     return ov === 'siang' ? 'sore' : ov
   }
   return cycleShiftAt(resolveShiftAnchor(settings.shiftAnchor), date)
