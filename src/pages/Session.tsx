@@ -59,6 +59,7 @@ export default function Session() {
   const [editingTime, setEditingTime] = useState(false)
   // Daftar gerakan di luar kategori hari ini — dibuka manual, default tertutup
   const [showOtherEx, setShowOtherEx] = useState(false)
+  const [exQuery, setExQuery] = useState('')
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
@@ -515,9 +516,23 @@ export default function Session() {
 
   // Daftar tambah gerakan polos (alfabetis) — tanpa saran/ranking.
   // Gerakan yang sudah ada di sesi tidak ditampilkan lagi.
+  const usedExerciseIds = new Set(localSets.map((s) => s.exerciseId))
   const poolToAdd = [...addPool]
-    .filter((e) => !new Set(localSets.map((s) => s.exerciseId)).has(e.id))
+    .filter((e) => !usedExerciseIds.has(e.id))
     .sort((a, b) => a.name.localeCompare(b.name))
+  // Cari gerakan: ketik nama / grup otot → hasil dari SEMUA gerakan
+  // (bukan cuma pool hari ini), alfabetis, tanpa yang sudah ada di sesi.
+  const exQueryNorm = exQuery.trim().toLowerCase()
+  const searchResults =
+    exQueryNorm.length === 0
+      ? null
+      : exercises
+          .filter(
+            (e) =>
+              !usedExerciseIds.has(e.id) &&
+              (e.name.toLowerCase().includes(exQueryNorm) || e.muscleGroup.toLowerCase().includes(exQueryNorm)),
+          )
+          .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className="page">
@@ -744,30 +759,60 @@ export default function Session() {
                 atau pakai gerakan kategori lain di bawah.
               </div>
             )}
-            {poolToAdd.length > 0 && (
-              <div className="row wrap">
-                {poolToAdd.map((ex) => (
-                  <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                    + {ex.name}
-                  </button>
-                ))}
-              </div>
-            )}
-            {otherExercises.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <button className="btn sm ghost" onClick={() => setShowOtherEx((v) => !v)}>
-                  {showOtherEx ? '▾' : '▸'} Gerakan kategori lain ({otherExercises.length})
+            <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+              <input
+                className="input"
+                value={exQuery}
+                onChange={(e) => setExQuery(e.target.value)}
+                placeholder="Cari gerakan… (mis. squat, bahu)"
+                aria-label="Cari gerakan"
+              />
+              {exQuery.length > 0 && (
+                <button className="btn sm ghost" onClick={() => setExQuery('')} aria-label="Bersihkan pencarian">
+                  ✕
                 </button>
-                {showOtherEx && (
-                  <div className="row wrap" style={{ marginTop: 8 }}>
-                    {otherExercises.map((ex) => (
+              )}
+            </div>
+            {searchResults !== null ? (
+              searchResults.length === 0 ? (
+                <div className="small muted">Tidak ada gerakan yang cocok dengan “{exQuery.trim()}”.</div>
+              ) : (
+                <div className="row wrap">
+                  {searchResults.map((ex) => (
+                    <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                      + {ex.name}
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              <>
+                {poolToAdd.length > 0 && (
+                  <div className="row wrap">
+                    {poolToAdd.map((ex) => (
                       <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
                         + {ex.name}
                       </button>
                     ))}
                   </div>
                 )}
-              </div>
+                {otherExercises.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <button className="btn sm ghost" onClick={() => setShowOtherEx((v) => !v)}>
+                      {showOtherEx ? '▾' : '▸'} Gerakan kategori lain ({otherExercises.length})
+                    </button>
+                    {showOtherEx && (
+                      <div className="row wrap" style={{ marginTop: 8 }}>
+                        {otherExercises.map((ex) => (
+                          <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                            + {ex.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
