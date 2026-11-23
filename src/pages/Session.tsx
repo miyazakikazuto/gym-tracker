@@ -12,7 +12,6 @@ import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
 import { REHAB_ISO_HOLD_SEC, REHAB_PAIN_STOP, rehabWaveAt, rehabPoolKeys } from '../lib/rehab'
-import { suggestExercises } from '../lib/exerciseSuggestion'
 import Modal from '../components/Modal'
 import DecimalInput from '../components/DecimalInput'
 import type { SessionSet } from '../types'
@@ -514,26 +513,11 @@ export default function Session() {
       .sort((a, b) => a.name.localeCompare(b.name))
   })()
 
-  // Dihitung SEKALI per render — hybrid Opsi A: 6 knee-safe di atas + sisa leg di bawah
-  const LEG_SUGGEST = ['Squat', 'Leg Press', 'Hip Thrust', 'Abductor', 'Adductor', 'Calf Raise']
-  const rankedSuggestions = (() => {
-    const base = suggestExercises(sessions, exercises, addPool, new Set(localSets.map((s) => s.exerciseId)))
-    const cat = (presetByLooseName(session.planName) ?? presetByName(session.planName))?.key
-    if (cat !== 'leg') return base
-    const prio = (name: string) => (LEG_SUGGEST.includes(name) ? 0 : 1)
-    const rank: Record<string, number> = { gap: 0, baru: 1, lupa: 2, biasa: 3 }
-    return [...base].sort((a, b) => {
-      const pa = prio(a.exercise.name)
-      const pb = prio(b.exercise.name)
-      if (pa !== pb) return pa - pb
-      const ra = rank[a.reason] ?? 3
-      const rb = rank[b.reason] ?? 3
-      if (ra !== rb) return ra - rb
-      return (b.daysSinceLast ?? 9999) - (a.daysSinceLast ?? 9999)
-    })
-  })()
-  const suggestBadge = (ex: { muscleGroup: string }, r: string) =>
-    r === 'gap' ? ` · ${ex.muscleGroup} kosong` : r === 'baru' ? ' · baru' : r === 'lupa' ? ' · lama tak dipakai' : ''
+  // Daftar tambah gerakan polos (alfabetis) — tanpa saran/ranking.
+  // Gerakan yang sudah ada di sesi tidak ditampilkan lagi.
+  const poolToAdd = [...addPool]
+    .filter((e) => !new Set(localSets.map((s) => s.exerciseId)).has(e.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className="page">
@@ -760,31 +744,15 @@ export default function Session() {
                 atau pakai gerakan kategori lain di bawah.
               </div>
             )}
-            {(() => {
-              const top = rankedSuggestions.slice(0, 5)
-              const rest = rankedSuggestions.slice(5)
-              if (top.length === 0) return null
-              return (
-                <>
-                  <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Saran untuk {(presetByLooseName(session.planName) ?? presetByName(session.planName))?.name ?? 'sesi ini'}</div>
-                  <div className="row wrap" style={{ marginBottom: rest.length > 0 ? 10 : 0 }}>
-                    {top.map(({ exercise: ex, reason }) => (
-                      <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                        + {ex.name}{suggestBadge(ex, reason)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )
-            })()}
-            <div className="small muted" style={{ marginBottom: 6 }}>{rankedSuggestions.length > 5 ? 'Semua gerakan' : ''}</div>
-            <div className="row wrap">
-              {rankedSuggestions.slice(5).map(({ exercise: ex }) => (
-                <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
-                  + {ex.name}
-                </button>
-              ))}
-            </div>
+            {poolToAdd.length > 0 && (
+              <div className="row wrap">
+                {poolToAdd.map((ex) => (
+                  <button key={ex.id} className="btn sm ghost" onClick={() => addSet(ex.id)}>
+                    + {ex.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {otherExercises.length > 0 && (
               <div style={{ marginTop: 10 }}>
                 <button className="btn sm ghost" onClick={() => setShowOtherEx((v) => !v)}>
