@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PLAN_PRESETS, presetByKey, presetByName, presetByLooseName, stripSticker, isRest, isRestLoose, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise } from './templates'
+import { PLAN_PRESETS, presetByKey, presetByName, presetByLooseName, stripSticker, isRest, isRestLoose, shortLabelFor, dotColorFor, baseCategoryForPresetKey, typeForPresetExercise, newNameForOldPlan } from './templates'
 
 describe('PLAN_PRESETS', () => {
   it('memiliki 9 preset: leg/push/pull/easy/cardio/rest + rehab (leg-iso/leg-light/upper-r)', () => {
@@ -146,5 +146,18 @@ describe('rename split 23 Nov 2026 (key tetap, nama baru)', () => {
     expect(presetByKey('push')?.exercises.map((e) => e.name)).toContain('Overhead Press')
     expect(presetByKey('push')?.exercises.map((e) => e.name)).toContain('Bicep Curl DB')
     expect(presetByKey('push')?.exercises.map((e) => e.name)).not.toContain('Bench Press')
+  })
+})
+
+describe('newNameForOldPlan', () => {
+  it('nama lama → nama baru', () => {
+    expect(newNameForOldPlan('Leg Day')).toBe('Lower')
+    expect(newNameForOldPlan('Push Day')).toBe('Arm & Shoulder')
+    expect(newNameForOldPlan('Pull Day')).toBe('Upper')
+    expect(newNameForOldPlan('Easy Day')).toBe('Full Body')
+  })
+  it('nama baru / bukan preset → undefined', () => {
+    expect(newNameForOldPlan('Lower')).toBeUndefined()
+    expect(newNameForOldPlan('Plan Custom')).toBeUndefined()
   })
 })

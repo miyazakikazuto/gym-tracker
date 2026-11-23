@@ -20,7 +20,7 @@ import {
   patchExerciseCategories,
 } from '../lib/gymstore'
 import { categoryOfExercise, isCountedSession } from '../lib/helpers'
-import { presetByLooseName, presetByName, stripSticker } from '../lib/templates'
+import { presetByLooseName, presetByName, stripSticker, newNameForOldPlan } from '../lib/templates'
 import { todayKey } from '../lib/date'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
 import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
@@ -205,6 +205,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     })
   }, [uid, ready, sessions, settings])
+
+  // Migrasi nama plan lama → nama baru (rename split 23 Nov 2026):
+  // plan "Leg Day" jadi "Lower", "Push Day" → "Arm & Shoulder", dst.
+  // Sekali jalan + idempoten; skip bila nama baru sudah dipakai plan lain
+  // (mis. user sudah bikin "Lower" sendiri) supaya tidak duplikat.
+  const planRenameRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || plans.length === 0 || planRenameRef.current) return
+    const names = new Set(plans.map((p) => p.name))
+    const targets = plans.filter((p) => {
+      const next = newNameForOldPlan(p.name)
+      return next !== undefined && next !== p.name && !names.has(next)
+    })
+    if (targets.length === 0) return
+    planRenameRef.current = true
+    void (async () => {
+      try {
+        const { updatePlan } = await import('../lib/gymstore')
+        for (const p of targets) {
+          const next = newNameForOldPlan(p.name)
+          if (!next) continue
+          const { id, ...rest } = p
+          await updatePlan(uid, id, { ...rest, name: next })
+        }
+        showToast(`Plan diganti nama: ${targets.map((p) => `${p.name} → ${newNameForOldPlan(p.name)}`).join(', ')}`)
+      } catch (err) {
+        console.warn('[DataContext] migrasi nama plan gagal:', err)
+        planRenameRef.current = false
+      }
+    })()
+  }, [uid, ready, plans])
 
   // Sinkronisasi gerakan preset baru ke akun lama (sekali jalan):
   // seed hanya untuk akun kosong + templatePlan di-bypass bila plan sudah ada,

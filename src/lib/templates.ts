@@ -182,6 +182,14 @@ export function presetByName(name: string): PlanPreset | undefined {
     ?? PLAN_PRESETS.find((p) => OLD_PRESET_NAMES[p.key] === name)
 }
 
+// Nama baru untuk plan lama bernama preset lama ("Leg Day" → "Lower").
+// Dipakai migrasi plan di DataContext. undefined = bukan nama lama.
+export function newNameForOldPlan(name: string): string | undefined {
+  const entry = Object.entries(OLD_PRESET_NAMES).find(([, old]) => old === name)
+  if (!entry) return undefined
+  return presetByKey(entry[0])?.name
+}
+
 // Kupas stiker siklus dari nama/label: "[C1-S01] [C1-S01] Leg Day — 3×5"
 // → "Leg Day", "[R1-S05] Leg Rehab Iso — W2" → "Leg Rehab Iso", "Leg Day" → "Leg Day".
 // Dipakai supaya data lama berstiker bisa dinormalisasi ke nama plan polos,

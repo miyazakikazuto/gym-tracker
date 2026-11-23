@@ -4,7 +4,8 @@ import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
 import { buildSession, createSession } from '../lib/gymstore'
-import { isRestLoose, dotColorFor, shortLabelFor, presetByLooseName, stripSticker, PLAN_PRESETS } from '../lib/templates'
+import { isRestLoose, dotColorFor, shortLabelFor, presetByLooseName, presetByName, stripSticker, PLAN_PRESETS } from '../lib/templates'
+import { planForKey } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
 import { computePosition, getScheme, computeExcludedTypes } from '../lib/progression'
 import { rehabFullLabel, REHAB_CYCLE_LENGTH, isRehabSession } from '../lib/rehab'
@@ -98,7 +99,6 @@ export default function History() {
   // harus tetap terhitung sudah dipakai, kalau tidak tombol "+ Leg Day"
   // muncul lagi dan sesi duplikat bisa dibuat di tanggal yang sama.
   const usedPlanNames = daySessions.map((s) => presetByLooseName(s.planName)?.name ?? stripSticker(s.planName))
-  const presetNames = PLAN_PRESETS.map((p) => p.name)
   // Rehab ON: sembunyikan preset bilateral (leg/push/pull/easy) — butuh grip
   // tangan kiri. Tersisa preset rehab + cardio + rest. Custom plans tetap tampil.
   // Rehab OFF (Opsi A): sembunyikan preset rehab dari picker + list
@@ -107,11 +107,13 @@ export default function History() {
     .filter(({ key }) => rehabMode ? REHAB_PRESET_KEYS.includes(key) : !['leg-iso', 'leg-light', 'upper-r'].includes(key))
     .map((preset) => ({
       preset,
-      plan: plans.find((p) => p.name === preset.name),
+      // planForKey menerima nama lama juga — plan "Leg Day" tetap kepakai untuk Lower.
+      plan: planForKey(plans, preset.key),
     }))
     .filter(({ preset }) => !usedPlanNames.includes(preset.name))
-  // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual
-  const customPlans = plans.filter((p) => !presetNames.includes(p.name) && !usedPlanNames.includes(p.name))
+  // Jadwal kustom milik user (bukan preset) — juga bisa dipakai untuk sesi manual.
+  // presetByName alias-aware: plan "Leg Day" bukan kustom, itu Lower.
+  const customPlans = plans.filter((p) => !presetByName(p.name) && !usedPlanNames.includes(p.name))
 
   async function handleCreate(plan: WorkoutPlan | null | undefined, name: string) {
     if (!selKey) return
