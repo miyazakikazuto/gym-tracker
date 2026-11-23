@@ -360,7 +360,9 @@ export default function History() {
                     className="btn ghost wide"
                     style={{ justifyContent: 'flex-start', marginBottom: 8 }}
                     disabled={creating}
-                    onClick={() => void handleCreate(plan, preset.name)}
+                    // Sesi mulai kosong — gerakan ditambah manual di halaman
+                    // sesi. Mode rehab tetap pakai plan (gerakan terprogram).
+                    onClick={() => void handleCreate(settings.rehabMode === true ? plan : null, preset.name)}
                   >
                     + {preset.name}
                   </button>

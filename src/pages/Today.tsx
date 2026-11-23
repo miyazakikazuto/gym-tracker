@@ -189,13 +189,13 @@ export default function Today() {
   const todayDone = todaySessions.some((s) => s.endedAt !== null && !isRestLoose(s.planName))
   const activeSession = sessions.find((s) => s.date === base && s.endedAt === null && !isRestLoose(s.planName))
 
-  // Semua preset (bukan hanya yang plan-nya sudah dibuat) — supaya Lower/
-  // Upper/Arm & Shoulder/Full Body/Cardio selalu bisa dipilih langsung.
-  // Rest Day dikecualikan (ada tombol "Istirahat hari ini").
+  // Semua preset — supaya Lower/Upper/Arm & Shoulder/Full Body/Cardio
+  // selalu bisa dipilih langsung. Rest Day dikecualikan (ada tombol
+  // "Istirahat hari ini").
   // Filter ikut mode: rehab OFF = leg/push/pull/cardio (+easy bila tidak di-exclude),
   // rehab ON = leg-iso/leg-light/upper-r/cardio — item rehab tidak muncul di mode normal.
-  // Kalau plan belum dibuat, sesi tetap bisa dimulai dari template preset
-  // (gerakan dicocokkan dengan library lewat templatePlan).
+  // Sesi mulai kosong — gerakan ditambah manual di halaman sesi.
+  // (templatePlan hanya dipakai mode rehab, yang gerakannya terprogram.)
   const REHAB_PICK_KEYS = ['leg-iso', 'leg-light', 'upper-r', 'cardio']
   const NORMAL_PICK_KEYS = ['leg', 'push', 'pull', 'easy', 'cardio']
   const pickOptions = PLAN_PRESETS
@@ -204,11 +204,8 @@ export default function Today() {
     .map((p) => ({
       key: p.key,
       name: p.name,
-      plan: planForKey(plans, p.key),
       suggested: p.key === effectiveKey,
-      sub: planForKey(plans, p.key)
-        ? `${planForKey(plans, p.key)!.items.length} gerakan · plan`
-        : `${p.exercises.length} gerakan`,
+      sub: '',
     }))
     .sort((a, b) => Number(b.suggested) - Number(a.suggested))
 
@@ -220,7 +217,7 @@ export default function Today() {
   const startLabel = activeSession
     ? 'Lanjutkan sesi hari ini'
     : autoReg
-      ? `Mulai ${effectivePlan?.name ?? effectivePreset?.name ?? effectiveKey} · ${autoIntensityOf(intensity).label}`
+      ? `Mulai ${effectivePreset?.name ?? effectiveKey} · ${autoIntensityOf(intensity).label}`
       : `Mulai ${rehabMode ? rehabLbl : cycleLabel}`
 
   // Plan virtual dari preset — dipakai saat belum ada plan tersimpan.
@@ -347,13 +344,13 @@ export default function Today() {
       navigate(`/session/${activeSession.id}`)
       return
     }
-    // Tanpa plan tersimpan pun langsung mulai — dari template preset,
-    // bukan dipaksa bikin jadwal mingguan dulu.
-    const plan = effectivePlan ?? (effectivePreset ? await templatePlan(effectivePreset) : undefined)
+    // Sesi mulai kosong — gerakan ditambah manual di halaman sesi.
+    // Mode rehab tetap pakai plan/template (gerakan iso-nya terprogram).
+    const plan = rehabMode ? effectivePlan ?? (effectivePreset ? await templatePlan(effectivePreset) : undefined) : null
     // Nama ikut plan polos ("Lower") — JANGAN oper cycleLabel 5/3/1
     // ("[C1-S01] Lower — 3×5"), itu yang bikin planName berstiker dan
     // cycleLabel ganda. Stiker siklus dihitung di createAndOpen.
-    void createAndOpen(plan, rehabMode ? undefined : plan?.name, false, autoReg ? intensity : undefined)
+    void createAndOpen(plan, rehabMode ? undefined : (effectivePreset?.name ?? effectiveKey), false, autoReg ? intensity : undefined)
   }
 
   async function handleSkip() {
@@ -485,7 +482,7 @@ export default function Today() {
             ) : (
               <>
                 <div className="suggest-big">
-                  <span className="dot" style={{ background: effectivePlan ? dotColorFor(effectivePlan.name) : 'var(--accent)' }} />
+                  <span className="dot" style={{ background: dotColorFor(effectivePreset?.name ?? '') ?? 'var(--accent)' }} />
                   <span className="name">{effectivePreset?.shortLabel ?? effectiveKey.toUpperCase()}</span>
                 </div>
                 <div className="small" style={{ fontWeight: 800, marginBottom: 2 }}>
@@ -512,32 +509,6 @@ export default function Today() {
                     : 'Belum ada sesi — rotasi mulai dari Leg'}
                   {sug.isNightLight && ' · disarankan ringan (shift malam)'}
                 </div>
-                {!effectivePlan ? (
-                  // Belum ada plan tersimpan — tampilkan gerakan preset
-                  // (template 3 × 10); Mulai langsung pakai ini.
-                  effectivePreset?.exercises.map((pe, i) => (
-                    <div className="row" key={i} style={{ padding: '5px 0' }}>
-                      <span className="num">{i + 1}.</span>
-                      <span className="grow">{pe.name}</span>
-                      <span className="badge">
-                        3 × 10{typeForPresetExercise(pe.name, pe.muscleGroup) === 'duration' ? ' dtk' : ''}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  effectivePlan.items.map((it, i) => {
-                    const ex = exercises.find((e) => e.id === it.exerciseId)
-                    return (
-                      <div className="row" key={i} style={{ padding: '5px 0' }}>
-                        <span className="num">{i + 1}.</span>
-                        <span className="grow">{ex?.name ?? 'Gerakan'}</span>
-                        <span className="badge">
-                          {it.targetSets} × {it.reps}{exerciseIsDuration(exercises, it.exerciseId) ? ' dtk' : ''}
-                        </span>
-                      </div>
-                    )
-                  })
-                )}
                 <div style={{ height: 10 }} />
                 {autoReg && !restToday && (
                   <>
@@ -604,9 +575,8 @@ export default function Today() {
                       disabled={creating || !!activeSession}
                       onClick={async () => {
                         if (activeSession) { navigate(`/session/${activeSession.id}`); return }
-                        const p = planForKey(plans, k) ?? (await templatePlan(preset))
                         const already = done
-                        void createAndOpen(p, preset.name, false).then(() => {
+                        void createAndOpen(null, preset.name, false).then(() => {
                           if (already) showToast(`${preset.shortLabel} sudah di week ini — tetap 1`)
                         })
                       }}
@@ -767,9 +737,7 @@ export default function Today() {
                 className={'opt' + (o.suggested ? ' suggested' : '')}
                 onClick={async () => {
                   setShowPick(false)
-                  const preset = PLAN_PRESETS.find((p) => p.key === o.key)!
-                  const plan = o.plan ?? (await templatePlan(preset))
-                  void createAndOpen(plan, o.name, false)
+                  void createAndOpen(null, o.name, false)
                 }}
               >
                 {o.name}{o.suggested && <span className="tag" style={{ marginLeft: 6 }}>saran</span>}
