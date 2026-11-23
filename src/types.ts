@@ -14,10 +14,10 @@ export const EXERCISE_TYPES = [
 ] as const
 
 export const EXERCISE_CATEGORIES = [
-  { key: 'leg', name: 'Leg', shortLabel: 'LEG' },
-  { key: 'push', name: 'Push', shortLabel: 'PUSH' },
-  { key: 'pull', name: 'Pull', shortLabel: 'PULL' },
-  { key: 'easy', name: 'Easy Day', shortLabel: 'EASY' },
+  { key: 'leg', name: 'Lower', shortLabel: 'LOW' },
+  { key: 'push', name: 'Arm & Shoulder', shortLabel: 'ARM' },
+  { key: 'pull', name: 'Upper', shortLabel: 'UPP' },
+  { key: 'easy', name: 'Full Body', shortLabel: 'FULL' },
   { key: 'cardio', name: 'Cardio', shortLabel: 'CARDIO' },
 ] as const
 
