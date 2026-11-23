@@ -1,9 +1,19 @@
+import { useData } from '../context/DataContext'
 import { volumeOf } from '../lib/date'
 import { fmtNumber } from '../lib/helpers'
 import { autoIntensityOf } from '../lib/autoreg'
 import type { Session } from '../types'
 
 export default function SessionRow({ s, onOpen }: { s: Session; onOpen: () => void }) {
+  const { settings } = useData()
+  // Label siklus 5/3/1 ("[C6-S12] Upper — Deload") cuma tampil bila mode
+  // 5/3/1 aktif — di mode autoregulasi disembunyikan, sama seperti di
+  // halaman sesi.
+  const tm = settings.trainingMax
+  const is531Active =
+    settings.autoRegMode !== true &&
+    settings.rehabMode !== true &&
+    !!(tm && (tm.squat > 0 || tm.bench > 0 || tm.deadlift > 0))
   const vol = volumeOf(s.sets)
   const topKg = s.sets.reduce((m, x) => Math.max(m, x.weightKg), 0)
   const km = s.sets.reduce((m, x) => m + (x.distanceKm ?? 0), 0)
@@ -12,7 +22,7 @@ export default function SessionRow({ s, onOpen }: { s: Session; onOpen: () => vo
     <div className="card" onClick={onOpen} style={{ cursor: 'pointer' }}>
       <div className="row spread">
         <b>{name}</b>
-        <span className="small muted">{s.cycleLabel ?? ''} {s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
+        <span className="small muted">{is531Active && s.cycleLabel ? `${s.cycleLabel} ` : ''}{s.date.slice(8, 10)}/{s.date.slice(5, 7)}/{s.date.slice(0, 4)}</span>
       </div>
       <div className="row" style={{ marginTop: 8, gap: 6 }}>
         {s.isExtra && <span className="badge warn">Extra</span>}
