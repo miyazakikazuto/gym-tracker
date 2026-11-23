@@ -180,3 +180,9 @@ export function moveExerciseSets(sets: SessionSet[], exerciseId: string, dir: -1
   }
   return order.flatMap((ex) => (byEx.get(ex) ?? []).slice().sort((a, b) => a.setNumber - b.setNumber))
 }
+
+// Balik flag boolean untuk satu id dalam record; kembalikan record baru.
+// Dipakai untuk hide/unhide kotak "Tambah set cepat" per gerakan.
+export function toggleFlag(map: Record<string, boolean>, id: string): Record<string, boolean> {
+  return { ...map, [id]: !map[id] }
+}

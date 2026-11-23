@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets, moveExerciseSets } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets, moveExerciseSets, toggleFlag } from './helpers'
 import { parseDecimal } from './parse'
 import type { Exercise, Session, SessionSet } from '../types'
 
@@ -258,5 +258,21 @@ describe('moveExerciseSets (pindah urutan gerakan ↑ ↓)', () => {
     expect(r.filter((s) => s.exerciseId === 'exA').map((s) => [s.setNumber, s.weightKg]))
       .toEqual([[1, 10], [2, 10]])
     expect(r.map((s) => s.id)).toEqual(['b1', 'a1', 'a2', 'c1'])
+  })
+})
+
+describe('toggleFlag (hide/unhide tambah set cepat)', () => {
+  it('id belum ada → true', () => {
+    expect(toggleFlag({}, 'exA')).toEqual({ exA: true })
+  })
+  it('true → false dan sebaliknya', () => {
+    expect(toggleFlag({ exA: true }, 'exA')).toEqual({ exA: false })
+    expect(toggleFlag({ exA: false }, 'exA')).toEqual({ exA: true })
+  })
+  it('id lain tidak berubah, record lama tidak dimutasi', () => {
+    const m = { exA: true, exB: false }
+    const r = toggleFlag(m, 'exB')
+    expect(r).toEqual({ exA: true, exB: true })
+    expect(m).toEqual({ exA: true, exB: false })
   })
 })

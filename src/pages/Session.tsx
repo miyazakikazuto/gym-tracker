@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession, renumberExerciseSets, moveExerciseSets } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession, renumberExerciseSets, moveExerciseSets, toggleFlag } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
 import { autoIntensityOf, autoPrefillWeight } from '../lib/autoreg'
@@ -87,6 +87,8 @@ export default function Session() {
   // Daftar gerakan di luar kategori hari ini — dibuka manual, default tertutup
   const [showOtherEx, setShowOtherEx] = useState(false)
   const [exQuery, setExQuery] = useState('')
+  // Kotak "Tambah set cepat" yang disembunyikan per gerakan (sementara, selama halaman sesi dibuka).
+  const [quickAddHidden, setQuickAddHidden] = useState<Record<string, boolean>>({})
   const lastWrittenRef = useRef('')
   const lastWrittenSetsRef = useRef<SessionSet[] | null>(null)
   const pendingCount = useRef(0)
@@ -238,6 +240,11 @@ export default function Session() {
     },
     [scheduleSync],
   )
+
+  // Sembunyikan / tampilkan kotak "Tambah set cepat" per gerakan.
+  const toggleQuickAdd = useCallback((exerciseId: string) => {
+    setQuickAddHidden((cur) => toggleFlag(cur, exerciseId))
+  }, [])
 
   const restoreDeleted = useCallback(() => {
     const d = undoRef.current
@@ -860,7 +867,14 @@ export default function Session() {
             )
           })}
           {!cardio && !dur && (
-            <QuickAddSets prefill={quickPrefill(exId)} onAdd={(weights, reps) => addQuickSets(exId, weights, reps)} />
+            <>
+              <div style={{ display: quickAddHidden[exId] ? 'none' : undefined }}>
+                <QuickAddSets prefill={quickPrefill(exId)} onAdd={(weights, reps) => addQuickSets(exId, weights, reps)} onHide={() => toggleQuickAdd(exId)} />
+              </div>
+              {quickAddHidden[exId] && (
+                <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => toggleQuickAdd(exId)} aria-label="Tampilkan tambah set cepat">▸ Tambah set cepat</button>
+              )}
+            </>
           )}
 
         </div>
@@ -1069,9 +1083,10 @@ function DurInputs({ value, onChange }: { value: number; onChange: (sec: number)
 // Tambah-set-cepat: slider jumlah set (1–7) + beban awal & puncak + reps
 // sekali isi. Bobot tiap set = ramp awal → puncak (lihat setRamp.ts).
 // Set yang sudah dibuat tetap bisa diubah satu-satu di barisnya.
-function QuickAddSets({ prefill, onAdd }: {
+function QuickAddSets({ prefill, onAdd, onHide }: {
   prefill: { w: number; r: number }
   onAdd: (weights: number[], reps: number) => void
+  onHide: () => void
 }) {
   const [count, setCount] = useState(3)
   const [startW, setStartW] = useState(prefill.w)
@@ -1083,6 +1098,7 @@ function QuickAddSets({ prefill, onAdd }: {
       <div className="row spread small muted" style={{ marginBottom: 2 }}>
         <span>Tambah set cepat</span>
         <span>{count} set</span>
+        <button className="btn sm ghost" onClick={onHide} aria-label="Sembunyikan tambah set cepat">Sembunyikan</button>
       </div>
       <input
         type="range"
