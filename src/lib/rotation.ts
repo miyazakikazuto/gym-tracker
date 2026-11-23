@@ -3,9 +3,12 @@ import { presetByName, presetByLooseName, presetByKey, OLD_PRESET_NAMES } from '
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
-// Urutan default: Lower → Upper (dada+back ringan) → Arm & Shoulder → Full Body.
+// Urutan default: Lower → Upper (dada+back ringan) → Arm & Shoulder.
+// Full Body TIDAK masuk rotasi — cuma untuk ngejar volume mingguan /
+// maintain otot (mis. saat fokus cardio keras seperti naik gunung).
+// Full Body tetap bisa dipilih manual lewat "Pilih plan lain" / kalender.
 // User bisa mengubah urutan di Pengaturan.
-const DEFAULT_ROTATION = ['leg', 'pull', 'push', 'easy']
+const DEFAULT_ROTATION = ['leg', 'pull', 'push']
 // Rotasi default lama (sebelum rename 23 Nov 2026): Leg → Easy → Push → Pull.
 const LEGACY_DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
 
@@ -18,12 +21,14 @@ export function rotationOf(settings: Partial<UserSettings>): RotationState {
   const saved = settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION
   // Migrasi sekali jalan: yang belum pernah ubah urutan (masih default lama)
   // ikut urutan baru. Yang sudah ubah sendiri tidak disentuh.
-  const rotation =
-    saved.length === LEGACY_DEFAULT_ROTATION.length && saved.every((k, i) => k === LEGACY_DEFAULT_ROTATION[i])
-      ? DEFAULT_ROTATION
-      : saved
+  if (saved.length === LEGACY_DEFAULT_ROTATION.length && saved.every((k, i) => k === LEGACY_DEFAULT_ROTATION[i])) {
+    return { rotation: DEFAULT_ROTATION, anchor: resolveShiftAnchor(settings.shiftAnchor) }
+  }
+  // Full Body keluar dari rotasi — buang 'easy' dari rotasi simpanan apa pun;
+  // kalau kosong, pakai default.
+  const filtered = saved.filter((k) => k !== 'easy')
   return {
-    rotation,
+    rotation: filtered.length > 0 ? filtered : DEFAULT_ROTATION,
     anchor: resolveShiftAnchor(settings.shiftAnchor),
   }
 }

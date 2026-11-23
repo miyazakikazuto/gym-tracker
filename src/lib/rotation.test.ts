@@ -73,13 +73,19 @@ describe('daysSinceLast', () => {
 describe('rotationOf defaults', () => {
   it('tanpa settings → rotasi default & anchor default', () => {
     const r = rotationOf({})
-    expect(r.rotation).toEqual(['leg', 'pull', 'push', 'easy'])
+    expect(r.rotation).toEqual(['leg', 'pull', 'push'])
     expect(r.anchor).toBe('2026-08-12')
   })
 
   it('rotasi default lama dimigrasi ke urutan baru; yang sudah diubah sendiri tidak disentuh', () => {
-    expect(rotationOf({ rotation: ['leg', 'easy', 'push', 'pull'] }).rotation).toEqual(['leg', 'pull', 'push', 'easy'])
-    expect(rotationOf({ rotation: ['pull', 'leg', 'push', 'easy'] }).rotation).toEqual(['pull', 'leg', 'push', 'easy'])
+    expect(rotationOf({ rotation: ['leg', 'easy', 'push', 'pull'] }).rotation).toEqual(['leg', 'pull', 'push'])
+    expect(rotationOf({ rotation: ['pull', 'leg', 'push'] }).rotation).toEqual(['pull', 'leg', 'push'])
+  })
+
+  it('Full Body tidak pernah masuk rotasi (cuma volume/maintain, bukan hari rutin)', () => {
+    expect(rotationOf({}).rotation).not.toContain('easy')
+    expect(rotationOf({ rotation: ['leg', 'pull', 'push', 'easy'] }).rotation).toEqual(['leg', 'pull', 'push'])
+    expect(rotationOf({ rotation: ['easy'] }).rotation).toEqual(['leg', 'pull', 'push'])
   })
 
   it('stale anchor 2026-08-15 diganti default', () => {
@@ -95,8 +101,8 @@ describe('suggestKey', () => {
   it('lanjut dari sesi terakhir yang selesai', () => {
     // Lower selesai → berikutnya Upper
     expect(suggestKey({}, [mkSession()]).key).toBe('pull')
-    // Arm & Shoulder selesai → berikutnya Full Body
-    expect(suggestKey({}, [mkSession({ planName: 'Push Day' })]).key).toBe('easy')
+    // Arm & Shoulder selesai → balik ke Lower (rotasi 3 hari)
+    expect(suggestKey({}, [mkSession({ planName: 'Push Day' })]).key).toBe('leg')
   })
 
   it('sesi Rest tidak menggeser rotasi', () => {
