@@ -106,7 +106,7 @@ export interface UserSettings {
   skippedSessions?: number // jumlah sesi yang di-skip (posisi tetap maju)
   rehabMode?: boolean // true = Mode Rehab: 5/3/1 & TM dimatikan, saran ikut REHAB_CYCLE (lib/rehab.ts)
   autoRegMode?: boolean // true = Mode Autoregulasi: 5/3/1 & TM dimatikan, tiap sesi pilih intensitas (Ringan/Sedang/Berat) sesuai kondisi fisik (lib/autoreg.ts)
-  freeOrder?: boolean // true = Week-3 Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+  freeOrder?: boolean // true = Week-3 Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1
   freeOrderSince?: string // YYYY-MM-DD jangkar mulai Week-3 (biar Week tidak loncat ke 13)
   freeOrderOffset?: number // counted snapshot saat ON (untuk hitung Week dari 1)
 }

@@ -469,7 +469,7 @@ export default function Today() {
                 <div className="suggest-meta">Sudah selesai hari ini — tidak ada saran tambahan.</div>
                 <div className="small muted" style={{ marginTop: 4 }}>
                   {freeOrder && freeProg ? (
-                    freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'} · wave ${cycleScheme?.label ?? '—'} tetap urut`
+                    freeProg.isWeekComplete ? `Week-${freeProg.cycle} 3/3 ✓ — next sesi otomatis Week-${freeProg.cycle + 1}` : `Sesi berikutnya (bebas): ${freeNext ? presetByKey(freeNext)?.shortLabel : '—'}`
                   ) : autoReg ? (
                     <>Sesi berikutnya: {presetByKey(sug.key)?.name ?? sug.key} — autoregulasi, intensitas ikut kondisi</>
                   ) : (
@@ -562,7 +562,7 @@ export default function Today() {
               <div className="card-title">
                 Week-{freeProg!.cycle} <span className="badge accent">{freeProg!.progress}</span>
               </div>
-              <div className="small muted" style={{ marginBottom: 8 }}>Bebas urut · wave {cycleScheme?.label ?? '—'} tetap urut</div>
+              <div className="small muted" style={{ marginBottom: 8 }}>Bebas urut · 3 hari dalam seminggu</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                 {FREE_WEEK_KEYS.map((k) => {
                   const preset = presetByKey(k)!

@@ -275,7 +275,7 @@ export default function Settings() {
             {settings.freeOrder ? (
               <>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Week-3 bebas: <b>Upper / Arm & Shoulder / Lower</b> bebas urut, hitam kalau selesai. Harus <b>3/3</b> baru bisa Lanjut week — duplicate dihitung 1. 5/3/1 wave tetap urut.
+                  Week-3 bebas: <b>Upper / Arm & Shoulder / Lower</b> bebas urut, hitam kalau selesai. Harus <b>3/3</b> baru bisa Lanjut week — duplicate dihitung 1.
                 </div>
                 <div className="small" style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {['pull', 'push', 'leg'].map((k) => (

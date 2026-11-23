@@ -96,7 +96,7 @@ export function planForKey(plans: WorkoutPlan[], key: string): WorkoutPlan | und
   return plans.find((p) => p.name === preset.name || p.name === (OLD_PRESET_NAMES[key] ?? ''))
 }
 
-// Mode bebas Week-3: Upper/Arm & Shoulder/Lower bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+// Mode bebas Week-3: Upper/Arm & Shoulder/Lower bebas urut, 3/3 baru lanjut, duplicate=1
 export const FREE_WEEK_KEYS = ['pull', 'push', 'leg'] as const
 
 export function freeNextKey(doneKeys: Set<string>): string | null {
