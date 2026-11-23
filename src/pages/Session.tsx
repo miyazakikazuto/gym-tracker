@@ -8,6 +8,7 @@ import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetRes
 import { e1rm } from '../lib/e1rm'
 import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
 import { autoIntensityOf, autoPrefillWeight } from '../lib/autoreg'
+import { rampWeights } from '../lib/setRamp'
 import { deleteField } from 'firebase/firestore'
 import { getPrescribedWeights, getScheme, getSbdLiftForSession, computeExcludedTypes, computePosition } from '../lib/progression'
 import { formatSessionForAI, findPrevSessionsByExercise } from '../lib/sessionSummary'
@@ -432,6 +433,40 @@ export default function Session() {
     ])
   }
 
+  // Prefill tambah-set-cepat: set terakhir sesi ini → set terbaik sesi lalu
+  // (× faktor intensitas kalau autoregulasi). Awal & puncak mulai dari nilai
+  // yang sama (ramp datar) sampai user mengubahnya.
+  function quickPrefill(exerciseId: string): { w: number; r: number } {
+    const prev = localSets
+      .filter((s) => s.exerciseId === exerciseId)
+      .slice()
+      .sort((a, b) => b.setNumber - a.setNumber)[0]
+    if (prev) return { w: prev.weightKg, r: prev.reps }
+    const best = bestSetResult(sessions, sid, exerciseId)
+    if (!best) return { w: 0, r: 0 }
+    const w = settings.autoRegMode === true && session?.intensity
+      ? autoPrefillWeight(best.weightKg, session.intensity)
+      : best.weightKg
+    return { w, r: best.reps }
+  }
+
+  // Buat N set sekaligus dengan bobot ramp awal → puncak (lihat setRamp.ts).
+  function addQuickSets(exerciseId: string, weights: number[], reps: number) {
+    const maxNo = localSets
+      .filter((s) => s.exerciseId === exerciseId)
+      .reduce((m, s) => Math.max(m, s.setNumber), 0)
+    mutateSets([
+      ...localSets,
+      ...weights.map((weightKg, i) => ({
+        id: makeSetId(),
+        exerciseId,
+        setNumber: maxNo + i + 1,
+        weightKg,
+        reps,
+      })),
+    ])
+  }
+
   function patchNote(next: string) {
     setNote(next)
     const trimmed = next.trim()
@@ -802,6 +837,9 @@ export default function Session() {
               />
             )
           })}
+          {!cardio && !dur && (
+            <QuickAddSets prefill={quickPrefill(exId)} onAdd={(weights, reps) => addQuickSets(exId, weights, reps)} />
+          )}
 
         </div>
         )
@@ -1002,6 +1040,67 @@ function DurInputs({ value, onChange }: { value: number; onChange: (sec: number)
         onChange={(e) => onChange(h * 3600 + m * 60 + num(e.target.value, 0, 59))}
       />
       <span className="small muted">dtk</span>
+    </div>
+  )
+}
+
+// Tambah-set-cepat: slider jumlah set (1–7) + beban awal & puncak + reps
+// sekali isi. Bobot tiap set = ramp awal → puncak (lihat setRamp.ts).
+// Set yang sudah dibuat tetap bisa diubah satu-satu di barisnya.
+function QuickAddSets({ prefill, onAdd }: {
+  prefill: { w: number; r: number }
+  onAdd: (weights: number[], reps: number) => void
+}) {
+  const [count, setCount] = useState(3)
+  const [startW, setStartW] = useState(prefill.w)
+  const [peakW, setPeakW] = useState(prefill.w)
+  const [reps, setReps] = useState(prefill.r)
+  const preview = rampWeights(startW, peakW, count)
+  return (
+    <div style={{ border: '1px dashed var(--border)', borderRadius: 10, padding: '10px 12px', marginTop: 8 }}>
+      <div className="row spread small muted" style={{ marginBottom: 2 }}>
+        <span>Tambah set cepat</span>
+        <span>{count} set</span>
+      </div>
+      <input
+        type="range"
+        min={1}
+        max={7}
+        step={1}
+        value={count}
+        onChange={(e) => setCount(Number(e.target.value))}
+        aria-label="Jumlah set"
+        style={{ width: '100%', accentColor: 'var(--accent)' }}
+      />
+      <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+        <label className="small muted" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Awal (kg)
+          <DecimalInput value={startW} onCommit={(n) => setStartW(n)} placeholder="0" ariaLabel="Beban awal kg" />
+        </label>
+        <label className="small muted" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Puncak (kg)
+          <DecimalInput value={peakW} onCommit={(n) => setPeakW(n)} placeholder="0" ariaLabel="Beban puncak kg" />
+        </label>
+        <label className="small muted" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Rep
+          <input
+            className="wt"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={reps || ''}
+            placeholder="0"
+            aria-label="Rep per set"
+            onChange={(e) => setReps(Number(e.target.value))}
+          />
+        </label>
+        <button className="btn sm" style={{ alignSelf: 'flex-end' }} onClick={() => onAdd(preview, reps)}>
+          ＋ Buat {count} set
+        </button>
+      </div>
+      <div className="small muted" style={{ marginTop: 6 }}>
+        {preview.map((w) => fmtNumber(w)).join(' → ')} kg · {reps || 0} rep/set
+      </div>
     </div>
   )
 }
