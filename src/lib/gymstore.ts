@@ -353,6 +353,13 @@ export function removeShiftOverride(uid: string, date: string) {
   return updateDoc(settingsRef(uid), { [`shiftOverride.${date}`]: deleteField() })
 }
 
+// Hapus satu keterangan shift.
+// Sama seperti removeShiftOverride: setDoc merge tidak menghapus key map
+// yang absen — harus pakai deleteField() via updateDoc.
+export function removeShiftNote(uid: string, date: string) {
+  return updateDoc(settingsRef(uid), { [`shiftNote.${date}`]: deleteField() })
+}
+
 // ===== IMPORT BACKUP (restore) =====
 // Tulis ulang data backup dengan ID asli (setDoc, bukan addDoc) supaya referensi
 // antar dokumen (session.planId, set.exerciseId, planItem.exerciseId) tetap utuh.

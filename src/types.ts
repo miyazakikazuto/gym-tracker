@@ -93,6 +93,7 @@ export interface UserSettings {
   weightTarget: number | null // target berat badan (kg) — null = tanpa target
   weightTargetBase: number | null // berat awal saat target diset (baseline kemajuan)
   shiftOverride: Record<string, string> // tanggal 'YYYY-MM-DD' → 'pagi'|'siang'|'malam'|'libur'|'cuti'|'backup'|'tukar' (timpa manual per hari)
+  shiftNote?: Record<string, string> // tanggal 'YYYY-MM-DD' → keterangan timpaan shift (mis. 'Pagi→Sore, libur 20 Nov')
 
   // 5/3/1 Wendler periodization
   cycleNumber: number // cycle saat ini (1-based)

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
-import { buildSession, createSession, removeShiftOverride } from '../lib/gymstore'
+import { buildSession, createSession, removeShiftOverride, removeShiftNote } from '../lib/gymstore'
 import { isRestLoose, dotColorFor, shortLabelFor, presetByLooseName, presetByName, stripSticker, PLAN_PRESETS } from '../lib/templates'
 import { planForKey } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
@@ -338,6 +338,29 @@ export default function History() {
                 </button>
               </div>
             )}
+            <div className="small muted" style={{ marginBottom: 6 }}>
+              Keterangan shift (opsional):
+            </div>
+            <input
+              key={selKey}
+              className="input"
+              defaultValue={settings.shiftNote?.[selKey] ?? ''}
+              placeholder="mis. Pagi→Sore, libur 20 Nov"
+              aria-label="Keterangan shift"
+              onBlur={(e) => {
+                const t = e.target.value.trim()
+                if (t) saveSettings({ shiftNote: { ...settings.shiftNote, [selKey]: t } })
+                else if (settings.shiftNote?.[selKey]) {
+                  removeShiftNote(uid, selKey).catch(() =>
+                    showToast('Gagal menghapus keterangan — cek koneksi internet', 'error'),
+                  )
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              }}
+              style={{ marginBottom: 12 }}
+            />
 
             {daySessions.length > 0 && (
               <>
