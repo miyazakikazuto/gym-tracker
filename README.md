@@ -3,8 +3,8 @@
 Aplikasi tracking jadwal & log latihan gym — pribadi, multi-perangkat (HP + PC).
 
 - **Frontend**: React + Vite + TypeScript (SPA, GitHub Pages)
-- **Backend**: Firebase project `xauusd-jurnal` (Auth email + Firestore, path `users/{uid}/gym/**`)
-- **Tanpa login multi-user** — satu akun email untuk semua perangkat. Data terisolasi dari app XAUUSD di project yang sama.
+- **Backend**: Firebase project `gym-tracker-db-53d67` (Auth email + Firestore, path `users/{uid}/gym/**`)
+- **Tanpa login multi-user** — satu akun email untuk semua perangkat. Project Firebase ini khusus gym-tracker, terpisah dari project XAUUSD (`xauusd-jurnal`) sejak 14 Okt 2026.
 
 ## Fitur
 
@@ -63,15 +63,15 @@ Alur kerja: kerja & push di `freebuff` untuk uji fitur baru (URL tetap langsung 
 
 Rules source of truth: `firestore.rules` (di repo ini).
 
-Path `users/{uid}/...` digunakan bersama project `xauusd-jurnal` (app XAUUSD). Pastikan rules tidak saling bentrok.
+Path `users/{uid}/...` hanya dipakai di project `gym-tracker-db-53d67` (pisah dari `xauusd-jurnal` sejak 14 Okt 2026). Tidak lagi berbagi dengan app XAUUSD.
 
 ### Verifikasi rules lama
-1. Buka Firebase Console → project `xauusd-jurnal` → Firestore → Rules
-2. Pastikan ada `match /users/{uid}/{document=**}` dengan rule `allow read, write: if request.auth.uid == uid`
+1. Buka Firebase Console → project `gym-tracker-db-53d67` → Firestore → Rules
+2. Pastikan ada `match /users/{userId}/{document=**}` dengan rule `allow read, write: if request.auth != null && request.auth.uid == userId`
 3. Jika rules kosong/longgar → deploy rules baru (lihat di bawah)
 
 ### Deploy
 - **Via CLI:** `npx firebase-tools deploy --only firestore:rules` (butuh login `npx firebase-tools login` terlebih dulu)
 - **Manual:** salin isi `firestore.rules` → paste di Firebase Console → Firestore → Rules → Publish
 
-> **Status saat ini:** Rules di console sudah benar — `users/{userId}/{document=**}` dengan `request.auth.uid == userId`. File ini di-sync sebagai source of truth.
+> **Status saat ini:** Rules di console sudah benar — `users/{userId}/{document=**}` dengan `request.auth.uid == userId` (project `gym-tracker-db-53d67`). File ini di-sync sebagai source of truth.
