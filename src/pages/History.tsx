@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
 import { parseKey, todayKey, formatDMYWIB, MONTHS, dayOfWeek } from '../lib/date'
-import { buildSession, createSession } from '../lib/gymstore'
+import { buildSession, createSession, removeShiftOverride } from '../lib/gymstore'
 import { isRestLoose, dotColorFor, shortLabelFor, presetByLooseName, presetByName, stripSticker, PLAN_PRESETS } from '../lib/templates'
 import { planForKey } from '../lib/rotation'
 import { shiftForDate, SHIFT_LABELS, SHIFT_COLORS, SHIFT_TYPES } from '../lib/shift'
@@ -27,7 +27,7 @@ function monthGrid(year: number, month: number): (string | null)[] {
 }
 
 export default function History() {
-  const { sessions, plans, exercises, settings, saveSettings } = useData()
+  const { sessions, plans, exercises, settings, saveSettings, showToast } = useData()
   const uid = useUid()
   const navigate = useNavigate()
 
@@ -324,9 +324,11 @@ export default function History() {
                   className="btn sm ghost"
                   style={{ marginLeft: 4 }}
                   onClick={() => {
-                    const o = { ...settings.shiftOverride }
-                    delete o[selKey]
-                    saveSettings({ shiftOverride: o })
+                    // Jangan hapus key lalu saveSettings: setDoc merge tidak
+                    // menghapus key map yang absen — override akan tetap ada.
+                    removeShiftOverride(uid, selKey).catch(() =>
+                      showToast('Gagal mengembalikan — cek koneksi internet', 'error'),
+                    )
                   }}
                 >
                   Kembalikan ke siklus otomatis

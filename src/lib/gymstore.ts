@@ -4,6 +4,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   getDocs,
   onSnapshot,
   setDoc,
@@ -342,6 +343,14 @@ export function subscribeSettings(uid: string, cb: (s: Partial<UserSettings>) =>
 
 export function updateSettings(uid: string, patch: Partial<UserSettings>) {
   return setDoc(settingsRef(uid), patch, { merge: true })
+}
+
+// Hapus satu override shift (tanggal kembali ikut siklus otomatis).
+// setDoc merge TIDAK menghapus key map yang absen dari patch — key yang
+// di-delete lokal tetap tersimpan di Firestore — jadi harus pakai
+// deleteField() via updateDoc dengan path 'shiftOverride.<tanggal>'.
+export function removeShiftOverride(uid: string, date: string) {
+  return updateDoc(settingsRef(uid), { [`shiftOverride.${date}`]: deleteField() })
 }
 
 // ===== IMPORT BACKUP (restore) =====
