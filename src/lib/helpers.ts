@@ -158,3 +158,25 @@ export function renumberExerciseSets(sets: SessionSet[], exerciseId: string): Se
     s.exerciseId === exerciseId && nextNo.has(s.id) ? { ...s, setNumber: nextNo.get(s.id)! } : s,
   )
 }
+
+// Pindah urutan satu gerakan dalam sesi (naik/turun satu posisi) —
+// mis. Bench Press yang kelupaan dan baru ditambah belakangan bisa
+// dipindah ke atas. Urutan gerakan = urutan kemunculan pertama set-nya
+// di array; set dalam satu gerakan tetap berurutan menurut nomor set-nya.
+// Di ujung (paling atas/bawah) atau gerakan tidak dikenal: tidak berubah
+// (referensi array yang sama dikembalikan).
+export function moveExerciseSets(sets: SessionSet[], exerciseId: string, dir: -1 | 1): SessionSet[] {
+  const order: string[] = []
+  for (const s of sets) if (!order.includes(s.exerciseId)) order.push(s.exerciseId)
+  const i = order.indexOf(exerciseId)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= order.length) return sets
+  ;[order[i], order[j]] = [order[j], order[i]]
+  const byEx = new Map<string, SessionSet[]>()
+  for (const s of sets) {
+    const arr = byEx.get(s.exerciseId) ?? []
+    arr.push(s)
+    byEx.set(s.exerciseId, arr)
+  }
+  return order.flatMap((ex) => (byEx.get(ex) ?? []).slice().sort((a, b) => a.setNumber - b.setNumber))
+}

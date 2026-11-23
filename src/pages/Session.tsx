@@ -4,7 +4,7 @@ import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { updateSession, deleteSession, makeSetId } from '../lib/gymstore'
 import { formatHM, formatDMYWIB, parseKey, isNoonPlaceholder } from '../lib/date'
-import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession, renumberExerciseSets } from '../lib/helpers'
+import { getExerciseName, categoryKeysOfExercise, exerciseIsDuration, bestSetResult, fmtNumber, isCountedSession, normalizeRestSession, renumberExerciseSets, moveExerciseSets } from '../lib/helpers'
 import { e1rm } from '../lib/e1rm'
 import { presetByName, presetByLooseName, stripSticker, isRestLoose } from '../lib/templates'
 import { autoIntensityOf, autoPrefillWeight } from '../lib/autoreg'
@@ -220,6 +220,20 @@ export default function Session() {
           undoRef.current = null
           setUndoDelete(null)
         }, 5000)
+      })
+    },
+    [scheduleSync],
+  )
+
+  // Pindah urutan satu gerakan dalam sesi (naik/turun satu posisi) —
+  // gerakan yang kelupaan dan baru ditambah belakangan bisa dipindah ke atas.
+  const moveExercise = useCallback(
+    (exerciseId: string, dir: -1 | 1) => {
+      setLocalSets((cur) => {
+        const next = moveExerciseSets(cur, exerciseId, dir)
+        if (next === cur) return cur
+        scheduleSync(next)
+        return next
       })
     },
     [scheduleSync],
@@ -788,7 +802,7 @@ export default function Session() {
         <div className="card empty">Belum ada gerakan. Tambahkan lewat tombol di bawah.</div>
       )}
 
-      {Array.from(grouped.entries()).map(([exId, sets]) => {
+      {Array.from(grouped.entries()).map(([exId, sets], idx) => {
         const dur = exerciseIsDuration(exercises, exId)
         const cardio = isCardio(exId)
         const e1RmRef = bestE1RmMap.get(exId) ?? 0
@@ -802,7 +816,11 @@ export default function Session() {
                   <span className="badge accent" style={{ marginLeft: 8 }}>e1RM ~{fmtNumber(e1RmRef)} kg</span>
                 )}
               </span>
-              <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
+              <div className="row" style={{ gap: 4 }}>
+                <button className="btn sm ghost" disabled={idx === 0} onClick={() => moveExercise(exId, -1)} aria-label="Pindah gerakan ke atas">↑</button>
+                <button className="btn sm ghost" disabled={idx === grouped.size - 1} onClick={() => moveExercise(exId, 1)} aria-label="Pindah gerakan ke bawah">↓</button>
+                <button className="btn sm ghost" onClick={() => addSet(exId)}>+ Set</button>
+              </div>
             </div>
           <div className="row small muted" style={{ padding: '2px 0 6px' }}>
             <span className="num">#</span>

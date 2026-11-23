@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets } from './helpers'
+import { categoryOfExercise, categoryKeysOfExercise, exerciseIsDuration, getExerciseName, isCountedSession, normalizeRestSession, bestSetResult, fmtNumber, fmtInput, renumberExerciseSets, moveExerciseSets } from './helpers'
 import { parseDecimal } from './parse'
 import type { Exercise, Session, SessionSet } from '../types'
 
@@ -221,5 +221,42 @@ describe('renumberExerciseSets (hapus set → nomor dirapikan 1..n)', () => {
     // Hapus #1 lalu urungkan: [A#1, B#1, C#2] → [1, 2, 3]
     const sets = [mkSet('a', 'ex1', 1), mkSet('b', 'ex1', 1), mkSet('c', 'ex1', 2)]
     expect(nums(renumberExerciseSets(sets, 'ex1'))).toEqual([1, 2, 3])
+  })
+})
+
+describe('moveExerciseSets (pindah urutan gerakan ↑ ↓)', () => {
+  const mkSet = (id: string, exerciseId: string, setNumber: number, weightKg = 10): SessionSet => ({
+    id, exerciseId, setNumber, weightKg, reps: 8,
+  })
+  const orderOf = (sets: SessionSet[]) => {
+    const order: string[] = []
+    for (const s of sets) if (!order.includes(s.exerciseId)) order.push(s.exerciseId)
+    return order
+  }
+  // exA 2 set, exB 1 set, exC 1 set
+  const base = [
+    mkSet('a1', 'exA', 1), mkSet('a2', 'exA', 2),
+    mkSet('b1', 'exB', 1),
+    mkSet('c1', 'exC', 1),
+  ]
+
+  it('gerakan tengah naik: B ke atas → B, A, C', () => {
+    expect(orderOf(moveExerciseSets(base, 'exB', -1))).toEqual(['exB', 'exA', 'exC'])
+  })
+  it('gerakan tengah turun: B ke bawah → A, C, B', () => {
+    expect(orderOf(moveExerciseSets(base, 'exB', 1))).toEqual(['exA', 'exC', 'exB'])
+  })
+  it('paling atas naik / paling bawah turun: tidak berubah', () => {
+    expect(moveExerciseSets(base, 'exA', -1)).toBe(base)
+    expect(moveExerciseSets(base, 'exC', 1)).toBe(base)
+  })
+  it('gerakan tidak dikenal: tidak berubah', () => {
+    expect(moveExerciseSets(base, 'exX', -1)).toBe(base)
+  })
+  it('set dalam gerakan tetap berurutan & datanya utuh', () => {
+    const r = moveExerciseSets(base, 'exB', -1)
+    expect(r.filter((s) => s.exerciseId === 'exA').map((s) => [s.setNumber, s.weightKg]))
+      .toEqual([[1, 10], [2, 10]])
+    expect(r.map((s) => s.id)).toEqual(['b1', 'a1', 'a2', 'c1'])
   })
 })
