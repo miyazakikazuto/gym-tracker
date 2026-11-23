@@ -41,6 +41,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
       { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
       { name: 'Bicep Curl DB', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+      { name: 'Zottman Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Hammer Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Tricep Pushdown', muscleGroup: 'Trisep', equipment: 'Kabel' },
       { name: 'Pec Fly (Machine)', muscleGroup: 'Dada', equipment: 'Machine' },

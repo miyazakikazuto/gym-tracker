@@ -177,3 +177,12 @@ describe('rename Rest/Cardio satu kata', () => {
     expect(newNameForOldPlan('Cardio Day')).toBe('Cardio')
   })
 })
+
+describe('Zottman Curl ada di preset Arm & Shoulder', () => {
+  it('sync preset ke akun lama bisa menemukannya', () => {
+    const arm = presetByKey('push')
+    const z = arm?.exercises.find((e) => e.name === 'Zottman Curl')
+    expect(z).toEqual({ name: 'Zottman Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' })
+    expect(baseCategoryForPresetKey('push', 'Bisep')).toBe('push')
+  })
+})
