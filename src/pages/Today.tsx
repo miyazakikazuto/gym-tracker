@@ -266,7 +266,7 @@ export default function Today() {
     if (isRestLoose(name ?? plan?.name ?? '')) {
       try {
         const payload = buildSession(null, base, () => 'reps', Date.now(), undefined, false)
-        payload.planName = 'Rest Day'
+        payload.planName = 'Rest'
         payload.endedAt = payload.startedAt
         payload.sets = []
         const ref = await createSession(uid, payload)
@@ -387,7 +387,7 @@ export default function Today() {
       await createSession(uid, {
         date: base,
         planId: null,
-        planName: 'Rest Day',
+        planName: 'Rest',
         note: '',
         startedAt: Date.now(),
         endedAt: Date.now(),

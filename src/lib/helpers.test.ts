@@ -116,10 +116,13 @@ describe('normalizeRestSession', () => {
       endedAt: null,
       sets: [{ id: 'x', exerciseId: 'e1', setNumber: 1, weightKg: 0, reps: 0 } as never],
     })
-    expect(normalizeRestSession(s)).toEqual({ planName: 'Rest Day', isExtra: false, endedAt: 1000, sets: [] })
+    expect(normalizeRestSession(s)).toEqual({ planName: 'Rest', isExtra: false, endedAt: 1000, sets: [] })
   })
   it('Rest kanonis → patch kosong (idempoten)', () => {
-    expect(normalizeRestSession(mkSession({ planName: 'Rest Day' }))).toEqual({})
+    expect(normalizeRestSession(mkSession({ planName: 'Rest' }))).toEqual({})
+  })
+  it('Rest nama lama → patch ganti nama ke Rest', () => {
+    expect(normalizeRestSession(mkSession({ planName: 'Rest Day' }))).toEqual({ planName: 'Rest' })
   })
   it('bukan rest → patch kosong', () => {
     expect(normalizeRestSession(mkSession({ planName: 'Leg Day' }))).toEqual({})

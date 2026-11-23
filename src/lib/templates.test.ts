@@ -11,7 +11,7 @@ describe('PLAN_PRESETS', () => {
 describe('presetByKey / presetByName', () => {
   it('byKey menemukan', () => {
     expect(presetByKey('leg')?.name).toBe('Lower')
-    expect(presetByKey('rest')?.name).toBe('Rest Day')
+    expect(presetByKey('rest')?.name).toBe('Rest')
   })
   it('byKey unknown → undefined', () => {
     expect(presetByKey('unknown')).toBeUndefined()
@@ -159,5 +159,21 @@ describe('newNameForOldPlan', () => {
   it('nama baru / bukan preset → undefined', () => {
     expect(newNameForOldPlan('Lower')).toBeUndefined()
     expect(newNameForOldPlan('Plan Custom')).toBeUndefined()
+  })
+})
+
+describe('rename Rest/Cardio satu kata', () => {
+  it('nama baru per key', () => {
+    expect(presetByKey('rest')?.name).toBe('Rest')
+    expect(presetByKey('cardio')?.name).toBe('Cardio')
+  })
+  it('nama lama tetap resolve (data lama kepake)', () => {
+    expect(presetByName('Rest Day')?.key).toBe('rest')
+    expect(presetByName('Cardio Day')?.key).toBe('cardio')
+    expect(presetByLooseName('[C5-S05] Rest Day — 3×3')?.key).toBe('rest')
+    expect(isRest('Rest')).toBe(true)
+    expect(isRest('Rest Day')).toBe(true)
+    expect(newNameForOldPlan('Rest Day')).toBe('Rest')
+    expect(newNameForOldPlan('Cardio Day')).toBe('Cardio')
   })
 })

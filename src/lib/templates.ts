@@ -77,7 +77,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
   },
   {
     key: 'cardio',
-    name: 'Cardio Day',
+    name: 'Cardio',
     shortLabel: 'CARDIO',
     dotColor: '#ff6699',
     exercises: [
@@ -89,7 +89,7 @@ export const PLAN_PRESETS: PlanPreset[] = [
   },
   {
     key: 'rest',
-    name: 'Rest Day',
+    name: 'Rest',
     shortLabel: 'REST',
     exercises: [],
   },
@@ -175,6 +175,8 @@ export const OLD_PRESET_NAMES: Record<string, string> = {
   push: 'Push Day',
   pull: 'Pull Day',
   easy: 'Easy Day',
+  rest: 'Rest Day',
+  cardio: 'Cardio Day',
 }
 
 export function presetByName(name: string): PlanPreset | undefined {
@@ -208,7 +210,7 @@ export function presetByLooseName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name.toLowerCase() === bare)
     // Nama lama ("Leg Day", "Push Day", ...) tetap ter-resolve ke preset baru.
     ?? PLAN_PRESETS.find((p) => (OLD_PRESET_NAMES[p.key] ?? '').toLowerCase() === bare)
-    // Label siklus pakai bentuk pendek: "Push" (bukan "Push Day"), "Cardio" (bukan "Cardio Day").
+    // Label siklus pakai bentuk pendek: "Push" (bukan "Push Day").
     ?? PLAN_PRESETS.find((p) => p.name.toLowerCase() === `${bare} day`)
     ?? PLAN_PRESETS.find((p) => (OLD_PRESET_NAMES[p.key] ?? '').toLowerCase() === `${bare} day`)
     ?? PLAN_PRESETS.find((p) => p.shortLabel.toLowerCase() === bare)
@@ -218,7 +220,7 @@ export function isRest(name: string): boolean {
   return presetByName(name)?.key === 'rest'
 }
 
-// Longgar: benar juga bila nama ditempeli stiker siklus ("[C5-S05] Rest Day — 3×3").
+// Longgar: benar juga bila nama ditempeli stiker siklus ("[C5-S05] Rest — 3×3").
 // Dipakai semua guard runtime agar Rest rusak-data tetap diperlakukan sebagai istirahat.
 export function isRestLoose(name: string): boolean {
   return presetByLooseName(name)?.key === 'rest'

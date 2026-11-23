@@ -125,7 +125,7 @@ export default function History() {
       if (isRestLoose(name)) {
         // Rest Day langsung selesai (tanpa stiker/extra) — tidak ada Rest "Berlangsung"
         payload = buildSession(plan, selKey, (id) => (exerciseIsDuration(exercises, id) ? 'duration' : 'reps'), startAt, undefined, false)
-        payload.planName = 'Rest Day'
+        payload.planName = 'Rest'
         payload.endedAt = payload.startedAt
         payload.sets = []
       } else if (settings.rehabMode === true) {

@@ -46,15 +46,15 @@ export function isCountedSession(s: Session): boolean {
 }
 
 /**
- * Patch kanonis untuk sesi Rest Day: nama bersih tanpa stiker, bukan extra,
+ * Patch kanonis untuk sesi Rest: nama bersih tanpa stiker, bukan extra,
  * langsung selesai, tanpa set. Idempoten — return {} bila sudah kanonis
- * atau bukan rest (cek longgar: stiker "[C5-S05] Rest Day — 3×3" ikut kena).
+ * atau bukan rest (cek longgar: stiker "[C5-S05] Rest — 3×3" ikut kena).
  * Field snapshot 5/3/1 (cycleLabel/scheme/…) dihapus pemanggil via deleteField.
  */
 export function normalizeRestSession(s: Session): Partial<Session> {
   if (!isRestLoose(s.planName)) return {}
   const patch: Partial<Session> = {}
-  if (s.planName !== 'Rest Day') patch.planName = 'Rest Day'
+  if (s.planName !== 'Rest') patch.planName = 'Rest'
   if (s.isExtra === true) patch.isExtra = false
   if (s.endedAt === null) patch.endedAt = s.startedAt
   if (s.sets.length > 0) patch.sets = []

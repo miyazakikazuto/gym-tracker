@@ -288,7 +288,7 @@ export default function Session() {
       <div className="page">
         <div className="row spread">
           <div>
-            <div className="page-title">😴 Rest Day</div>
+            <div className="page-title">😴 Rest</div>
             <div className="subtitle" style={{ marginBottom: 0 }}>
               {formatDMYWIB(session.date)} · hari istirahat — tanpa gerakan
             </div>
@@ -308,7 +308,7 @@ export default function Session() {
           <Modal onClose={() => setConfirmDel(false)} label="Hapus sesi">
             <h3>Hapus sesi ini?</h3>
             <div className="small muted" style={{ marginBottom: 10 }}>
-              "Rest Day" ({formatDMYWIB(session.date)}) akan dihapus permanen.
+              "Rest" ({formatDMYWIB(session.date)}) akan dihapus permanen.
             </div>
             <div className="form-actions sticky">
               <button className="btn ghost" onClick={() => setConfirmDel(false)}>Batal</button>

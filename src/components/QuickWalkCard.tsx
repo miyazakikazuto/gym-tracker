@@ -1,6 +1,6 @@
 // Quick-log jalan kaki (lapangan/Strava) — catat jarak + durasi tanpa buka halaman sesi.
-// Elevasi diisi manual di sesi. Auto-tempel ke sesi hari itu (Leg Day) bila ada,
-// kalau hari kosong bikin Cardio Day baru.
+// Elevasi diisi manual di sesi. Auto-tempel ke sesi cardio hari itu bila ada,
+// kalau hari kosong bikin Cardio baru.
 import { useState } from 'react'
 import { useData } from '../context/DataContext'
 import { useUid } from '../context/AuthContext'
@@ -61,7 +61,7 @@ export default function QuickWalkCard() {
         await createSession(uid, {
           date: walkDate,
           planId: null,
-          planName: 'Cardio Day',
+          planName: 'Cardio',
           note: '',
           startedAt: base,
           endedAt: base + Math.max(durSec, 1) * 1000,
@@ -84,7 +84,7 @@ export default function QuickWalkCard() {
     <div className="card">
       <div className="card-title">Cardio — Catat jalan</div>
       <div className="small muted" style={{ marginBottom: 8 }}>
-        Dari sesi Cardio Day — catat manual dari Strava (jarak + durasi — elevasi isi manual di sesi).
+        Dari sesi Cardio — catat manual dari Strava (jarak + durasi — elevasi isi manual di sesi).
       </div>
       <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>＋ Catat jalan hari ini</div>
       <div className="row wrap" style={{ gap: 6, marginBottom: 6 }}>
