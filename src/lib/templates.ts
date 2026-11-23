@@ -15,8 +15,8 @@ export interface PlanPreset {
 export const PLAN_PRESETS: PlanPreset[] = [
   {
     key: 'leg',
-    name: 'Leg Day',
-    shortLabel: 'LEG',
+    name: 'Lower',
+    shortLabel: 'LOW',
     dotColor: '#44cc88',
     exercises: [
       // Nama disamakan dengan DEFAULT_EXERCISES (src/lib/defaults.ts) supaya
@@ -34,43 +34,44 @@ export const PLAN_PRESETS: PlanPreset[] = [
   },
   {
     key: 'push',
-    name: 'Push Day',
-    shortLabel: 'PUSH',
+    name: 'Arm & Shoulder',
+    shortLabel: 'ARM',
     dotColor: '#6699ff',
     exercises: [
-      { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
-      { name: 'Incline DB press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
       { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
       { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
+      { name: 'Bicep Curl DB', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
+      { name: 'Hammer Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Tricep Pushdown', muscleGroup: 'Trisep', equipment: 'Kabel' },
       { name: 'Pec Fly (Machine)', muscleGroup: 'Dada', equipment: 'Machine' },
     ],
   },
   {
     key: 'pull',
-    name: 'Pull Day',
-    shortLabel: 'PULL',
+    name: 'Upper',
+    shortLabel: 'UPP',
     dotColor: '#aa77ff',
     exercises: [
+      // Dada + punggung bersamaan, ringan — Bench & Row tetap, tapi tanpa skema berat.
+      { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
+      { name: 'Incline DB press', muscleGroup: 'Dada', equipment: 'Dumbbell' },
       { name: 'Lat Pulldown', muscleGroup: 'Punggung', equipment: 'Kabel' },
       { name: 'Barbell Row', muscleGroup: 'Punggung', equipment: 'Barbell' },
       { name: 'Seated Cable Row', muscleGroup: 'Punggung', equipment: 'Kabel' },
-      { name: 'Bicep Curl DB', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
-      { name: 'Hammer Curl', muscleGroup: 'Bisep', equipment: 'Dumbbell' },
       { name: 'Face Pull', muscleGroup: 'Bahu', equipment: 'Kabel' },
     ],
   },
   {
     key: 'easy',
-    name: 'Easy Day',
-    shortLabel: 'EASY',
+    name: 'Full Body',
+    shortLabel: 'FULL',
     dotColor: '#7ee787',
     exercises: [
-      { name: 'Cable Hip Abduction', muscleGroup: 'Kaki', equipment: 'Kabel' },
-      { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight' },
-      { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight' },
-      { name: 'DB Lateral Raise', muscleGroup: 'Bahu', equipment: 'Dumbbell' },
-      { name: 'Dead Hang', muscleGroup: 'Forearm', equipment: 'Bodyweight' },
+      { name: 'Barbell Squat', muscleGroup: 'Kaki', equipment: 'Barbell' },
+      { name: 'Bench Press', muscleGroup: 'Dada', equipment: 'Barbell' },
+      { name: 'Lat Pulldown', muscleGroup: 'Punggung', equipment: 'Kabel' },
+      { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
+      { name: 'Hip Thrust', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
     ],
   },
@@ -166,8 +167,19 @@ export function typeForPresetExercise(name: string, muscleGroup: string): 'reps'
   return /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
 }
 
+// Nama lama (sebelum rename 23 Nov 2026) → key preset. Key TIDAK berubah
+// (leg/push/pull/easy) supaya plan & sesi lama tetap kepakai: planForKey
+// dan semua guard mencocokkan nama lama juga.
+export const OLD_PRESET_NAMES: Record<string, string> = {
+  leg: 'Leg Day',
+  push: 'Push Day',
+  pull: 'Pull Day',
+  easy: 'Easy Day',
+}
+
 export function presetByName(name: string): PlanPreset | undefined {
   return PLAN_PRESETS.find((p) => p.name === name)
+    ?? PLAN_PRESETS.find((p) => OLD_PRESET_NAMES[p.key] === name)
 }
 
 // Kupas stiker siklus dari nama/label: "[C1-S01] [C1-S01] Leg Day — 3×5"
@@ -186,8 +198,11 @@ export function stripSticker(name: string): string {
 export function presetByLooseName(name: string): PlanPreset | undefined {
   const bare = stripSticker(name).toLowerCase()
   return PLAN_PRESETS.find((p) => p.name.toLowerCase() === bare)
+    // Nama lama ("Leg Day", "Push Day", ...) tetap ter-resolve ke preset baru.
+    ?? PLAN_PRESETS.find((p) => (OLD_PRESET_NAMES[p.key] ?? '').toLowerCase() === bare)
     // Label siklus pakai bentuk pendek: "Push" (bukan "Push Day"), "Cardio" (bukan "Cardio Day").
     ?? PLAN_PRESETS.find((p) => p.name.toLowerCase() === `${bare} day`)
+    ?? PLAN_PRESETS.find((p) => (OLD_PRESET_NAMES[p.key] ?? '').toLowerCase() === `${bare} day`)
     ?? PLAN_PRESETS.find((p) => p.shortLabel.toLowerCase() === bare)
 }
 

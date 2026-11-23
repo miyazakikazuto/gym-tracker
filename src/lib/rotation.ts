@@ -1,11 +1,13 @@
 import { addDays, mondayOf, parseKey, todayKey } from './date'
-import { presetByName, presetByLooseName, presetByKey } from './templates'
+import { presetByName, presetByLooseName, presetByKey, OLD_PRESET_NAMES } from './templates'
 import { resolveShiftAnchor, type ShiftType } from './shift'
 import { isCountedSession } from './helpers'
 import type { Session, WorkoutPlan, UserSettings } from '../types'
-// Urutan default: mulai dari Leg, lalu Easy (recovery), Push, Pull.
+// Urutan default: Lower → Upper (dada+back ringan) → Arm & Shoulder → Full Body.
 // User bisa mengubah urutan di Pengaturan.
-const DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
+const DEFAULT_ROTATION = ['leg', 'pull', 'push', 'easy']
+// Rotasi default lama (sebelum rename 23 Nov 2026): Leg → Easy → Push → Pull.
+const LEGACY_DEFAULT_ROTATION = ['leg', 'easy', 'push', 'pull']
 
 export interface RotationState {
   rotation: string[]
@@ -13,8 +15,15 @@ export interface RotationState {
 }
 
 export function rotationOf(settings: Partial<UserSettings>): RotationState {
+  const saved = settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION
+  // Migrasi sekali jalan: yang belum pernah ubah urutan (masih default lama)
+  // ikut urutan baru. Yang sudah ubah sendiri tidak disentuh.
+  const rotation =
+    saved.length === LEGACY_DEFAULT_ROTATION.length && saved.every((k, i) => k === LEGACY_DEFAULT_ROTATION[i])
+      ? DEFAULT_ROTATION
+      : saved
   return {
-    rotation: settings.rotation && settings.rotation.length > 0 ? settings.rotation : DEFAULT_ROTATION,
+    rotation,
     anchor: resolveShiftAnchor(settings.shiftAnchor),
   }
 }
@@ -60,7 +69,9 @@ function nextRotationKey(settings: Partial<UserSettings>, sessions: Session[]): 
   return rotation[(idx + 1) % rotation.length]
 }
 
-// Saran final: shift malam → ringankan ke 'easy' (bisa ditimpa manual oleh user).
+// Saran final: shift malam → ringankan ke 'pull' (Upper: dada+back ringan,
+// bisa ditimpa manual oleh user). 'easy' dulu Easy Day, sekarang Full Body —
+// bukan hari ringan lagi, jadi jangan dipakai sebagai night-light.
 // todayShift dihitung dari siklus shift + override (lihat src/lib/shift.ts).
 export function suggestKey(
   settings: Partial<UserSettings>,
@@ -68,18 +79,19 @@ export function suggestKey(
   todayShift?: ShiftType | null,
 ): { key: string; isNightLight: boolean } {
   const key = nextRotationKey(settings, sessions)
-  const isNightLight = todayShift === 'malam' && key !== 'easy'
-  return { key: isNightLight ? 'easy' : key, isNightLight }
+  const isNightLight = todayShift === 'malam' && key !== 'pull'
+  return { key: isNightLight ? 'pull' : key, isNightLight }
 }
 
-// Plan milik user untuk suatu key preset (dicocokkan lewat nama preset)
+// Plan milik user untuk suatu key preset (dicocokkan lewat nama preset,
+// atau nama lama sebelum rename — plan "Leg Day" tetap kepakai untuk Lower).
 export function planForKey(plans: WorkoutPlan[], key: string): WorkoutPlan | undefined {
   const preset = presetByKey(key)
   if (!preset) return undefined
-  return plans.find((p) => p.name === preset.name)
+  return plans.find((p) => p.name === preset.name || p.name === (OLD_PRESET_NAMES[key] ?? ''))
 }
 
-// Mode bebas Week-3: Pull/Push/Leg bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
+// Mode bebas Week-3: Upper/Arm & Shoulder/Lower bebas urut, 3/3 baru lanjut, duplicate=1, 5/3/1 wave tetap urut
 export const FREE_WEEK_KEYS = ['pull', 'push', 'leg'] as const
 
 export function freeNextKey(doneKeys: Set<string>): string | null {

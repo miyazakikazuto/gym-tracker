@@ -1,7 +1,7 @@
 // 5/3/1 Session Tracking — Wendler periodization adapted for irregular schedules.
 // Position dihitung dari jumlah sesi selesai (bukan tanggal/minggu).
-// Default: 1 cycle = 16 sesi [Leg/Push/Pull/Easy] × 4 minggu.
-// Toggle Easy Day OFF: 1 cycle = 12 sesi [Leg/Push/Pull] × 4 minggu.
+// Default: 1 cycle = 16 sesi [Lower/Arm & Shoulder/Upper/Full Body] × 4 minggu.
+// Toggle Full Body OFF: 1 cycle = 12 sesi [Lower/Arm & Shoulder/Upper] × 4 minggu.
 
 import { isCountedSession } from './helpers'
 import type { Session, UserSettings } from '../types'
@@ -15,16 +15,16 @@ const ALL_SESSION_TYPES: ('leg' | 'push' | 'pull' | 'easy')[] = [
 ]
 
 const ALL_SESSION_LABELS = [
-  'Leg Day — 3×5',    'Push — 3×5',    'Pull Day',         'Easy Day',
-  'Leg Day — 3×3',    'Push — 3×3',    'Pull Day',         'Easy Day',
-  'Leg Day — 5/3/1',  'Push — 5/3/1',  'Pull Day',         'Easy Day',
-  'Leg Day — Deload',  'Push — Deload',  'Pull Day',         'Easy Day',
+  'Lower — 3×5',    'Arm & Shoulder — 3×5',    'Upper',     'Full Body',
+  'Lower — 3×3',    'Arm & Shoulder — 3×3',    'Upper',     'Full Body',
+  'Lower — 5/3/1',  'Arm & Shoulder — 5/3/1',  'Upper',     'Full Body',
+  'Lower — Deload', 'Arm & Shoulder — Deload', 'Upper',     'Full Body',
 ]
 
 // Lift yang dipakai di sesi 5/3/1 — berdasarkan TIPE sesi, bukan index:
 // Leg → Squat · Push → Bench · Pull → Deadlift (pola klasik Wendler).
 // Dengan begitu prescribed weights tetap benar walau urutan/index bergeser
-// karena exclusion (mis. Easy Day dimatikan).
+// karena exclusion (mis. Full Body dimatikan).
 const LIFT_BY_TYPE: Record<string, 'squat' | 'bench' | 'deadlift'> = {
   leg: 'squat',
   push: 'bench',

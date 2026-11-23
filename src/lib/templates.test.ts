@@ -10,14 +10,15 @@ describe('PLAN_PRESETS', () => {
 
 describe('presetByKey / presetByName', () => {
   it('byKey menemukan', () => {
-    expect(presetByKey('leg')?.name).toBe('Leg Day')
+    expect(presetByKey('leg')?.name).toBe('Lower')
     expect(presetByKey('rest')?.name).toBe('Rest Day')
   })
   it('byKey unknown → undefined', () => {
     expect(presetByKey('unknown')).toBeUndefined()
   })
   it('byName menemukan', () => {
-    expect(presetByName('Push Day')?.key).toBe('push')
+    expect(presetByName('Arm & Shoulder')?.key).toBe('push')
+    expect(presetByName('Push Day')?.key).toBe('push') // nama lama tetap resolve
   })
   it('byName unknown → undefined', () => {
     expect(presetByName('Tidak Ada')).toBeUndefined()
@@ -72,17 +73,19 @@ describe('baseCategoryForPresetKey / typeForPresetExercise', () => {
 
 describe('shortLabelFor / dotColorFor', () => {
   it('shortLabelFor', () => {
-    expect(shortLabelFor('Leg Day')).toBe('LEG')
-    expect(shortLabelFor('Push Day')).toBe('PUSH')
+    expect(shortLabelFor('Lower')).toBe('LOW')
+    expect(shortLabelFor('Leg Day')).toBe('LOW') // nama lama
+    expect(shortLabelFor('Arm & Shoulder')).toBe('ARM')
+    expect(shortLabelFor('Push Day')).toBe('ARM') // nama lama
     expect(shortLabelFor('Tidak Ada')).toBe('')
   })
   it('dotColorFor', () => {
-    expect(dotColorFor('Leg Day')).toBe('#44cc88')
+    expect(dotColorFor('Lower')).toBe('#44cc88')
     expect(dotColorFor('Tidak Ada')).toBeUndefined()
   })
   it('nama berstiker tetap ter-resolve (Fase 1)', () => {
-    expect(shortLabelFor('[C1-S01] Leg Day — 3×5')).toBe('LEG')
-    expect(shortLabelFor('[C1-S01] [C1-S01] Leg Day — 3×5 — 3×5')).toBe('LEG')
+    expect(shortLabelFor('[C1-S01] Leg Day — 3×5')).toBe('LOW')
+    expect(shortLabelFor('[C1-S01] [C1-S01] Leg Day — 3×5 — 3×5')).toBe('LOW')
     expect(dotColorFor('[C1-S02] Push — 3×5')).toBe('#6699ff')
   })
 })
@@ -114,11 +117,34 @@ describe('presetByLooseName', () => {
     expect(presetByLooseName('[C1-S01] Leg Day — 3×5')?.key).toBe('leg')
     expect(presetByLooseName('[C1-S01] [C1-S01] Leg Day — 3×5 — 3×5')?.key).toBe('leg')
   })
-  it('label siklus "Push" (tanpa Day) ter-resolve ke Push Day', () => {
+  it('label siklus "Push" (tanpa Day) ter-resolve ke Arm & Shoulder', () => {
     expect(presetByLooseName('[C1-S02] Push — 3×5')?.key).toBe('push')
     expect(presetByLooseName('Push')?.key).toBe('push')
   })
   it('unknown → undefined', () => {
     expect(presetByLooseName('[C1-S01] Tidak Ada — 3×5')).toBeUndefined()
+  })
+})
+
+describe('rename split 23 Nov 2026 (key tetap, nama baru)', () => {
+  it('nama baru per key', () => {
+    expect(presetByKey('leg')?.name).toBe('Lower')
+    expect(presetByKey('pull')?.name).toBe('Upper')
+    expect(presetByKey('push')?.name).toBe('Arm & Shoulder')
+    expect(presetByKey('easy')?.name).toBe('Full Body')
+  })
+  it('nama lama tetap resolve (data lama kepake)', () => {
+    expect(presetByName('Leg Day')?.key).toBe('leg')
+    expect(presetByName('Pull Day')?.key).toBe('pull')
+    expect(presetByName('Easy Day')?.key).toBe('easy')
+    expect(presetByLooseName('Pull Day')?.key).toBe('pull')
+    expect(presetByLooseName('[C1-S01] Pull Day — 3×5')?.key).toBe('pull')
+  })
+  it('Upper berisi dada + punggung, Arm & Shoulder berisi bahu + lengan', () => {
+    expect(presetByKey('pull')?.exercises.map((e) => e.name)).toContain('Bench Press')
+    expect(presetByKey('pull')?.exercises.map((e) => e.name)).toContain('Barbell Row')
+    expect(presetByKey('push')?.exercises.map((e) => e.name)).toContain('Overhead Press')
+    expect(presetByKey('push')?.exercises.map((e) => e.name)).toContain('Bicep Curl DB')
+    expect(presetByKey('push')?.exercises.map((e) => e.name)).not.toContain('Bench Press')
   })
 })

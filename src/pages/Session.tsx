@@ -491,8 +491,16 @@ export default function Session() {
   const addPool = (() => {
     const cat = (presetByLooseName(session.planName) ?? presetByName(session.planName))?.key
     if (!cat) return exercises
+    // Full Body (key 'easy') bisa akses SEMUA gerakan — tanpa filter.
+    if (cat === 'easy') return exercises
+    // Arm & Shoulder (key 'push'): bahu + lengan — filter per muscleGroup,
+    // karena kategori push/pull tidak membedakan lengan dari dada/punggung.
+    if (cat === 'push') {
+      return exercises.filter((e) => ['Bahu', 'Bisep', 'Trisep', 'Forearm'].includes(e.muscleGroup))
+    }
+    // Upper (key 'pull'): dada + punggung → kategori push + pull.
     // Key rehab (leg-iso/upper-r) tidak match kategori library — petakan dulu
-    const keys = rehabPoolKeys(cat)
+    const keys = cat === 'pull' ? ['push', 'pull'] : rehabPoolKeys(cat)
     return exercises.filter((e) => categoryKeysOfExercise(e).some((k) => keys.includes(k)))
   })()
 

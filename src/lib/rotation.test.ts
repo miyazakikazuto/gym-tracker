@@ -6,6 +6,7 @@ import {
   suggestKey,
   weekProgressFreeOrder,
   freeNextKey,
+  planForKey,
 } from './rotation'
 import type { Session } from '../types'
 
@@ -72,8 +73,13 @@ describe('daysSinceLast', () => {
 describe('rotationOf defaults', () => {
   it('tanpa settings → rotasi default & anchor default', () => {
     const r = rotationOf({})
-    expect(r.rotation).toEqual(['leg', 'easy', 'push', 'pull'])
+    expect(r.rotation).toEqual(['leg', 'pull', 'push', 'easy'])
     expect(r.anchor).toBe('2026-08-12')
+  })
+
+  it('rotasi default lama dimigrasi ke urutan baru; yang sudah diubah sendiri tidak disentuh', () => {
+    expect(rotationOf({ rotation: ['leg', 'easy', 'push', 'pull'] }).rotation).toEqual(['leg', 'pull', 'push', 'easy'])
+    expect(rotationOf({ rotation: ['pull', 'leg', 'push', 'easy'] }).rotation).toEqual(['pull', 'leg', 'push', 'easy'])
   })
 
   it('stale anchor 2026-08-15 diganti default', () => {
@@ -87,10 +93,10 @@ describe('suggestKey', () => {
   })
 
   it('lanjut dari sesi terakhir yang selesai', () => {
-    // Leg Day selesai → berikutnya easy
-    expect(suggestKey({}, [mkSession()]).key).toBe('easy')
-    // Push Day selesai → berikutnya pull
-    expect(suggestKey({}, [mkSession({ planName: 'Push Day' })]).key).toBe('pull')
+    // Lower selesai → berikutnya Upper
+    expect(suggestKey({}, [mkSession()]).key).toBe('pull')
+    // Arm & Shoulder selesai → berikutnya Full Body
+    expect(suggestKey({}, [mkSession({ planName: 'Push Day' })]).key).toBe('easy')
   })
 
   it('sesi Rest tidak menggeser rotasi', () => {
@@ -106,16 +112,16 @@ describe('suggestKey', () => {
     expect(suggestKey({}, [mkSession({ planName: 'Sesi Bebas' })]).key).toBe('leg')
   })
 
-  it('shift malam → diringankan ke easy + flag', () => {
+  it('shift malam → diringankan ke Upper + flag', () => {
     const r = suggestKey({}, [], 'malam')
-    expect(r.key).toBe('easy')
+    expect(r.key).toBe('pull')
     expect(r.isNightLight).toBe(true)
   })
 
-  it('next key sudah easy di shift malam → flag false', () => {
-    // Leg Day selesai → next = easy; night-light tidak menimpa apa pun
+  it('next key sudah Upper di shift malam → flag false', () => {
+    // Lower selesai → next = Upper; night-light tidak menimpa apa pun
     const r = suggestKey({}, [mkSession()], 'malam')
-    expect(r.key).toBe('easy')
+    expect(r.key).toBe('pull')
     expect(r.isNightLight).toBe(false)
   })
 
@@ -129,23 +135,23 @@ describe('suggestKey night-light & siang alias', () => {
   function mk(over: Partial<Session> = {}): Session {
     return { id: 'x', date: '2026-08-10', planId: null, planName: 'Leg Day', note: '', startedAt: 1, endedAt: 2, sets: [], ...over } as Session
   }
-  it('malam → easy (night-light)', () => {
+  it('malam → Upper (night-light)', () => {
     const sessions = [mk({ planName: 'Leg Day', date: '2026-08-10' })]
-    // rotasi default setelah Leg adalah easy, tapi bila next adalah push dan shift malam, should lighten ke easy
+    // rotasi default setelah Lower adalah Upper, tapi bila next bukan Upper dan shift malam, should lighten ke Upper
     const r = suggestKey({}, sessions, 'malam')
-    // setup: last is Leg → next is easy → isNightLight false karena key sudah easy
+    // setup: last is Lower → next is Upper → isNightLight false karena key sudah Upper
     expect(r.isNightLight).toBe(false)
-    // Now test dengan sesi last = Easy → next = Push, malam → isNightLight true
+    // Now test dengan sesi last = Full Body → next = Lower, malam → isNightLight true
     const sessions2 = [mk({ planName: 'Easy Day', date: '2026-08-10' })]
     const r2 = suggestKey({}, sessions2, 'malam')
-    expect(r2.key).toBe('easy')
+    expect(r2.key).toBe('pull')
     expect(r2.isNightLight).toBe(true)
   })
   it('pagi → tidak lighten', () => {
     const sessions = [{ id: 'x', date: '2026-08-10', planId: null, planName: 'Easy Day', note: '', startedAt: 1, endedAt: 2, sets: [] } as Session]
     const r = suggestKey({}, sessions, 'pagi')
     expect(r.isNightLight).toBe(false)
-    expect(r.key).toBe('push')
+    expect(r.key).toBe('leg')
   })
   it('siang alias ke sore tidak memicu night-light', () => {
     // shift siang should be treated as sore via shiftForDate, but suggestKey only checks 'malam'
@@ -236,5 +242,18 @@ describe('freeNextKey', () => {
     expect(freeNextKey(new Set(['pull']))).toBe('push')
     expect(freeNextKey(new Set(['pull', 'push']))).toBe('leg')
     expect(freeNextKey(new Set(['pull', 'push', 'leg']))).toBeNull()
+  })
+})
+
+describe('planForKey (nama lama tetap kepake)', () => {
+  const plans = [
+    { id: 'p1', name: 'Leg Day', dayOfWeek: null as number | null, items: [] },
+    { id: 'p2', name: 'Full Body', dayOfWeek: null as number | null, items: [] },
+  ]
+  it('plan nama lama ketemu untuk key baru', () => {
+    expect(planForKey(plans as never, 'leg')?.id).toBe('p1')
+  })
+  it('plan nama baru ketemu', () => {
+    expect(planForKey(plans as never, 'easy')?.id).toBe('p2')
   })
 })

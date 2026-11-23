@@ -103,7 +103,7 @@ describe('label & scheme lookup', () => {
   })
 
   it('getFullLabel format C/S dua digit', () => {
-    expect(getFullLabel(2, 4)).toBe('[C2-S05] Leg Day — 3×3')
+    expect(getFullLabel(2, 4)).toBe('[C2-S05] Lower — 3×3')
   })
 
   it('sesi Easy Day tanpa scheme → null', () => {

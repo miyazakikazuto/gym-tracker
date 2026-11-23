@@ -131,8 +131,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [uid, exercises])
 
-  // Migrasi stiker cycle yang salah tempel (mis. Leg Day ditempel Easy Day)
-  // + normalisasi planName berstiker ("[C1-S01] Leg Day — 3×5" → "Leg Day").
+  // Migrasi stiker cycle yang salah tempel (mis. Lower ditempel Upper)
+  // + normalisasi planName berstiker ("[C1-S01] Leg Day — 3×5" → "Lower").
   // Idempoten: sesi yang sudah polos & labelnya sudah benar tidak ditulis
   // ulang — sebelumnya perbandingan pakai planName mentah berstiker, jadi
   // semua sesi dari tombol Mulai selalu dianggap mismatch di tiap load.
@@ -140,7 +140,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid || !ready || sessions.length === 0 || cycleMigratingRef.current) return
     // Nama kanonis: preset yang cocok (longgar) atau hasil kupas stiker.
-    // "Push" dari label siklus → preset "Push Day" lewat presetByLooseName.
+    // "Push" dari label siklus lama → preset "Arm & Shoulder" lewat presetByLooseName.
     const canonicalName = (name: string): string => {
       const preset = presetByLooseName(name) ?? presetByName(name)
       return preset?.name ?? stripSticker(name)

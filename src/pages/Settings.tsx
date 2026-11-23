@@ -275,7 +275,7 @@ export default function Settings() {
             {settings.freeOrder ? (
               <>
                 <div className="small muted" style={{ marginTop: 4 }}>
-                  Week-3 bebas: <b>Pull / Push / Leg</b> bebas urut, hitam kalau selesai. Harus <b>3/3</b> baru bisa Lanjut week — duplicate dihitung 1. 5/3/1 wave tetap urut.
+                  Week-3 bebas: <b>Upper / Arm & Shoulder / Lower</b> bebas urut, hitam kalau selesai. Harus <b>3/3</b> baru bisa Lanjut week — duplicate dihitung 1. 5/3/1 wave tetap urut.
                 </div>
                 <div className="small" style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {['pull', 'push', 'leg'].map((k) => (
@@ -441,7 +441,7 @@ export default function Settings() {
           </div>
         </div>
         <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <label className="small" style={{ fontWeight: 700, flex: 1 }}>Sertakan Easy Day</label>
+          <label className="small" style={{ fontWeight: 700, flex: 1 }}>Sertakan Full Body</label>
           <button
             className={'btn sm ' + (settings.excludeEasyDay ? 'ghost' : 'primary')}
             onClick={() => saveSettings({ excludeEasyDay: !settings.excludeEasyDay })}
@@ -451,8 +451,8 @@ export default function Settings() {
         </div>
         <div className="small muted" style={{ marginBottom: 8 }}>
           {settings.excludeEasyDay
-            ? `Easy Day dihapus dari siklus — 1 cycle = ${cycleLen} sesi (Leg → Push → Pull × 4).`
-            : `Easy Day termasuk — 1 cycle = ${cycleLen} sesi (Leg → Push → Pull → Easy × 4).`}
+            ? `Full Body dihapus dari siklus — 1 cycle = ${cycleLen} sesi (Lower → Arm & Shoulder → Upper × 4).`
+            : `Full Body termasuk — 1 cycle = ${cycleLen} sesi (Lower → Arm & Shoulder → Upper → Full Body × 4).`}
         </div>
         <button className="btn sm danger" onClick={() => setConfirmReset(true)}>Reset Cycle</button>
       </div>
