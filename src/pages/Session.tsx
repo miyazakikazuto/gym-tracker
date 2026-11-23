@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUid } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
@@ -22,6 +22,32 @@ interface SetResult {
   durationSec?: number
   distanceKm?: number
   elevationM?: number
+}
+
+// Jam mulai/selesai di header sesi bisa diedit (ketuk jamnya) — picker
+// time bawaan HP, 24 jam tanpa PM (ikut format jam HP, HP Miya sudah 24 jam).
+const TIME_BTN_STYLE: CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  font: 'inherit',
+  fontSize: 'inherit',
+  color: 'var(--muted)',
+  textDecoration: 'underline',
+  textDecorationStyle: 'dashed',
+  textUnderlineOffset: 2,
+  cursor: 'pointer',
+}
+
+const TIME_INPUT_STYLE: CSSProperties = {
+  background: 'transparent',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  padding: '1px 6px',
+  font: 'inherit',
+  fontSize: 'inherit',
+  color: 'var(--text)',
+  width: 92,
 }
 
 // Kode error Firebase (permission-denied/unavailable/…) — toast generik
@@ -56,7 +82,7 @@ export default function Session() {
   const setsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rpeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [editingTime, setEditingTime] = useState(false)
+  const [editingWhich, setEditingWhich] = useState<'start' | 'end' | null>(null)
   // Daftar gerakan di luar kategori hari ini — dibuka manual, default tertutup
   const [showOtherEx, setShowOtherEx] = useState(false)
   const [exQuery, setExQuery] = useState('')
@@ -546,62 +572,75 @@ export default function Session() {
         <div>
           <div className="page-title">{session.planName}</div>
           <div className="subtitle" style={{ marginBottom: 0 }}>
-            {formatDMYWIB(session.date)} · mulai {formatHM(session.startedAt)}
-            {isNoonPlaceholder(session.startedAt, session.date) && !editingTime && (
+            {formatDMYWIB(session.date)} · mulai{' '}
+            {editingWhich === 'start' ? (
+              <input
+                type="time"
+                autoFocus
+                value={formatHM(session.startedAt)}
+                onBlur={() => setEditingWhich(null)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setEditingWhich(null) }}
+                onChange={(e) => {
+                  const [h, m] = e.target.value.split(':').map(Number)
+                  if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                  const base = parseKey(session.date).getTime()
+                  const next = base + h * 3600000 + m * 60000
+                  if (session.endedAt && next >= session.endedAt) {
+                    showToast('Jam mulai harus sebelum jam selesai', 'error')
+                    return
+                  }
+                  void updateSession(uid, session.id, { startedAt: next } as never)
+                    .then(() => setEditingWhich(null))
+                    .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
+                }}
+                style={TIME_INPUT_STYLE}
+              />
+            ) : (
+              <button
+                onClick={() => setEditingWhich('start')}
+                title="ubah jam mulai"
+                style={TIME_BTN_STYLE}
+              >
+                {formatHM(session.startedAt)}
+                {isNoonPlaceholder(session.startedAt, session.date) ? ' · estimasi ✎' : ' ✎'}
+              </button>
+            )}
+            {session.endedAt && (
               <>
-                {' · '}
-                <button
-                  onClick={() => setEditingTime(true)}
-                  title="sesuaikan jam mulai"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    font: 'inherit',
-                    fontSize: 'inherit',
-                    color: 'var(--muted)',
-                    textDecoration: 'underline',
-                    textDecorationStyle: 'dashed',
-                    textUnderlineOffset: 2,
-                    cursor: 'pointer',
-                  }}
-                >
-                  estimasi ✎
-                </button>
+                {' · selesai '}
+                {editingWhich === 'end' ? (
+                  <input
+                    type="time"
+                    autoFocus
+                    value={formatHM(session.endedAt)}
+                    onBlur={() => setEditingWhich(null)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingWhich(null) }}
+                    onChange={(e) => {
+                      const [h, m] = e.target.value.split(':').map(Number)
+                      if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                      const base = parseKey(session.date).getTime()
+                      const next = base + h * 3600000 + m * 60000
+                      if (next <= session.startedAt) {
+                        showToast('Jam selesai harus setelah jam mulai', 'error')
+                        return
+                      }
+                      void updateSession(uid, session.id, { endedAt: next } as never)
+                        .then(() => setEditingWhich(null))
+                        .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
+                    }}
+                    style={TIME_INPUT_STYLE}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setEditingWhich('end')}
+                    title="ubah jam selesai"
+                    style={TIME_BTN_STYLE}
+                  >
+                    {formatHM(session.endedAt)} ✎
+                  </button>
+                )}
               </>
             )}
-            {isNoonPlaceholder(session.startedAt, session.date) && editingTime && (
-              <>
-                {' · '}
-                <input
-                  type="time"
-                  autoFocus
-                  value={formatHM(session.startedAt)}
-                  onBlur={() => setEditingTime(false)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') setEditingTime(false) }}
-                  onChange={(e) => {
-                    const [h, m] = e.target.value.split(':').map(Number)
-                    if (!Number.isFinite(h) || !Number.isFinite(m)) return
-                    const base = parseKey(session.date).getTime()
-                    const next = base + h * 3600000 + m * 60000
-                    void updateSession(uid, session.id, { startedAt: next } as never)
-                      .then(() => setEditingTime(false))
-                      .catch(() => showToast('Gagal ubah jam — cek koneksi', 'error'))
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    borderRadius: 6,
-                    padding: '1px 6px',
-                    font: 'inherit',
-                    fontSize: 'inherit',
-                    color: 'var(--text)',
-                    width: 92,
-                  }}
-                />
-              </>
-            )}
-            {session.endedAt && ` · selesai ${formatHM(session.endedAt)}`}
           </div>
         </div>
         <button className="icon-btn" aria-label="Hapus sesi" onClick={() => setConfirmDel(true)}>🗑</button>
