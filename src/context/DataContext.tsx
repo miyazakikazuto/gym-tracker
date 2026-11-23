@@ -19,11 +19,11 @@ import {
   deleteBodyweight,
   patchExerciseCategories,
 } from '../lib/gymstore'
-import { categoryOfExercise, isCountedSession } from '../lib/helpers'
+import { categoryOfExercise, isCountedSession, renumberExerciseSets } from '../lib/helpers'
 import { presetByLooseName, presetByName, stripSticker, newNameForOldPlan } from '../lib/templates'
 import { todayKey } from '../lib/date'
 import { DEFAULT_EXERCISES } from '../lib/defaults'
-import type { Exercise, WorkoutPlan, Session, Bodyweight, UserSettings } from '../types'
+import type { Exercise, WorkoutPlan, Session, SessionSet, Bodyweight, UserSettings } from '../types'
 
 interface DataState {
   exercises: Exercise[]
@@ -205,6 +205,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     })
   }, [uid, ready, sessions, settings])
+
+  // Migrasi sekali jalan: nomor set yang bolong (mis. 2,3,4 karena set #1
+  // pernah dihapus sebelum ada perapian) dinomori ulang 1..n per gerakan.
+  // Idempoten: sesi yang nomornya sudah rapat tidak ditulis ulang, jadi
+  // data lama membaik sendiri tanpa input ulang.
+  const setRenumberRef = useRef(false)
+  useEffect(() => {
+    if (!uid || !ready || sessions.length === 0 || setRenumberRef.current) return
+    const mismatched: { id: string; sets: SessionSet[] }[] = []
+    for (const s of sessions) {
+      let fixed = s.sets
+      for (const ex of [...new Set(s.sets.map((x) => x.exerciseId))]) {
+        fixed = renumberExerciseSets(fixed, ex)
+      }
+      if (JSON.stringify(fixed) !== JSON.stringify(s.sets)) mismatched.push({ id: s.id, sets: fixed })
+    }
+    if (mismatched.length === 0) return
+    setRenumberRef.current = true
+    void (async () => {
+      try {
+        for (const m of mismatched) {
+          await updateSession(uid, m.id, { sets: m.sets })
+        }
+      } catch (err) {
+        console.warn('[DataContext] migrasi nomor set gagal:', err)
+        showToast('Perapian nomor set gagal — coba lagi', 'error')
+      } finally {
+        setRenumberRef.current = false
+      }
+    })()
+  }, [uid, ready, sessions])
 
   // Migrasi nama plan lama → nama baru (rename split 23 Nov 2026):
   // plan "Leg Day" jadi "Lower", "Push Day" → "Arm & Shoulder", dst.
