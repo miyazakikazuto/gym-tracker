@@ -6,6 +6,7 @@ import { isRehabSession } from '../lib/rehab'
 import { SBD_LIFTS, isSbdExercise } from '../lib/sbd'
 import { e1rm, e1rmStr, e1rmKg, E1RM_MAX_REPS } from '../lib/e1rm'
 import { secondaryFactorsFor } from '../lib/muscles'
+import { avgWeeklySetsPerMuscle, setTargetStatus, SET_TARGET_MIN, SET_TARGET_MAX } from '../lib/muscleSets'
 import { buildTrendWeeks, buildTrendMap, type TrendPoint } from '../lib/trend'
 import {
   formatPeriodForAI,
@@ -274,6 +275,13 @@ export default function Progress() {
     .sort((a, b) => b[1].vol - a[1].vol)
   const maxThisWeekVol = Math.max(...thisWeekList.map(([, v]) => v.vol), 1)
 
+  // Set per otot vs target — rata-rata set/minggu 4 minggu terakhir.
+  const muscleSets = useMemo(
+    () => avgWeeklySetsPerMuscle(visibleSessions, exercises, today, 4, inclSecondary),
+    [visibleSessions, exercises, today, inclSecondary],
+  )
+  const setScale = Math.max(SET_TARGET_MAX, ...muscleSets.rows.map((r) => r.avgPerWeek), 1)
+
   return (
     <div className="page">
       <div className="page-title">Progress</div>
@@ -326,6 +334,47 @@ export default function Progress() {
           </div>
           </>
         )}
+      </div>
+
+      {/* ===== Set per Otot vs Target ===== */}
+      <div className="card">
+        <div className="card-title">Set per Otot vs Target</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Rata-rata set/minggu · 4 minggu terakhir ({muscleSets.windowLabel})
+        </div>
+        {muscleSets.rows.map((r) => {
+          const st = setTargetStatus(r.avgPerWeek)
+          const pct = Math.min(100, (r.avgPerWeek / setScale) * 100)
+          return (
+            <div key={r.muscle} className="row" style={{ marginTop: 6, alignItems: 'center' }}>
+              <span className="small" style={{ width: 64, fontWeight: 700 }}>{r.muscle}</span>
+              <div className="bar-track grow" style={{ position: 'relative' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${(SET_TARGET_MIN / setScale) * 100}%`,
+                    width: `${((SET_TARGET_MAX - SET_TARGET_MIN) / setScale) * 100}%`,
+                    top: 0,
+                    bottom: 0,
+                    background: 'rgba(52, 211, 153, 0.18)',
+                  }}
+                />
+                <div className="bar-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="small" style={{ width: 112, textAlign: 'right' }}>
+                {fmtNumber(Math.round(r.avgPerWeek * 10) / 10)} set/mgg{' '}
+                <span className={'badge ' + (st === 'pas' ? 'ok' : st === 'kurang' ? 'warn' : 'accent')}>
+                  {st === 'pas' ? 'Pas' : st === 'kurang' ? 'Kurang' : 'Lebih'}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+        <div className="small muted" style={{ marginTop: 8 }}>
+          Target {SET_TARGET_MIN}–{SET_TARGET_MAX} set/otot/minggu · zona hijau = target · set sekunder
+          dihitung pecahan (mis. Bench Press → Trisep 0,5)
+          {inclSecondary ? '' : ' · saat ini primer saja — ubah di toggle "Include secondary" pada kartu volume'}
+        </div>
       </div>
 
       <div className="card">
