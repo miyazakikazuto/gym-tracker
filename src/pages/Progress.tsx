@@ -58,6 +58,8 @@ export default function Progress() {
   const [volPage, setVolPage] = useState(0)
   // true = volume otot termasuk kontribusi otot sekunder (mis. Bench Press → Trisep 0.5, Bahu 0.3)
   const [inclSecondary, setInclSecondary] = useState(true)
+  // Tab kartu Set per Otot: 'avg' = rata-rata 4 minggu vs target, 'week' = set minggu ini
+  const [muscleSetsTab, setMuscleSetsTab] = useState<'avg' | 'week'>('avg')
   const weeks = [3, 2, 1, 0].map((w) => {
     const k = w + volPage * 4
     const start = addDays(mondayOf(today), -k * 7)
@@ -90,36 +92,60 @@ export default function Progress() {
 
   // Volume per grup otot (mengikuti halaman pager volume)
   const MUSCLE_TRACKED = ['Dada', 'Punggung', 'Kaki', 'Bahu', 'Bisep', 'Trisep', 'Forearm', 'Core']
-  const muscleVol = new Map<string, number>()
-  // Volume yang tak teratribusi ke otot terlacak (gerakan hilang dari Library /
-  // grup Cardio) — ditampilkan sebagai baris "(Lainnya)" supaya tidak hilang diam-diam.
-  let otherVol = 0
-  // Pecahan secondary (vol × faktor) — ditampilkan terpisah agar footer tetap
-  // sebanding dengan chart mingguan.
-  let secVolTotal = 0
-  for (const m of MUSCLE_TRACKED) muscleVol.set(m, 0)
-  for (const s of visibleSessions) {
-    if (s.endedAt === null) continue
-    if (!weeks.some((w) => s.date >= w.start && s.date <= w.end)) continue
-    for (const set of s.sets) {
-      const ex = exercises.find((e) => e.id === set.exerciseId)
-      if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) {
-        otherVol += volumeOf([set])
-        continue
-      }
-      const vol = volumeOf([set])
-      muscleVol.set(ex.muscleGroup, (muscleVol.get(ex.muscleGroup) ?? 0) + vol)
-      if (inclSecondary) {
-        for (const f of secondaryFactorsFor(ex.name)) {
-          if (!MUSCLE_TRACKED.includes(f.group)) continue
-          muscleVol.set(f.group, (muscleVol.get(f.group) ?? 0) + vol * f.factor)
-          secVolTotal += vol * f.factor
+  // Volume (kg) per otot untuk satu rentang tanggal — dipakai kartu volume
+  // (4 minggu halaman pager) dan tab Minggu Ini di kartu Set per Otot.
+  const volByMuscle = (start: string, end: string) => {
+    const vol = new Map<string, number>()
+    // Volume yang tak teratribusi ke otot terlacak (gerakan hilang dari Library /
+    // grup Cardio) — ditampilkan sebagai baris "(Lainnya)" supaya tidak hilang diam-diam.
+    let other = 0
+    // Pecahan secondary (vol × faktor) — ditampilkan terpisah agar footer tetap
+    // sebanding dengan chart mingguan.
+    let sec = 0
+    for (const m of MUSCLE_TRACKED) vol.set(m, 0)
+    for (const s of visibleSessions) {
+      if (s.endedAt === null) continue
+      if (s.date < start || s.date > end) continue
+      for (const set of s.sets) {
+        const ex = exercises.find((e) => e.id === set.exerciseId)
+        if (!ex || !MUSCLE_TRACKED.includes(ex.muscleGroup)) {
+          other += volumeOf([set])
+          continue
+        }
+        const v = volumeOf([set])
+        vol.set(ex.muscleGroup, (vol.get(ex.muscleGroup) ?? 0) + v)
+        if (inclSecondary) {
+          for (const f of secondaryFactorsFor(ex.name)) {
+            if (!MUSCLE_TRACKED.includes(f.group)) continue
+            vol.set(f.group, (vol.get(f.group) ?? 0) + v * f.factor)
+            sec += v * f.factor
+          }
         }
       }
     }
+    return { vol, other, sec }
   }
+  const { vol: muscleVol, other: otherVol, sec: secVolTotal } = volByMuscle(
+    weeks[0].start,
+    weeks[weeks.length - 1].end,
+  )
   const muscleList = Array.from(muscleVol.entries()).sort((a, b) => b[1] - a[1])
   const maxMuscleVol = Math.max(...muscleList.map(([, v]) => v), otherVol, 1)
+  // Volume per otot + ringkasan minggu berjalan — untuk tab Minggu Ini di kartu Set per Otot
+  // (nama berprefix sets* karena thisWeek* sudah dipakai kartu Otot Minggu Ini di bawah)
+  const setsWeekStart = mondayOf(today)
+  const setsWeekEnd = addDays(setsWeekStart, 6)
+  const setsWeekVol = volByMuscle(setsWeekStart, setsWeekEnd)
+  let setsWeekSessions = 0
+  let setsWeekSets = 0
+  let setsWeekVolume = 0
+  for (const s of visibleSessions) {
+    if (s.endedAt === null) continue
+    if (s.date < setsWeekStart || s.date > setsWeekEnd) continue
+    setsWeekSessions += 1
+    setsWeekSets += s.sets.length
+    setsWeekVolume += volumeOf(s.sets)
+  }
 
   // Weekly best e1RM per exercise (8 minggu kalender terakhir)
   const trendWins = buildTrendWeeks(today)
@@ -281,6 +307,15 @@ export default function Progress() {
     [visibleSessions, exercises, today, inclSecondary],
   )
   const setScale = Math.max(SET_TARGET_MAX, ...muscleSets.rows.map((r) => r.avgPerWeek), 1)
+  // Tab Minggu Ini: urut per set minggu ini, skala mengikuti nilai minggu ini
+  const muscleSetsRows =
+    muscleSetsTab === 'week'
+      ? [...muscleSets.rows].sort((a, b) => b.thisWeek - a.thisWeek)
+      : muscleSets.rows
+  const muscleSetsScale =
+    muscleSetsTab === 'week'
+      ? Math.max(SET_TARGET_MAX, ...muscleSets.rows.map((r) => r.thisWeek), 1)
+      : setScale
 
   return (
     <div className="page">
@@ -339,12 +374,19 @@ export default function Progress() {
       {/* ===== Set per Otot vs Target ===== */}
       <div className="card">
         <div className="card-title">Set per Otot vs Target</div>
-        <div className="small muted" style={{ marginBottom: 8 }}>
-          Rata-rata set/minggu · 4 minggu terakhir ({muscleSets.windowLabel})
+        <div className="cal-toggle" style={{ marginBottom: 10 }}>
+          <button className={muscleSetsTab === 'avg' ? 'active' : ''} onClick={() => setMuscleSetsTab('avg')}>Target 4 mgg</button>
+          <button className={muscleSetsTab === 'week' ? 'active' : ''} onClick={() => setMuscleSetsTab('week')}>Minggu Ini</button>
         </div>
-        {muscleSets.rows.map((r) => {
-          const st = setTargetStatus(r.avgPerWeek)
-          const pct = Math.min(100, (r.avgPerWeek / setScale) * 100)
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          {muscleSetsTab === 'avg'
+            ? `Rata-rata set/minggu · 4 minggu terakhir (${muscleSets.windowLabel})`
+            : `Set & volume minggu ini · ${muscleSets.thisWeekLabel}`}
+        </div>
+        {muscleSetsRows.map((r) => {
+          const val = muscleSetsTab === 'week' ? r.thisWeek : r.avgPerWeek
+          const st = setTargetStatus(val)
+          const pct = Math.min(100, (val / muscleSetsScale) * 100)
           return (
             <div key={r.muscle} className="row" style={{ marginTop: 6, alignItems: 'center' }}>
               <span className="small" style={{ width: 64, fontWeight: 700 }}>{r.muscle}</span>
@@ -352,8 +394,8 @@ export default function Progress() {
                 <div
                   style={{
                     position: 'absolute',
-                    left: `${(SET_TARGET_MIN / setScale) * 100}%`,
-                    width: `${((SET_TARGET_MAX - SET_TARGET_MIN) / setScale) * 100}%`,
+                    left: `${(SET_TARGET_MIN / muscleSetsScale) * 100}%`,
+                    width: `${((SET_TARGET_MAX - SET_TARGET_MIN) / muscleSetsScale) * 100}%`,
                     top: 0,
                     bottom: 0,
                     background: 'rgba(52, 211, 153, 0.18)',
@@ -361,8 +403,10 @@ export default function Progress() {
                 />
                 <div className="bar-fill" style={{ width: `${pct}%` }} />
               </div>
-              <div className="small" style={{ width: 112, textAlign: 'right' }}>
-                {fmtNumber(Math.round(r.avgPerWeek * 10) / 10)} set/mgg{' '}
+              <div className="small" style={{ width: muscleSetsTab === 'week' ? 176 : 112, textAlign: 'right' }}>
+                {fmtNumber(Math.round(val * 10) / 10)} {muscleSetsTab === 'week' ? 'set' : 'set/mgg'}
+                {muscleSetsTab === 'week' &&
+                  ` · ${fmtNumber(Math.round(setsWeekVol.vol.get(r.muscle) ?? 0))} kg`}{' '}
                 <span className={'badge ' + (st === 'pas' ? 'ok' : st === 'kurang' ? 'warn' : 'accent')}>
                   {st === 'pas' ? 'Pas' : st === 'kurang' ? 'Kurang' : 'Lebih'}
                 </span>
@@ -374,6 +418,8 @@ export default function Progress() {
           Target {SET_TARGET_MIN}–{SET_TARGET_MAX} set/otot/minggu · zona hijau = target · set sekunder
           dihitung pecahan (mis. Bench Press → Trisep 0,5)
           {inclSecondary ? '' : ' · saat ini primer saja — ubah di toggle "Include secondary" pada kartu volume'}
+          {muscleSetsTab === 'week' &&
+            ` · ${setsWeekSessions} sesi · ${setsWeekSets} set · ${fmtNumber(Math.round(setsWeekVolume))} kg minggu ini`}
         </div>
       </div>
 

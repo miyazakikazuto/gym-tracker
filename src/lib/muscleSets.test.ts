@@ -92,6 +92,24 @@ describe('avgWeeklySetsPerMuscle', () => {
     expect(rows.every((r) => r.avgPerWeek === 0)).toBe(true)
   })
 
+  it('thisWeek: hanya sesi minggu berjalan, sekunder ikut pecahan', () => {
+    // Squat 2 set minggu ini (24 Nov) + 2 set minggu lalu (18 Nov).
+    // Squat → Punggung 0,3 + Core 0,4 per set.
+    const sessions = [
+      sess('s1', '2026-11-24', 1, [set('a', 'squat'), set('b', 'squat')]),
+      sess('s2', '2026-11-18', 1, [set('c', 'squat'), set('d', 'squat')]),
+    ]
+    const { rows, thisWeekLabel } = avgWeeklySetsPerMuscle(sessions, EXERCISES, TODAY, 4, true)
+    const kaki = rows.find((r) => r.muscle === 'Kaki')!
+    const punggung = rows.find((r) => r.muscle === 'Punggung')!
+    const core = rows.find((r) => r.muscle === 'Core')!
+    expect(kaki.thisWeek).toBe(2)
+    expect(kaki.avgPerWeek).toBeCloseTo(1, 5)
+    expect(punggung.thisWeek).toBeCloseTo(0.6, 5)
+    expect(core.thisWeek).toBeCloseTo(0.8, 5)
+    expect(thisWeekLabel).toBe('23 Nov–29 Nov 2026')
+  })
+
   it('semua 8 otot selalu ada dan terurut menurun', () => {
     const sessions = [sess('s1', '2026-11-24', 1, [set('a', 'squat'), set('b', 'squat')])]
     const { rows, windowLabel } = avgWeeklySetsPerMuscle(sessions, EXERCISES, TODAY, 4, true)

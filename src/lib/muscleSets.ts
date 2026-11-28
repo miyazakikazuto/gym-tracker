@@ -48,7 +48,7 @@ export function avgWeeklySetsPerMuscle(
   today: string,
   numWeeks: number = SET_TARGET_WEEKS,
   inclSecondary: boolean = true,
-): { rows: MuscleSetRow[]; windowLabel: string } {
+): { rows: MuscleSetRow[]; windowLabel: string; thisWeekLabel: string } {
   const weeks = Math.max(1, Math.floor(numWeeks))
   const currentStart = mondayOf(today)
   const windows: Array<{ start: string; end: string }> = []
@@ -87,11 +87,14 @@ export function avgWeeklySetsPerMuscle(
     avgPerWeek: (totals.get(m) ?? 0) / weeks,
     thisWeek: thisWeekTotals.get(m) ?? 0,
   })).sort((a, b) => b.avgPerWeek - a.avgPerWeek)
-  const first = windows[0].start
-  const last = windows[windows.length - 1].end
-  const windowLabel =
+  const spanLabel = (first: string, last: string) =>
     first.slice(0, 4) === last.slice(0, 4)
       ? `${fmtDay(first)}–${fmtDay(last)} ${first.slice(0, 4)}`
       : `${fmtDay(first)} ${first.slice(0, 4)}–${fmtDay(last)} ${last.slice(0, 4)}`
-  return { rows, windowLabel }
+  const first = windows[0].start
+  const last = windows[windows.length - 1].end
+  const windowLabel = spanLabel(first, last)
+  const thisWeekWindow = windows[windows.length - 1]
+  const thisWeekLabel = spanLabel(thisWeekWindow.start, thisWeekWindow.end)
+  return { rows, windowLabel, thisWeekLabel }
 }
