@@ -68,6 +68,9 @@ describe('baseCategoryForPresetKey / typeForPresetExercise', () => {
     expect(typeForPresetExercise('Jalan Kaki', 'Cardio')).toBe('duration')
     expect(typeForPresetExercise('Treadmill', 'Cardio')).toBe('duration')
     expect(typeForPresetExercise('Leg Curl', 'Kaki')).toBe('reps')
+    expect(typeForPresetExercise('Plank', 'Core')).toBe('duration')
+    expect(typeForPresetExercise('Dead Hang', 'Forearm')).toBe('duration')
+    expect(typeForPresetExercise('Hanging Leg Raise', 'Core')).toBe('reps')
   })
 })
 

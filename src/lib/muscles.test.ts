@@ -26,8 +26,22 @@ describe('secondaryFactorsFor', () => {
   it('unknown pattern → []', () => {
     expect(secondaryFactorsFor('unknown exercise xyz')).toEqual([])
   })
-  it('leg curl → [] (isolasi)', () => {
-    expect(secondaryFactorsFor('leg curl')).toEqual([])
+  it('leg curl → Core 0.1 (stabilisasi pelvis)', () => {
+    expect(secondaryFactorsFor('leg curl')).toEqual([{ group: 'Core', factor: 0.1 }])
+  })
+  it('secondary yang dulu kosong: rear delt, pushdown, leg ext, calf', () => {
+    expect(secondaryFactorsFor('rear delt fly')).toEqual([{ group: 'Punggung', factor: 0.3 }])
+    expect(secondaryFactorsFor('tricep pushdown')).toEqual([{ group: 'Forearm', factor: 0.2 }])
+    expect(secondaryFactorsFor('leg extension')).toEqual([{ group: 'Core', factor: 0.1 }])
+    expect(secondaryFactorsFor('calf raise')).toEqual([{ group: 'Core', factor: 0.1 }])
+  })
+  it('core: plank/crunch/twist/dead bug → [] (primer Core), hanging raise → Kaki 0.2', () => {
+    expect(secondaryFactorsFor('plank')).toEqual([])
+    expect(secondaryFactorsFor('crunch')).toEqual([])
+    expect(secondaryFactorsFor('russian twist')).toEqual([])
+    expect(secondaryFactorsFor('dead bug')).toEqual([])
+    expect(secondaryFactorsFor('hanging leg raise')).toEqual([{ group: 'Kaki', factor: 0.2 }])
+    expect(secondaryFactorsFor('hanging knee raise')).toEqual([{ group: 'Kaki', factor: 0.2 }])
   })
   it('bicep curl → Forearm 0.3', () => {
     expect(secondaryFactorsFor('bicep curl')).toEqual([{ group: 'Forearm', factor: 0.3 }])

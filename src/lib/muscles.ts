@@ -24,10 +24,10 @@ const TABLE: MuscleMapEntry[] = [
   { patterns: ['cable crossover', 'cable fly'], secondary: [{ group: 'Bahu', factor: 0.1 }, { group: 'Trisep', factor: 0.1 }] },
   { patterns: ['overhead press', 'shoulder press', 'military press', 'ohp'], secondary: [{ group: 'Trisep', factor: 0.5 }, { group: 'Dada', factor: 0.2 }] },
   { patterns: ['front raise'], secondary: [{ group: 'Dada', factor: 0.2 }] },
-  { patterns: ['rear delt', 'reverse fly', 'reverse pec'], secondary: [] },
+  { patterns: ['rear delt', 'reverse fly', 'reverse pec'], secondary: [{ group: 'Punggung', factor: 0.3 }] },
   { patterns: ['fly', 'pec deck'], secondary: [{ group: 'Bahu', factor: 0.1 }, { group: 'Trisep', factor: 0.1 }] },
   { patterns: ['push up', 'pushup', 'push-up'], secondary: [{ group: 'Trisep', factor: 0.4 }, { group: 'Bahu', factor: 0.2 }] },
-  { patterns: ['pushdown', 'push down', 'tricep extension', 'triceps extension'], secondary: [] },
+  { patterns: ['pushdown', 'push down', 'tricep extension', 'triceps extension'], secondary: [{ group: 'Forearm', factor: 0.2 }] },
   { patterns: ['dips', 'dip'], secondary: [{ group: 'Dada', factor: 0.5 }, { group: 'Bahu', factor: 0.2 }] },
 
   // ===== PULL =====
@@ -35,13 +35,19 @@ const TABLE: MuscleMapEntry[] = [
   { patterns: ['pull up', 'pullup', 'pull-up'], secondary: [{ group: 'Bisep', factor: 0.5 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['lat pulldown', 'lat pull down', 'lat pull'], secondary: [{ group: 'Bisep', factor: 0.5 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['hammer curl'], secondary: [{ group: 'Forearm', factor: 0.5 }] },
-  { patterns: ['leg curl'], secondary: [] },
+  { patterns: ['leg curl'], secondary: [{ group: 'Core', factor: 0.1 }] },
   { patterns: ['bicep curl', 'biceps curl', 'preacher curl', 'curl'], secondary: [{ group: 'Forearm', factor: 0.3 }] },
   { patterns: ['shrugs', 'shrug'], secondary: [{ group: 'Bahu', factor: 0.3 }] },
   { patterns: ['face pull'], secondary: [{ group: 'Punggung', factor: 0.3 }, { group: 'Bisep', factor: 0.1 }] },
   { patterns: ['incline dumbbell row', 'incline db row', 'incline row', 'single db row', 'single arm row', 'one arm row', 'db row', 'dumbbell row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
   { patterns: ['cable row', 'seated row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.1 }] },
   { patterns: ['barbell row', 'bent over row', 'pendlay row', 't-bar row', 'tbar row'], secondary: [{ group: 'Bisep', factor: 0.4 }, { group: 'Forearm', factor: 0.2 }] },
+
+  // ===== CORE =====
+  // Diletakkan sebelum LEG: 'hanging leg raise' mengandung 'leg' tapi bukan
+  // gerakan kaki — first-match-wins harus kena entri ini dulu.
+  { patterns: ['hanging leg raise', 'hanging knee raise'], secondary: [{ group: 'Kaki', factor: 0.2 }] },
+  { patterns: ['crunch', 'russian twist', 'dead bug'], secondary: [] },
 
   // ===== LEG =====
   { patterns: ['reverse hack squat'], secondary: [{ group: 'Punggung', factor: 0.2 }, { group: 'Core', factor: 0.3 }] },
@@ -53,9 +59,9 @@ const TABLE: MuscleMapEntry[] = [
   { patterns: ['hip thrust', 'glute bridge'], secondary: [{ group: 'Core', factor: 0.3 }] },
   { patterns: ['squat'], secondary: [{ group: 'Punggung', factor: 0.3 }, { group: 'Core', factor: 0.4 }] },
   { patterns: ['leg press'], secondary: [{ group: 'Core', factor: 0.1 }] },
-  { patterns: ['leg extension', 'leg ext'], secondary: [] },
-  { patterns: ['calf raise', 'calf'], secondary: [] },
-  { patterns: ['plank'], secondary: [] },
+  { patterns: ['leg extension', 'leg ext'], secondary: [{ group: 'Core', factor: 0.1 }] },
+  { patterns: ['calf raise', 'calf'], secondary: [{ group: 'Core', factor: 0.1 }] },
+  { patterns: ['plank'], secondary: [] }, // primer Core — lihat DEFAULT_EXERCISES
 ]
 
 export function secondaryFactorsFor(name: string): SecondaryFactor[] {

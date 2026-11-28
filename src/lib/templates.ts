@@ -74,6 +74,11 @@ export const PLAN_PRESETS: PlanPreset[] = [
       { name: 'Overhead Press', muscleGroup: 'Bahu', equipment: 'Barbell' },
       { name: 'Hip Thrust', muscleGroup: 'Kaki', equipment: 'Barbell' },
       { name: 'Calf Raise', muscleGroup: 'Kaki', equipment: 'Machine' },
+      { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
+      { name: 'Crunch', muscleGroup: 'Core', equipment: 'Bodyweight' },
+      { name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight' },
+      { name: 'Russian Twist', muscleGroup: 'Core', equipment: 'Dumbbell' },
+      { name: 'Dead Bug', muscleGroup: 'Core', equipment: 'Bodyweight' },
     ],
   },
   {
@@ -163,9 +168,11 @@ export function baseCategoryForPresetKey(key: string, muscleGroup: string): stri
 }
 
 // Isometrik/hold/plank + seluruh cardio dicatat durasi, sisanya reps.
+// 'hang' sengaja TIDAK dipakai generik: 'Hanging Leg Raise' itu reps,
+// bukan hold — yang durasi hanya 'Dead Hang' (ditulis eksplisit).
 export function typeForPresetExercise(name: string, muscleGroup: string): 'reps' | 'duration' {
   if (muscleGroup === 'Cardio') return 'duration'
-  return /iso|isometr|hold|plank|hang/i.test(name) ? 'duration' : 'reps'
+  return /iso|isometr|hold|plank|dead hang/i.test(name) ? 'duration' : 'reps'
 }
 
 // Nama lama (sebelum rename 23 Nov 2026) → key preset. Key TIDAK berubah

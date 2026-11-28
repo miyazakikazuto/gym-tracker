@@ -73,6 +73,15 @@ export const DEFAULT_EXERCISES: DefaultExercise[] = [
   { name: 'Push-Up', muscleGroup: 'Dada', equipment: 'Bodyweight', category: 'home' },
   { name: 'Chin-Up', muscleGroup: 'Punggung', equipment: 'Bodyweight', category: 'easy', extraCategories: ['pull'] },
 
+  // ===== CORE =====
+  // Pertama kali Core punya gerakan primer — sebelumnya Core hanya terisi
+  // dari secondary (squat/deadlift/dll). Kategori 'easy' (Full Body).
+  { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight', category: 'easy', type: 'duration' },
+  { name: 'Crunch', muscleGroup: 'Core', equipment: 'Bodyweight', category: 'easy' },
+  { name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight', category: 'easy' },
+  { name: 'Russian Twist', muscleGroup: 'Core', equipment: 'Dumbbell', category: 'easy' },
+  { name: 'Dead Bug', muscleGroup: 'Core', equipment: 'Bodyweight', category: 'easy' },
+
   // ===== CARDIO =====
   { name: 'Treadmill', muscleGroup: 'Cardio', equipment: 'Bodyweight', category: 'cardio', type: 'duration' },
   { name: 'Stationary Bike', muscleGroup: 'Cardio', equipment: 'Bodyweight', category: 'cardio' },
